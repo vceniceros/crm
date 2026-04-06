@@ -1,0 +1,36 @@
+:host {
+  display: block;
+  min-height: 100dvh;
+}
+
+.app-shell {
+  min-height: 100dvh;
+  background: transparent;
+}
+
+.app-shell__sidenav {
+  width: var(--shell-sidebar-width);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top, rgba(183, 28, 28, 0.2), transparent 28%),
+    linear-gradient(180deg, #121214 0%, #19191c 100%);
+  color: var(--text-inverse);
+}
+
+.app-shell__content {
+  min-height: 100dvh;
+  min-width: 0;
+}
+
+.app-shell__main {
+  width: 100%;
+  min-width: 0;
+  padding: 1.5rem;
+}
+
+@media (max-width: 959px) {
+  .app-shell__main {
+    padding: 1rem;
+    overflow-x: clip;
+  }
+}

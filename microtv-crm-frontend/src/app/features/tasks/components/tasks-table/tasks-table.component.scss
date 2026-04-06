@@ -1,0 +1,79 @@
+.tasks-table {
+  min-width: 0;
+  border-radius: 1.6rem;
+  border: 1px solid rgba(23, 24, 26, 0.06);
+  box-shadow: var(--shadow-panel);
+}
+
+.tasks-table mat-card-header,
+.tasks-table mat-card-content {
+  padding-inline: 1.3rem;
+}
+
+.tasks-table mat-card-header {
+  padding-top: 1.2rem;
+}
+
+.tasks-table__scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.tasks-table__table {
+  width: 100%;
+  min-width: 860px;
+}
+
+.tasks-table__title {
+  font-weight: 700;
+}
+
+.tasks-table__subtasks {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.tasks-table__subtasks strong {
+  font-size: 0.95rem;
+}
+
+.tasks-table__subtasks span {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.tasks-table__assignee {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-weight: 600;
+}
+
+.mdc-data-table__header-cell,
+.mdc-data-table__cell {
+  border-bottom-color: rgba(23, 24, 26, 0.08);
+}
+
+th.mat-mdc-header-cell {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+td.mat-mdc-cell {
+  color: var(--text-primary);
+}
+
+@media (max-width: 640px) {
+  .tasks-table mat-card-header,
+  .tasks-table mat-card-content {
+    padding-inline: 1rem;
+  }
+
+  .tasks-table__table {
+    min-width: 700px;
+  }
+}

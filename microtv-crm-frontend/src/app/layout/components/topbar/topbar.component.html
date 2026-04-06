@@ -1,0 +1,24 @@
+<mat-toolbar class="topbar">
+  <div class="topbar__leading">
+    @if (showMenuButton()) {
+      <button type="button" mat-icon-button (click)="menuToggle.emit()" aria-label="Abrir menú lateral">
+        <mat-icon>menu</mat-icon>
+      </button>
+    }
+
+    <div class="topbar__title-group">
+      <p class="topbar__eyebrow">Panel principal</p>
+      <h1 class="topbar__title">{{ title() }}</h1>
+    </div>
+  </div>
+
+  <div class="topbar__actions">
+    <button type="button" mat-icon-button class="topbar__icon-button topbar__icon-button--alert" aria-label="Notificaciones">
+      <mat-icon>notifications</mat-icon>
+    </button>
+
+    <button type="button" mat-icon-button class="topbar__icon-button" aria-label="Ayuda">
+      <mat-icon>help_outline</mat-icon>
+    </button>
+  </div>
+</mat-toolbar>

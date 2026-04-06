@@ -1,0 +1,166 @@
+{
+  "brand": {
+    "name": "YCC Group",
+    "subtitle": "Gestor Interno"
+  },
+  "currentUser": {
+    "initials": "SM",
+    "name": "Sergio M.",
+    "role": "Administrador"
+  },
+  "topbar": {
+    "title": "Dashboard",
+    "searchPlaceholder": "Buscar tickets, tareas, clientes..."
+  },
+  "navigation": [
+    {
+      "section": "Principal",
+      "items": [
+        { "id": "dashboard", "label": "Dashboard", "icon": "dashboard", "route": "/", "active": true },
+        { "id": "tickets", "label": "Tickets", "icon": "confirmation_number", "badge": 12 },
+        { "id": "tasks", "label": "Tareas", "icon": "task_alt", "route": "/tasks", "badge": 5 }
+      ]
+    },
+    {
+      "section": "Operaciones",
+      "items": [
+        { "id": "stock", "label": "Depósito / Pañol", "icon": "inventory_2" },
+        { "id": "installations", "label": "Instalaciones", "icon": "engineering" }
+      ]
+    },
+    {
+      "section": "CRM",
+      "items": [
+        { "id": "clients", "label": "Clientes", "icon": "people" },
+        { "id": "billing", "label": "Facturación", "icon": "receipt_long" }
+      ]
+    },
+    {
+      "section": "Sistema",
+      "items": [
+        { "id": "reports", "label": "Reportes", "icon": "bar_chart" },
+        { "id": "settings", "label": "Configuración", "icon": "settings" }
+      ]
+    }
+  ],
+  "dashboard": {
+    "pageTitle": "Resumen operativo",
+    "pageSubtitle": "Seguimiento general de tickets, tareas y actividad reciente del equipo para una lectura rápida del estado operativo.",
+    "stats": [
+      {
+        "label": "Tickets Abiertos",
+        "value": "24",
+        "sublabel": "+3 respecto de la última semana",
+        "variant": "danger"
+      },
+      {
+        "label": "Tareas en Progreso",
+        "value": "17",
+        "sublabel": "6 asignadas para hoy",
+        "variant": "info"
+      },
+      {
+        "label": "Bloqueadas",
+        "value": "4",
+        "sublabel": "2 dependen de stock crítico",
+        "variant": "warning"
+      },
+      {
+        "label": "Cerradas (mes)",
+        "value": "89",
+        "sublabel": "92% dentro de SLA",
+        "variant": "success"
+      }
+    ],
+    "recentTickets": {
+      "title": "Tickets Recientes",
+      "columns": [
+        { "key": "id", "label": "ID" },
+        { "key": "subject", "label": "Asunto" },
+        { "key": "client", "label": "Cliente" },
+        { "key": "priority", "label": "Prioridad" },
+        { "key": "status", "label": "Estado" },
+        { "key": "assignedTo", "label": "Asignado" }
+      ],
+      "items": [
+        {
+          "id": "TK-2418",
+          "subject": "Sincronización irregular de cámaras en sucursal centro",
+          "client": "Hotel Plaza",
+          "priority": "Alta",
+          "priorityTone": "high",
+          "status": "En progreso",
+          "statusTone": "progress",
+          "assignedTo": "Luciano G.",
+          "assignedInitials": "LG"
+        },
+        {
+          "id": "TK-2416",
+          "subject": "Reposición de insumos para instalación programada",
+          "client": "Consorcio Libertad",
+          "priority": "Media",
+          "priorityTone": "medium",
+          "status": "Pendiente",
+          "statusTone": "neutral",
+          "assignedTo": "Carla R.",
+          "assignedInitials": "CR"
+        },
+        {
+          "id": "TK-2411",
+          "subject": "Corte intermitente en enlace de monitoreo",
+          "client": "Metalúrgica Sur",
+          "priority": "Crítica",
+          "priorityTone": "critical",
+          "status": "Bloqueado",
+          "statusTone": "warning",
+          "assignedTo": "Diego P.",
+          "assignedInitials": "DP"
+        },
+        {
+          "id": "TK-2407",
+          "subject": "Actualización de firmware finalizada",
+          "client": "Laboratorio Norte",
+          "priority": "Baja",
+          "priorityTone": "low",
+          "status": "Cerrado",
+          "statusTone": "success",
+          "assignedTo": "Marina S.",
+          "assignedInitials": "MS"
+        }
+      ]
+    },
+    "recentActivity": {
+      "title": "Actividad Reciente",
+      "items": [
+        {
+          "type": "Ticket",
+          "tone": "danger",
+          "text": "Se creó el ticket TK-2418 por incidencia de video en la sucursal centro.",
+          "timestamp": "Hace 12 min",
+          "actor": "Sistema"
+        },
+        {
+          "type": "Tarea",
+          "tone": "info",
+          "text": "Luciano G. tomó la intervención técnica asociada al ticket TK-2418.",
+          "timestamp": "Hace 28 min",
+          "actor": "Luciano G."
+        },
+        {
+          "type": "Depósito",
+          "tone": "warning",
+          "text": "Quedó marcado como crítico el stock de conectores para la orden INS-109.",
+          "timestamp": "Hace 1 h",
+          "actor": "Sistema"
+        },
+        {
+          "type": "Cierre",
+          "tone": "success",
+          "text": "Marina S. confirmó el cierre de la actualización de firmware en Laboratorio Norte.",
+          "timestamp": "Hace 2 h",
+          "actor": "Marina S."
+        }
+      ]
+    }
+  }
+}

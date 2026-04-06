@@ -1,0 +1,36 @@
+{
+  "clients": [
+    { "id": 1, "name": "Transporte del Norte" },
+    { "id": 2, "name": "Hotel Costamar" },
+    { "id": 3, "name": "Logística Sur" },
+    { "id": 4, "name": "Grupo Litoral" },
+    { "id": 5, "name": "Clínica Modelo" },
+    { "id": 6, "name": "Consorcio Libertad" }
+  ],
+  "templates": [
+    {
+      "id": 1,
+      "name": "Instalación estándar",
+      "description": "Alta operativa inicial, verificación de instalación base y cierre técnico con checklist estándar.",
+      "subtaskCount": 5
+    },
+    {
+      "id": 2,
+      "name": "Retiro de equipo",
+      "description": "Desinstalación controlada, embalaje y retorno de equipamiento a depósito para revisión.",
+      "subtaskCount": 3
+    },
+    {
+      "id": 3,
+      "name": "Mantenimiento técnico",
+      "description": "Chequeo general, diagnóstico técnico y corrección inicial según hallazgos en sitio.",
+      "subtaskCount": 4
+    },
+    {
+      "id": 4,
+      "name": "Migración de DVR",
+      "description": "Reemplazo programado, validación de grabación y control de continuidad operativa.",
+      "subtaskCount": 6
+    }
+  ]
+}

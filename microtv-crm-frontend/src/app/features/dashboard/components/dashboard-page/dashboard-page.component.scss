@@ -1,0 +1,35 @@
+.dashboard-page {
+  display: grid;
+  gap: 1.5rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.dashboard-page__grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: minmax(0, 2fr) minmax(20rem, 0.95fr);
+  align-items: start;
+  min-width: 0;
+}
+
+.dashboard-page > *,
+.dashboard-page__grid > * {
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .dashboard-page__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-page {
+    gap: 1rem;
+  }
+
+  .dashboard-page__grid {
+    gap: 1rem;
+  }
+}

@@ -1,0 +1,55 @@
+@import 'tailwindcss';
+
+:root {
+	--shell-sidebar-width: 288px;
+	--surface-base: #f4f5f7;
+	--surface-panel: #ffffff;
+	--surface-panel-strong: #151515;
+	--surface-panel-muted: #1f1f22;
+	--border-soft: #d7d9dd;
+	--border-strong: #28282c;
+	--text-primary: #17181a;
+	--text-secondary: #5f6672;
+	--text-inverse: #f5f7fa;
+	--brand-red: #b71c1c;
+	--brand-red-strong: #8f1111;
+	--brand-red-soft: #f9d7d7;
+	--accent-amber: #f4b740;
+	--accent-green: #2d8b57;
+	--accent-blue: #2563eb;
+	--accent-slate: #5f6672;
+	--shadow-panel: 0 18px 42px rgba(15, 18, 24, 0.08);
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	height: 100%;
+}
+
+body {
+	margin: 0;
+	font-family: 'Manrope', 'Segoe UI', sans-serif;
+	background:
+		radial-gradient(circle at top left, rgba(183, 28, 28, 0.08), transparent 22%),
+		linear-gradient(180deg, #fafafb 0%, #eff1f4 100%);
+	color: var(--text-primary);
+}
+
+button,
+input,
+textarea,
+select {
+	font: inherit;
+}
+
+.mat-mdc-icon-button {
+	color: inherit;
+}
+
+.mat-mdc-table {
+	background: transparent;
+}

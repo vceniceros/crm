@@ -1,0 +1,11 @@
+<section class="stats-cards">
+  @for (stat of stats(); track stat.label) {
+    <mat-card class="stats-cards__card" [class]="'stats-cards__card stats-cards__card--' + stat.variant">
+      <mat-card-content>
+        <p class="stats-cards__label">{{ stat.label }}</p>
+        <p class="stats-cards__value">{{ stat.value }}</p>
+        <p class="stats-cards__sublabel">{{ stat.sublabel }}</p>
+      </mat-card-content>
+    </mat-card>
+  }
+</section>

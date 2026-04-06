@@ -1,0 +1,41 @@
+.page-title {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.page-title__eyebrow,
+.page-title__title,
+.page-title__subtitle {
+  margin: 0;
+}
+
+.page-title__eyebrow {
+  color: var(--brand-red);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.page-title__title {
+  margin-top: 0.35rem;
+  font-size: clamp(1.55rem, 2vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.page-title__subtitle {
+  max-width: 36rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .page-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

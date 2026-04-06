@@ -1,0 +1,12 @@
+@if (dashboard$ | async; as dashboard) {
+  <section class="dashboard-page">
+    <app-page-title [title]="dashboard.pageTitle" [subtitle]="dashboard.pageSubtitle" />
+
+    <app-stats-cards [stats]="dashboard.stats" />
+
+    <div class="dashboard-page__grid">
+      <app-recent-tickets-table [block]="dashboard.recentTickets" />
+      <app-recent-activity-timeline [block]="dashboard.recentActivity" />
+    </div>
+  </section>
+}

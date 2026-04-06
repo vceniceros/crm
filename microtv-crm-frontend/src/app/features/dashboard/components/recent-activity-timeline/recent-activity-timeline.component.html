@@ -1,0 +1,25 @@
+<mat-card class="activity-timeline">
+  <mat-card-header>
+    <mat-card-title>{{ block().title }}</mat-card-title>
+  </mat-card-header>
+
+  <mat-card-content>
+    <ol class="activity-timeline__list">
+      @for (item of block().items; track item.timestamp + item.text) {
+        <li class="activity-timeline__item">
+          <span class="activity-timeline__marker" [class]="'activity-timeline__marker activity-timeline__marker--' + item.tone"></span>
+
+          <div class="activity-timeline__content">
+            <p class="activity-timeline__type">{{ item.type }}</p>
+            <p class="activity-timeline__text">{{ item.text }}</p>
+
+            <div class="activity-timeline__meta">
+              <span>{{ item.actor }}</span>
+              <span>{{ item.timestamp }}</span>
+            </div>
+          </div>
+        </li>
+      }
+    </ol>
+  </mat-card-content>
+</mat-card>

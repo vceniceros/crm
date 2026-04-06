@@ -1,0 +1,25 @@
+@if (tasksPage$ | async; as tasksPage) {
+  <section class="tasks-page">
+    <div class="tasks-page__header">
+      <app-page-title
+        eyebrow="Operación diaria"
+        [title]="tasksPage.pageTitle"
+        [subtitle]="tasksPage.pageSubtitle"
+      />
+
+      <div class="tasks-page__actions">
+        <button mat-stroked-button type="button" class="tasks-page__action tasks-page__action--secondary">
+          <mat-icon>{{ tasksPage.secondaryAction.icon }}</mat-icon>
+          <span>{{ tasksPage.secondaryAction.label }}</span>
+        </button>
+
+        <button mat-flat-button color="primary" type="button" class="tasks-page__action" (click)="openCreateTaskDialog()">
+          <mat-icon>{{ tasksPage.primaryAction.icon }}</mat-icon>
+          <span>{{ tasksPage.primaryAction.label }}</span>
+        </button>
+      </div>
+    </div>
+
+    <app-tasks-table [block]="tasksPage.tasksTable" />
+  </section>
+}

@@ -1,0 +1,26 @@
+.priority-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+}
+
+.priority-indicator__dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: var(--accent-slate);
+}
+
+.priority-indicator__dot--critical,
+.priority-indicator__dot--high {
+  background: var(--brand-red);
+}
+
+.priority-indicator__dot--medium {
+  background: var(--accent-amber);
+}
+
+.priority-indicator__dot--low {
+  background: var(--accent-green);
+}

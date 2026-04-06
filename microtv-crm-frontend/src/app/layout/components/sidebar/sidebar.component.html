@@ -1,0 +1,50 @@
+<aside class="sidebar">
+  <section class="sidebar__brand">
+    <div class="sidebar__brand-mark">Y</div>
+    <div>
+      <p class="sidebar__brand-name">{{ brand().name }}</p>
+      <p class="sidebar__brand-subtitle">{{ brand().subtitle }}</p>
+    </div>
+  </section>
+
+  <mat-divider />
+
+  <nav class="sidebar__nav" aria-label="Sidebar navigation">
+    @for (section of navigation(); track section.section) {
+      <section class="sidebar__section">
+        <p class="sidebar__section-title">{{ section.section }}</p>
+
+        <div class="sidebar__items">
+          @for (item of section.items; track item.id) {
+            <button
+              type="button"
+              class="sidebar__item"
+              [class.sidebar__item--active]="!item.route && item.active"
+              [routerLink]="item.route ?? null"
+              routerLinkActive="sidebar__item--active"
+              [routerLinkActiveOptions]="{ exact: isExactRoute(item.route) }"
+              (click)="itemSelected.emit(item.id)"
+            >
+              <span class="sidebar__item-main">
+                <mat-icon>{{ item.icon }}</mat-icon>
+                <span>{{ item.label }}</span>
+              </span>
+
+              @if (item.badge) {
+                <span class="sidebar__badge">{{ item.badge }}</span>
+              }
+            </button>
+          }
+        </div>
+      </section>
+    }
+  </nav>
+
+  <footer class="sidebar__footer">
+    <app-user-avatar [initials]="currentUser().initials" [size]="44" />
+    <div class="sidebar__footer-copy">
+      <p class="sidebar__footer-name">{{ currentUser().name }}</p>
+      <p class="sidebar__footer-role">{{ currentUser().role }}</p>
+    </div>
+  </footer>
+</aside>
