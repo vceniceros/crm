@@ -1,0 +1,101 @@
+<h2 mat-dialog-title>Crear cliente</h2>
+
+<mat-dialog-content>
+  <form class="create-client-dialog__form" [formGroup]="form" (ngSubmit)="submit()">
+    <section class="create-client-dialog__intro">
+      <p class="create-client-dialog__intro-title">Alta inicial de cliente</p>
+      <p class="create-client-dialog__intro-copy">
+        Registrá la información básica para dejar al cliente disponible dentro del mock CRM actual.
+      </p>
+    </section>
+
+    <div class="create-client-dialog__fields">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="create-client-dialog__wide-field">
+        <mat-label>Razón social</mat-label>
+        <input matInput formControlName="razonSocial" placeholder="Ej. Clínica Modelo S.A." />
+        @if (form.controls.razonSocial.hasError('required') && form.controls.razonSocial.touched) {
+          <mat-error>La razón social es obligatoria.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>CUIT</mat-label>
+        <input matInput formControlName="cuit" placeholder="30-71234567-8" />
+        @if (form.controls.cuit.hasError('required') && form.controls.cuit.touched) {
+          <mat-error>El CUIT es obligatorio.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Teléfono</mat-label>
+        <input matInput formControlName="telefono" placeholder="11 4321 6789" />
+        @if (form.controls.telefono.hasError('required') && form.controls.telefono.touched) {
+          <mat-error>El teléfono es obligatorio.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="create-client-dialog__wide-field">
+        <mat-label>Email</mat-label>
+        <input matInput type="email" formControlName="email" placeholder="operaciones@cliente.com.ar" />
+        @if (form.controls.email.hasError('required') && form.controls.email.touched) {
+          <mat-error>El email es obligatorio.</mat-error>
+        }
+        @if (form.controls.email.hasError('email') && form.controls.email.touched) {
+          <mat-error>Ingresá un email válido.</mat-error>
+        }
+      </mat-form-field>
+
+      <section class="create-client-dialog__location-card create-client-dialog__wide-field" aria-label="Ubicación del cliente">
+        <div class="create-client-dialog__location-header">
+          <div>
+            <p class="create-client-dialog__location-title">Ubicación</p>
+            <p class="create-client-dialog__location-copy">
+              Podés marcar el punto exacto en Leaflet. Desde esa selección se arma automáticamente el enlace externo a Maps.
+            </p>
+          </div>
+
+          <div class="create-client-dialog__location-actions">
+            <button mat-stroked-button type="button" (click)="openLocationPicker()">
+              <mat-icon>add_location_alt</mat-icon>
+              <span>{{ selectedLocation() ? 'Cambiar ubicación' : 'Seleccionar ubicación' }}</span>
+            </button>
+
+            @if (selectedLocation()) {
+              <button mat-button type="button" (click)="clearSelectedLocation()">
+                <mat-icon>delete</mat-icon>
+                <span>Quitar</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        @if (selectedLocation(); as location) {
+          <div class="create-client-dialog__location-summary">
+            <div>
+              <p class="create-client-dialog__location-label">Punto marcado</p>
+              <p class="create-client-dialog__location-value">{{ location.latitude.toFixed(5) }}, {{ location.longitude.toFixed(5) }}</p>
+            </div>
+
+            <div>
+              <p class="create-client-dialog__location-label">Referencia</p>
+              <p class="create-client-dialog__location-value">{{ location.addressLabel || 'Sin referencia visible' }}</p>
+            </div>
+          </div>
+
+          @if (googleMapsUrl(); as googleMapsUrl) {
+            <a class="create-client-dialog__maps-link" [href]="googleMapsUrl" target="_blank" rel="noopener noreferrer">
+              Mostrar en Maps
+            </a>
+          }
+        } @else {
+          <p class="create-client-dialog__location-empty">Todavía no seleccionaste una ubicación para este cliente.</p>
+        }
+      </section>
+    </div>
+
+    <mat-dialog-actions align="end">
+      <button mat-button type="button" mat-dialog-close>Cancelar</button>
+      <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">Crear cliente</button>
+    </mat-dialog-actions>
+  </form>
+</mat-dialog-content>

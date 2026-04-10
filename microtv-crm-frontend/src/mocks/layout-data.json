@@ -16,30 +16,30 @@
     {
       "section": "Principal",
       "items": [
-        { "id": "dashboard", "label": "Dashboard", "icon": "dashboard", "route": "/", "active": true },
-        { "id": "tickets", "label": "Tickets", "icon": "confirmation_number", "badge": 12 },
-        { "id": "tasks", "label": "Tareas", "icon": "task_alt", "route": "/tasks", "badge": 5 }
+        { "id": "dashboard", "moduleKey": "dashboard", "label": "Dashboard", "icon": "dashboard", "route": "/", "active": true },
+        { "id": "tickets", "moduleKey": "tickets", "label": "Tickets", "icon": "confirmation_number", "route": "/tickets", "badge": 12 },
+        { "id": "tasks", "moduleKey": "tasks", "label": "Tareas", "icon": "task_alt", "route": "/tasks", "badge": 5 }
       ]
     },
     {
       "section": "Operaciones",
       "items": [
-        { "id": "stock", "label": "Depósito / Pañol", "icon": "inventory_2" },
-        { "id": "installations", "label": "Instalaciones", "icon": "engineering" }
+        { "id": "stock", "moduleKey": "inventory", "label": "Depósito / Pañol", "icon": "inventory_2", "route": "/inventory" },
+        { "id": "installations", "moduleKey": "installations", "label": "Instalaciones", "icon": "engineering" }
       ]
     },
     {
       "section": "CRM",
       "items": [
-        { "id": "clients", "label": "Clientes", "icon": "people" },
-        { "id": "billing", "label": "Facturación", "icon": "receipt_long" }
+        { "id": "clients", "moduleKey": "clients", "label": "Clientes", "icon": "people", "route": "/clients" },
+        { "id": "billing", "moduleKey": "billing", "label": "Facturación", "icon": "receipt_long" }
       ]
     },
     {
       "section": "Sistema",
       "items": [
-        { "id": "reports", "label": "Reportes", "icon": "bar_chart" },
-        { "id": "settings", "label": "Configuración", "icon": "settings" }
+        { "id": "reports", "moduleKey": "reports", "label": "Reportes", "icon": "bar_chart" },
+        { "id": "settings", "moduleKey": "settings", "label": "Configuración", "icon": "settings" }
       ]
     }
   ],

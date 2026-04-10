@@ -1,0 +1,11 @@
+{
+  "items": [
+    { "id": 1, "name": "Cable UTP Cat6", "unit": "mts" },
+    { "id": 2, "name": "Conector RJ45", "unit": "un" },
+    { "id": 3, "name": "Fuente 12V 2A", "unit": "un" },
+    { "id": 4, "name": "Precinto plastico", "unit": "un" },
+    { "id": 5, "name": "Ficha DC macho", "unit": "un" },
+    { "id": 6, "name": "Balun pasivo", "unit": "un" },
+    { "id": 7, "name": "Canaleta autoadhesiva", "unit": "mts" }
+  ]
+}

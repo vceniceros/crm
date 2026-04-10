@@ -1,0 +1,58 @@
+<h2 mat-dialog-title>Cargar nuevo producto</h2>
+
+<mat-dialog-content>
+  @if (categories$ | async; as categories) {
+    <form class="create-product-dialog__form" [formGroup]="form" (ngSubmit)="submit()">
+      <section class="create-product-dialog__intro">
+        <p class="create-product-dialog__intro-title">Alta inicial de producto</p>
+        <p class="create-product-dialog__intro-copy">
+          Registra un nuevo item del deposito con su categoria, referencia visual y stock de arranque para dejarlo disponible en el listado.
+        </p>
+      </section>
+
+      <div class="create-product-dialog__fields">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Producto</mat-label>
+          <input matInput formControlName="name" placeholder="Ej. Fuente switching 12V 5A" />
+          @if (form.controls.name.hasError('required') && form.controls.name.touched) {
+            <mat-error>El producto es obligatorio.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Categoria</mat-label>
+          <mat-select formControlName="categoryId">
+            @for (category of categories; track category.id) {
+              <mat-option [value]="category.id">{{ category.name }}</mat-option>
+            }
+          </mat-select>
+          @if (form.controls.categoryId.hasError('required') && form.controls.categoryId.touched) {
+            <mat-error>Selecciona una categoria.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="create-product-dialog__wide-field">
+          <mat-label>Imagen</mat-label>
+          <input matInput formControlName="imageUrl" placeholder="https://ejemplo.com/producto.jpg" />
+          <mat-hint>Opcional. Si no se informa, el listado mostrara un placeholder.</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Stock inicial</mat-label>
+          <input matInput type="number" min="0" formControlName="initialStock" placeholder="0" />
+          @if (form.controls.initialStock.hasError('required') && form.controls.initialStock.touched) {
+            <mat-error>El stock inicial es obligatorio.</mat-error>
+          }
+          @if (form.controls.initialStock.hasError('min') && form.controls.initialStock.touched) {
+            <mat-error>El stock inicial no puede ser negativo.</mat-error>
+          }
+        </mat-form-field>
+      </div>
+
+      <mat-dialog-actions align="end">
+        <button mat-button type="button" mat-dialog-close>Cancelar</button>
+        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">Cargar producto</button>
+      </mat-dialog-actions>
+    </form>
+  }
+</mat-dialog-content>

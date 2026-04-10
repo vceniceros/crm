@@ -1,28 +1,54 @@
-import { Injectable } from '@angular/core';
-import { map, of, shareReplay } from 'rxjs';
+import { inject, Injectable } from '@angular/core';
+import { combineLatest, map, of, shareReplay, switchMap } from 'rxjs';
 
 import { DashboardData } from '../models/dashboard.model';
 import { BrandInfo, CurrentUser, LayoutMockData, TopbarInfo } from '../models/layout.model';
 import { NavigationSection } from '../models/navigation.model';
+import { MockAccessControlService } from './mock-access-control.service';
+import { MockUserContextService } from './mock-user-context.service';
 import layoutData from '../../../mocks/layout-data.json';
 
 @Injectable({ providedIn: 'root' })
 export class MockLayoutDataService {
-  readonly layoutData$ = of(layoutData as LayoutMockData).pipe(
+  private readonly mockAccessControlService = inject(MockAccessControlService);
+  private readonly mockUserContextService = inject(MockUserContextService);
+  private readonly layoutDataSource$ = of(layoutData as LayoutMockData).pipe(
     shareReplay({ bufferSize: 1, refCount: false })
   );
+  readonly currentUser$ = this.mockUserContextService.activeUser().pipe(
+    map((user): CurrentUser => ({
+      initials: user.initials,
+      name: user.name,
+      role: user.roleLabel
+    })),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
+  readonly navigation$ = this.selectFromSource((data) => data.navigation).pipe(
+    switchMap((navigation) => this.mockAccessControlService.filterNavigationForActiveUser(navigation)),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
+  readonly layoutData$ = combineLatest({
+    data: this.layoutDataSource$,
+    currentUser: this.currentUser$,
+    navigation: this.navigation$
+  }).pipe(
+    map(({ data, currentUser, navigation }) => ({
+      ...data,
+      currentUser,
+      navigation
+    })),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
 
-  readonly brand$ = this.select((data) => data.brand);
-  readonly currentUser$ = this.select((data) => data.currentUser);
-  readonly topbar$ = this.select((data) => data.topbar);
-  readonly navigation$ = this.select((data) => data.navigation);
-  readonly dashboard$ = this.select((data) => data.dashboard);
-  readonly stats$ = this.select((data) => data.dashboard.stats);
-  readonly recentTickets$ = this.select((data) => data.dashboard.recentTickets);
-  readonly recentActivity$ = this.select((data) => data.dashboard.recentActivity);
+  readonly brand$ = this.selectFromSource((data) => data.brand);
+  readonly topbar$ = this.selectFromSource((data) => data.topbar);
+  readonly dashboard$ = this.selectFromSource((data) => data.dashboard);
+  readonly stats$ = this.selectFromSource((data) => data.dashboard.stats);
+  readonly recentTickets$ = this.selectFromSource((data) => data.dashboard.recentTickets);
+  readonly recentActivity$ = this.selectFromSource((data) => data.dashboard.recentActivity);
 
-  private select<T>(project: (data: LayoutMockData) => T) {
-    return this.layoutData$.pipe(map(project));
+  private selectFromSource<T>(project: (data: LayoutMockData) => T) {
+    return this.layoutDataSource$.pipe(map(project));
   }
 }
 

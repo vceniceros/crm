@@ -1,0 +1,30 @@
+{
+  "pageTitle": "Tickets",
+  "pageSubtitle": "Seguimiento inicial de incidencias reportadas, con foco en categoria, dispositivo afectado y contexto operativo.",
+  "primaryAction": {
+    "id": "create-ticket",
+    "label": "Crear ticket",
+    "icon": "add_circle",
+    "variant": "primary"
+  },
+  "secondaryAction": {
+    "id": "ticket-history",
+    "label": "Historial",
+    "icon": "history",
+    "variant": "secondary"
+  },
+  "ticketsTable": {
+    "title": "Incidencias reportadas",
+    "columns": [
+      { "key": "id", "label": "ID" },
+      { "key": "title", "label": "Titulo" },
+      { "key": "category", "label": "Categoria" },
+      { "key": "affectedDevice", "label": "Dispositivo afectado" },
+      { "key": "status", "label": "Estado" },
+      { "key": "priority", "label": "Prioridad" },
+      { "key": "createdAt", "label": "Creado" },
+      { "key": "assignee", "label": "Asignado a" }
+    ],
+    "items": []
+  }
+}

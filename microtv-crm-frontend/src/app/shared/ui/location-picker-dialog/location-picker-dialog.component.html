@@ -1,0 +1,58 @@
+<h2 mat-dialog-title>{{ data.title || 'Seleccionar ubicación' }}</h2>
+
+<mat-dialog-content class="location-picker-dialog">
+  <section class="location-picker-dialog__intro">
+    <div class="location-picker-dialog__intro-icon" aria-hidden="true">
+      <mat-icon>my_location</mat-icon>
+    </div>
+
+    <div>
+      <p class="location-picker-dialog__intro-title">Marcá el punto exacto en el mapa</p>
+      <p class="location-picker-dialog__intro-copy">
+        Hacé click sobre el mapa para ubicar el cliente. Esa selección se guarda como coordenadas y desde ahí se genera el enlace externo a Maps.
+      </p>
+    </div>
+  </section>
+
+  <section class="location-picker-dialog__summary">
+    <div>
+      <p class="location-picker-dialog__summary-label">Coordenadas seleccionadas</p>
+      <p class="location-picker-dialog__summary-value">{{ coordinatesLabel() }}</p>
+    </div>
+
+    @if (googleMapsUrl(); as googleMapsUrl) {
+      <button mat-stroked-button type="button" (click)="openSelectedLocationInMaps()">
+        <mat-icon>open_in_new</mat-icon>
+        <span>Ver punto en Maps</span>
+      </button>
+    }
+  </section>
+
+  <section class="location-picker-dialog__map-shell">
+    <div #mapCanvas class="location-picker-dialog__map" aria-label="Selector de ubicación"></div>
+
+    @if (state() === 'loading' || state() === 'idle') {
+      <div class="location-picker-dialog__overlay" aria-live="polite">
+        <mat-progress-spinner diameter="40" mode="indeterminate"></mat-progress-spinner>
+        <p>Cargando selector de ubicación...</p>
+      </div>
+    }
+
+    @if (state() === 'error') {
+      <div class="location-picker-dialog__overlay location-picker-dialog__overlay--error" aria-live="polite">
+        <mat-icon>warning</mat-icon>
+        <div>
+          <p class="location-picker-dialog__message-title">No se pudo cargar el mapa</p>
+          <p class="location-picker-dialog__message-copy">{{ errorMessage() }}</p>
+        </div>
+      </div>
+    }
+  </section>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="close()">Cancelar</button>
+  <button mat-flat-button color="primary" type="button" [disabled]="!googleMapsUrl()" (click)="confirmSelection()">
+    Usar esta ubicación
+  </button>
+</mat-dialog-actions>

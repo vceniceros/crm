@@ -1,0 +1,70 @@
+<section class="required-items-editor">
+  <div class="required-items-editor__header">
+    <div>
+      <p class="required-items-editor__title">Items requeridos de deposito</p>
+      <p class="required-items-editor__subtitle">Asocia insumos previstos para resolver la incidencia y dejar lista la referencia operativa.</p>
+    </div>
+  </div>
+
+  <div class="required-items-editor__add-row" [formGroup]="addItemForm">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Item de deposito</mat-label>
+      <mat-select formControlName="itemId">
+        @for (item of items(); track item.id) {
+          <mat-option [value]="item.id" [disabled]="isSelected(item.id)">
+            {{ item.name }}
+            @if (item.unit) {
+              <span class="required-items-editor__unit-hint">({{ item.unit }})</span>
+            }
+          </mat-option>
+        }
+      </mat-select>
+      @if (addItemForm.controls.itemId.hasError('required') && addItemForm.controls.itemId.touched) {
+        <mat-error>Selecciona un item.</mat-error>
+      }
+      @if (addItemForm.controls.itemId.hasError('duplicate')) {
+        <mat-error>Ese item ya fue agregado al ticket.</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Cantidad</mat-label>
+      <input matInput type="number" min="1" formControlName="quantity" />
+      @if (addItemForm.controls.quantity.invalid && addItemForm.controls.quantity.touched) {
+        <mat-error>Ingresa una cantidad valida.</mat-error>
+      }
+    </mat-form-field>
+
+    <button mat-stroked-button type="button" (click)="addItem()">
+      <mat-icon>add</mat-icon>
+      <span>Agregar item</span>
+    </button>
+  </div>
+
+  @if (requiredItems().length) {
+    <div class="required-items-editor__list">
+      @for (item of requiredItems().controls; track trackItem(item)) {
+        <article class="required-items-editor__item">
+          <div>
+            <p class="required-items-editor__item-name">{{ item.controls.name.value }}</p>
+            <p class="required-items-editor__item-meta">
+              {{ item.controls.quantity.value }}
+              @if (item.controls.unit.value) {
+                <span>{{ item.controls.unit.value }}</span>
+              }
+            </p>
+          </div>
+
+          <button mat-icon-button type="button" (click)="removeItem($index)" aria-label="Quitar item requerido">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </article>
+      }
+    </div>
+  } @else {
+    <div class="required-items-editor__empty">
+      <mat-icon>inventory_2</mat-icon>
+      <p>Puedes dejar el ticket sin items asociados en esta etapa y definirlos mas adelante.</p>
+    </div>
+  }
+</section>

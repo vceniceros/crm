@@ -1,0 +1,14 @@
+{
+  "categories": [
+    { "id": 1, "name": "Conectividad" },
+    { "id": 2, "name": "Hardware" },
+    { "id": 3, "name": "Software" },
+    { "id": 4, "name": "Instalacion" },
+    { "id": 5, "name": "Configuracion" },
+    { "id": 6, "name": "Energia y fuentes" },
+    { "id": 7, "name": "Red y cableado" },
+    { "id": 8, "name": "Pantalla y visualizacion" },
+    { "id": 9, "name": "GPS y telemetria" },
+    { "id": 10, "name": "Danio fisico" }
+  ]
+}

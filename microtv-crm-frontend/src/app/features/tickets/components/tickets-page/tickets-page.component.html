@@ -1,0 +1,25 @@
+@if (ticketsPage$ | async; as ticketsPage) {
+  <section class="tickets-page">
+    <div class="tickets-page__header">
+      <app-page-title
+        eyebrow="Mesa operativa"
+        [title]="ticketsPage.pageTitle"
+        [subtitle]="ticketsPage.pageSubtitle"
+      />
+
+      <div class="tickets-page__actions">
+        <button mat-stroked-button type="button" class="tickets-page__action tickets-page__action--secondary">
+          <mat-icon>{{ ticketsPage.secondaryAction.icon }}</mat-icon>
+          <span>{{ ticketsPage.secondaryAction.label }}</span>
+        </button>
+
+        <button mat-flat-button color="primary" type="button" class="tickets-page__action" (click)="openCreateTicketDialog()">
+          <mat-icon>{{ ticketsPage.primaryAction.icon }}</mat-icon>
+          <span>{{ ticketsPage.primaryAction.label }}</span>
+        </button>
+      </div>
+    </div>
+
+    <app-tickets-table [block]="ticketsPage.ticketsTable" />
+  </section>
+}

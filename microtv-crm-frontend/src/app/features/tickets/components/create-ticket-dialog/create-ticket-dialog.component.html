@@ -1,0 +1,82 @@
+<h2 mat-dialog-title>Crear ticket</h2>
+
+<mat-dialog-content>
+  @if (viewModel$ | async; as viewModel) {
+    <form class="create-ticket-dialog__form" [formGroup]="form" (ngSubmit)="submit()">
+      <section class="create-ticket-dialog__intro">
+        <p class="create-ticket-dialog__intro-title">Registro inicial de incidencia</p>
+        <p class="create-ticket-dialog__intro-copy">
+          Documenta el problema reportado, el equipo afectado y los insumos previstos para resolverlo.
+        </p>
+      </section>
+
+      <div class="create-ticket-dialog__fields">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Titulo</mat-label>
+          <input matInput formControlName="title" placeholder="Ej. Sin imagen en monitor de recepcion" />
+          @if (form.controls.title.hasError('required') && form.controls.title.touched) {
+            <mat-error>El titulo es obligatorio.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Categoria</mat-label>
+          <mat-select formControlName="categoryId">
+            @for (category of viewModel.categories; track category.id) {
+              <mat-option [value]="category.id">{{ category.name }}</mat-option>
+            }
+          </mat-select>
+          @if (form.controls.categoryId.hasError('required') && form.controls.categoryId.touched) {
+            <mat-error>Selecciona una categoria.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Prioridad</mat-label>
+          <mat-select formControlName="priority">
+            @for (priority of viewModel.priorities; track priority.id) {
+              <mat-option [value]="priority.id">{{ priority.label }}</mat-option>
+            }
+          </mat-select>
+          @if (form.controls.priority.hasError('required') && form.controls.priority.touched) {
+            <mat-error>Selecciona una prioridad.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="create-ticket-dialog__description-field">
+          <mat-label>Descripcion</mat-label>
+          <textarea matInput rows="4" formControlName="description" placeholder="Describe el problema reportado y el contexto operativo"></textarea>
+          @if (form.controls.description.hasError('required') && form.controls.description.touched) {
+            <mat-error>La descripcion es obligatoria.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="create-ticket-dialog__device-field">
+          <mat-label>Dispositivo afectado</mat-label>
+          <mat-select formControlName="affectedDeviceId">
+            @for (device of viewModel.stockDevices; track device.id) {
+              <mat-option [value]="device.id">
+                <div class="create-ticket-dialog__device-option">
+                  <span>{{ device.name }}</span>
+                  <small>{{ device.code }} @if (device.serial) { · {{ device.serial }} }</small>
+                </div>
+              </mat-option>
+            }
+          </mat-select>
+          @if (form.controls.affectedDeviceId.hasError('required') && form.controls.affectedDeviceId.touched) {
+            <mat-error>Selecciona un dispositivo afectado.</mat-error>
+          }
+        </mat-form-field>
+      </div>
+
+      <section class="create-ticket-dialog__section">
+        <app-required-items-editor [requiredItems]="requiredItems" [items]="viewModel.inventoryItems" />
+      </section>
+
+      <mat-dialog-actions align="end">
+        <button mat-button type="button" mat-dialog-close>Cancelar</button>
+        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">Crear ticket</button>
+      </mat-dialog-actions>
+    </form>
+  }
+</mat-dialog-content>

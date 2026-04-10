@@ -1,0 +1,9 @@
+<section class="clients-grid" aria-label="Listado de clientes">
+  @for (client of clients(); track client.id) {
+    <app-client-card
+      [client]="client"
+      (openLocation)="openLocation.emit($event)"
+      (openExternalMaps)="openExternalMaps.emit($event)"
+    />
+  }
+</section>

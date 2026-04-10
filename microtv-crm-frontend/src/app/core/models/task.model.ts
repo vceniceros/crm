@@ -15,6 +15,7 @@ export interface TaskListItem {
   totalSubtasks: number;
   status: string;
   statusTone: TicketStatusTone;
+  assignedToUserId: number | string | null;
   assignedTo: string;
   assignedInitials: string;
 }
@@ -33,6 +34,7 @@ export interface TasksTableData {
 export interface TasksPageData {
   pageTitle: string;
   pageSubtitle: string;
+  templateAction?: TaskPageAction;
   primaryAction: TaskPageAction;
   secondaryAction: TaskPageAction;
   tasksTable: TasksTableData;

@@ -1,0 +1,116 @@
+@if (task$ | async; as task) {
+  <section class="task-execution-page">
+    <div class="task-execution-page__topbar">
+      <a mat-stroked-button routerLink="/tasks" class="task-execution-page__back-link">
+        <mat-icon>arrow_back</mat-icon>
+        <span>Volver al listado</span>
+      </a>
+
+      <button mat-flat-button color="primary" type="button" [disabled]="task.finalized || !task.canFinalize" (click)="finalizeTask()">
+        <mat-icon>{{ task.finalized ? 'task_alt' : 'check_circle' }}</mat-icon>
+        <span>{{ task.finalized ? 'Tarea finalizada' : 'Finalizar tarea' }}</span>
+      </button>
+    </div>
+
+    <div class="task-execution-page__header">
+      <app-page-title
+        eyebrow="Ejecución de tarea"
+        [title]="task.title"
+        [subtitle]="task.summary"
+      />
+
+      <div class="task-execution-page__header-side">
+        <app-status-badge [label]="task.status" [tone]="task.statusTone" />
+
+        <div class="task-execution-page__assignee">
+          <app-user-avatar [initials]="task.assigneeInitials" [size]="40" />
+          <div>
+            <p class="task-execution-page__meta-label">Asignado a</p>
+            <p class="task-execution-page__meta-value">{{ task.assigneeName }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="task-execution-page__summary-grid">
+      <mat-card class="task-execution-page__summary-card">
+        <mat-card-content>
+          <p class="task-execution-page__summary-label">Cliente</p>
+          <p class="task-execution-page__summary-value">{{ task.client }}</p>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="task-execution-page__summary-card">
+        <mat-card-content>
+          <p class="task-execution-page__summary-label">Avance</p>
+          <p class="task-execution-page__summary-value">{{ task.completedSubtasks }} / {{ task.totalSubtasks }}</p>
+          <div class="task-execution-page__progress-bar" aria-hidden="true">
+            <span [style.width.%]="task.progressPercent"></span>
+          </div>
+          <p class="task-execution-page__summary-caption">{{ task.progressPercent }}% completado</p>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="task-execution-page__summary-card">
+        <mat-card-content>
+          <p class="task-execution-page__summary-label">Última actualización</p>
+          <p class="task-execution-page__summary-value">
+            {{ task.updatedAt ? (task.updatedAt | date: 'dd/MM/yyyy HH:mm') : 'Sin cambios guardados todavía' }}
+          </p>
+          <p class="task-execution-page__summary-caption">
+            {{ task.finalized ? 'La edición quedó bloqueada al finalizar.' : 'El progreso se conserva aunque salgas sin finalizar.' }}
+          </p>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <div class="task-execution-page__content">
+      <mat-card class="task-execution-page__checklist-card">
+        <mat-card-header>
+          <mat-card-title>Checklist de ejecución</mat-card-title>
+          <mat-card-subtitle>
+            Las subtareas se habilitan en secuencia. Las hijas solo quedan disponibles cuando la tarea padre ya fue completada.
+          </mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+          <app-task-checklist-tree
+            [subtasks]="task.subtasks"
+            [disabled]="task.finalized"
+            (subtaskToggled)="toggleSubtask($event.subtaskId, $event.completed)"
+          />
+        </mat-card-content>
+      </mat-card>
+
+      <div class="task-execution-page__sidebar">
+        <app-task-comment-section
+          [comment]="task.comment"
+          [disabled]="task.finalized"
+          (commentChange)="updateComment($event)"
+        />
+
+        <app-task-attachments-section
+          [attachments]="task.attachments"
+          [disabled]="task.finalized"
+          (attachmentsSelected)="addAttachments($event)"
+          (attachmentRemoved)="removeAttachment($event)"
+        />
+      </div>
+    </div>
+
+    @if (!task.canFinalize && !task.finalized) {
+      <p class="task-execution-page__footer-note">La tarea solo puede finalizarse cuando todas las subtareas requeridas estén completas.</p>
+    }
+  </section>
+} @else {
+  <section class="task-execution-page task-execution-page--empty">
+    <mat-card class="task-execution-page__empty-card">
+      <mat-card-content>
+        <mat-icon>task</mat-icon>
+        <h2>Tarea no disponible</h2>
+        <p>La tarea no existe o no está asignada al usuario mock activo.</p>
+        <a mat-flat-button color="primary" routerLink="/tasks">Volver a tareas</a>
+      </mat-card-content>
+    </mat-card>
+  </section>
+}

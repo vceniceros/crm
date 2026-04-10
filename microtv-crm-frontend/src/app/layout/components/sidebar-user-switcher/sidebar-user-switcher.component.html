@@ -1,0 +1,42 @@
+@if (viewModel$ | async; as viewModel) {
+  <button
+    type="button"
+    class="sidebar-user-switcher"
+    [matMenuTriggerFor]="usersMenu"
+    aria-label="Cambiar usuario activo"
+  >
+    <app-user-avatar [initials]="viewModel.activeUser.initials" [size]="44" />
+
+    <div class="sidebar-user-switcher__copy">
+      <p class="sidebar-user-switcher__name">{{ viewModel.activeUser.name }}</p>
+      <p class="sidebar-user-switcher__role">{{ viewModel.activeUser.roleLabel }}</p>
+    </div>
+
+    <mat-icon class="sidebar-user-switcher__icon">unfold_more</mat-icon>
+  </button>
+
+  <mat-menu #usersMenu="matMenu" xPosition="before" yPosition="above" class="sidebar-user-switcher__menu-panel">
+    <div class="sidebar-user-switcher__menu" role="listbox" aria-label="Seleccionar usuario activo">
+      @for (user of viewModel.users; track user.id) {
+        <button
+          mat-menu-item
+          type="button"
+          class="sidebar-user-switcher__menu-item"
+          [class.sidebar-user-switcher__menu-item--active]="user.isActive"
+          (click)="setActiveUser(user.id)"
+        >
+          <app-user-avatar [initials]="user.initials" [size]="34" />
+
+          <span class="sidebar-user-switcher__menu-copy">
+            <span class="sidebar-user-switcher__menu-name">{{ user.name }}</span>
+            <span class="sidebar-user-switcher__menu-role">{{ user.roleLabel }}</span>
+          </span>
+
+          @if (user.isActive) {
+            <mat-icon class="sidebar-user-switcher__menu-check">check</mat-icon>
+          }
+        </button>
+      }
+    </div>
+  </mat-menu>
+}

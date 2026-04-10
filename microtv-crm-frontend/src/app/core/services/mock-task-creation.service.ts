@@ -3,7 +3,7 @@ import { map, of, shareReplay, tap } from 'rxjs';
 
 import { ClientOption } from '../models/client.model';
 import { CreateTaskFormValue, TaskCreationMockData } from '../models/create-task.model';
-import { TaskTemplateOption } from '../models/task-template.model';
+import { TaskTemplateOption } from '../models/task-template-option.model';
 import taskCreationData from '../../../mocks/task-creation-data.json';
 
 @Injectable({ providedIn: 'root' })

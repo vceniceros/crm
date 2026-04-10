@@ -29,7 +29,7 @@
                 "output": "mocks"
               }
             ],
-            "styles": ["src/material-theme.scss", "src/styles.css"],
+            "styles": ["node_modules/leaflet/dist/leaflet.css", "src/material-theme.scss", "src/styles.css"],
             "server": "src/main.server.ts",
             "outputMode": "server",
             "security": {
@@ -44,8 +44,8 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
-                  "maximumError": "1MB"
+                  "maximumWarning": "900kB",
+                  "maximumError": "1.2MB"
                 },
                 {
                   "type": "anyComponentStyle",

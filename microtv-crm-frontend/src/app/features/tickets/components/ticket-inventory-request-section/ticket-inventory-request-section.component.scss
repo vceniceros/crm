@@ -1,0 +1,163 @@
+.ticket-inventory-request-section {
+  border: 1px solid rgba(23, 24, 26, 0.06);
+  border-radius: 1.45rem;
+  box-shadow: var(--shadow-panel);
+}
+
+.ticket-inventory-request-section mat-card-header,
+.ticket-inventory-request-section mat-card-content {
+  padding-inline: 1.25rem;
+}
+
+.ticket-inventory-request-section mat-card-header {
+  padding-top: 1.15rem;
+}
+
+.ticket-inventory-request-section__composer {
+  display: grid;
+  gap: 0.95rem;
+  padding: 1rem;
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(249, 250, 252, 0.95));
+}
+
+.ticket-inventory-request-section__composer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(8rem, 0.7fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.ticket-inventory-request-section__draft-list,
+.ticket-inventory-request-section__requests {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.ticket-inventory-request-section__draft-item,
+.ticket-inventory-request-section__request-item,
+.ticket-inventory-request-section__submit-row,
+.ticket-inventory-request-section__request-top,
+.ticket-inventory-request-section__decision-actions {
+  display: flex;
+}
+
+.ticket-inventory-request-section__draft-item,
+.ticket-inventory-request-section__request-card {
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.ticket-inventory-request-section__draft-item,
+.ticket-inventory-request-section__submit-row,
+.ticket-inventory-request-section__request-top,
+.ticket-inventory-request-section__request-item {
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ticket-inventory-request-section__item-name,
+.ticket-inventory-request-section__item-meta,
+.ticket-inventory-request-section__request-title,
+.ticket-inventory-request-section__request-meta,
+.ticket-inventory-request-section__decision-note,
+.ticket-inventory-request-section__submit-row p,
+.ticket-inventory-request-section__empty p {
+  margin: 0;
+}
+
+.ticket-inventory-request-section__item-name,
+.ticket-inventory-request-section__request-title {
+  font-size: 0.94rem;
+  font-weight: 800;
+}
+
+.ticket-inventory-request-section__item-meta,
+.ticket-inventory-request-section__request-meta,
+.ticket-inventory-request-section__decision-note,
+.ticket-inventory-request-section__submit-row p {
+  margin-top: 0.2rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.ticket-inventory-request-section__decision-note {
+  padding-top: 0.8rem;
+}
+
+.ticket-inventory-request-section__items {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.9rem;
+}
+
+.ticket-inventory-request-section__request-item {
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.8rem;
+  background: rgba(23, 24, 26, 0.04);
+}
+
+.ticket-inventory-request-section__decision-box {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 0.95rem;
+  padding-top: 0.95rem;
+  border-top: 1px solid rgba(23, 24, 26, 0.08);
+}
+
+.ticket-inventory-request-section__decision-box label {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ticket-inventory-request-section__decision-box textarea {
+  min-height: 5.25rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid rgba(23, 24, 26, 0.12);
+  border-radius: 0.85rem;
+  font: inherit;
+  resize: vertical;
+}
+
+.ticket-inventory-request-section__decision-actions {
+  justify-content: flex-end;
+}
+
+.ticket-inventory-request-section__empty {
+  display: grid;
+  place-items: center;
+  gap: 0.55rem;
+  padding: 1.4rem 1rem;
+  border: 1px dashed rgba(23, 24, 26, 0.16);
+  border-radius: 1rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+@media (max-width: 840px) {
+  .ticket-inventory-request-section__composer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .ticket-inventory-request-section__submit-row,
+  .ticket-inventory-request-section__request-top,
+  .ticket-inventory-request-section__decision-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ticket-inventory-request-section__decision-actions button,
+  .ticket-inventory-request-section__submit-row button {
+    width: 100%;
+  }
+}

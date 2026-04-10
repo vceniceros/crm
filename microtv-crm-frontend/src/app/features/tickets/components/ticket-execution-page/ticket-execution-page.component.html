@@ -1,0 +1,118 @@
+@if (viewModel$ | async; as viewModel) {
+  @if (viewModel.ticket; as ticket) {
+    <section class="ticket-execution-page">
+      <div class="ticket-execution-page__topbar">
+        <a mat-stroked-button routerLink="/tickets" class="ticket-execution-page__back-link">
+          <mat-icon>arrow_back</mat-icon>
+          <span>Volver al listado</span>
+        </a>
+      </div>
+
+      <div class="ticket-execution-page__header">
+        <app-page-title eyebrow="Ejecución de ticket" [title]="ticket.title" [subtitle]="ticket.description" />
+
+        <div class="ticket-execution-page__header-side">
+          <app-status-badge [label]="ticket.status" [tone]="ticket.statusTone" />
+
+          <div class="ticket-execution-page__assignee-blocks">
+            <div class="ticket-execution-page__assignee">
+              <app-user-avatar [initials]="ticket.assigneeInitials || '?'" [size]="40" />
+              <div>
+                <p class="ticket-execution-page__meta-label">Técnico</p>
+                <p class="ticket-execution-page__meta-value">{{ ticket.assigneeName || 'Sin asignar' }}</p>
+              </div>
+            </div>
+
+            <div class="ticket-execution-page__assignee">
+              <app-user-avatar [initials]="ticket.depositAssigneeInitials || '?'" [size]="40" />
+              <div>
+                <p class="ticket-execution-page__meta-label">Depósito</p>
+                <p class="ticket-execution-page__meta-value">{{ ticket.depositAssigneeName || 'Sin asignar' }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ticket-execution-page__summary-grid">
+        <mat-card class="ticket-execution-page__summary-card">
+          <mat-card-content>
+            <p class="ticket-execution-page__summary-label">Categoría</p>
+            <p class="ticket-execution-page__summary-value">{{ ticket.category }}</p>
+            <p class="ticket-execution-page__summary-caption">{{ ticket.affectedDevice }}</p>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="ticket-execution-page__summary-card">
+          <mat-card-content>
+            <p class="ticket-execution-page__summary-label">Prioridad</p>
+            <app-priority-indicator [label]="ticket.priority" [tone]="ticket.priorityTone" />
+            <p class="ticket-execution-page__summary-caption">Creado {{ ticket.createdAt | date: 'dd/MM/yyyy HH:mm' }}</p>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="ticket-execution-page__summary-card">
+          <mat-card-content>
+            <p class="ticket-execution-page__summary-label">Última actualización</p>
+            <p class="ticket-execution-page__summary-value">
+              {{ ticket.updatedAt ? (ticket.updatedAt | date: 'dd/MM/yyyy HH:mm') : 'Sin cambios guardados todavía' }}
+            </p>
+            <p class="ticket-execution-page__summary-caption">La secuencia visible combina técnico, depósito y seguimiento administrativo.</p>
+          </mat-card-content>
+        </mat-card>
+      </div>
+
+      <app-ticket-description-section [ticket]="ticket" />
+
+      <div class="ticket-execution-page__content">
+        <div class="ticket-execution-page__main-column">
+          <app-ticket-resolution-section
+            [comment]="ticket.resolutionNote.comment"
+            [updatedAt]="ticket.resolutionNote.updatedAt"
+            [canEdit]="ticket.permissions.canEditResolution"
+            (commentChange)="updateResolutionComment($event)"
+          />
+
+          <app-ticket-inventory-request-section
+            [inventoryOptions]="viewModel.inventoryItems"
+            [requests]="ticket.inventoryRequests"
+            [canCreateRequest]="ticket.permissions.canCreateInventoryRequests"
+            [canReviewRequests]="ticket.permissions.canReviewInventoryRequests"
+            (requestCreated)="createInventoryRequest($event)"
+            (requestDecision)="decideInventoryRequest($event.requestId, $event.status, $event.comment)"
+          />
+
+          @if (ticket.permissions.canViewDispatch) {
+            <app-ticket-dispatch-section
+              [inventoryOptions]="viewModel.inventoryItems"
+              [requests]="ticket.inventoryRequests"
+              [dispatchedItems]="ticket.dispatchedItems"
+              [canManageDispatch]="ticket.permissions.canManageDispatch"
+              (dispatchCreated)="registerDispatch($event)"
+            />
+          }
+        </div>
+
+        <div class="ticket-execution-page__sidebar">
+          <app-ticket-attachments-section
+            [attachments]="ticket.attachments"
+            [canEdit]="ticket.permissions.canManageAttachments"
+            (attachmentsSelected)="addAttachments($event)"
+            (attachmentRemoved)="removeAttachment($event)"
+          />
+        </div>
+      </div>
+    </section>
+  } @else {
+    <section class="ticket-execution-page ticket-execution-page--empty">
+      <mat-card class="ticket-execution-page__empty-card">
+        <mat-card-content>
+          <mat-icon>confirmation_number</mat-icon>
+          <h2>Ticket no disponible</h2>
+          <p>El ticket no existe o no está asignado al usuario mock activo en este flujo.</p>
+          <a mat-flat-button color="primary" routerLink="/tickets">Volver a tickets</a>
+        </mat-card-content>
+      </mat-card>
+    </section>
+  }
+}

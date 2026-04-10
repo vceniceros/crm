@@ -1,0 +1,49 @@
+<h2 mat-dialog-title>Crear template</h2>
+
+<mat-dialog-content>
+  @if (materials$ | async; as materials) {
+    <form class="create-template-dialog__form" [formGroup]="form" (ngSubmit)="submit()">
+      <section class="create-template-dialog__intro">
+        <p class="create-template-dialog__intro-title">Definición base de tarea reutilizable</p>
+        <p class="create-template-dialog__intro-copy">
+          Configurá la base operativa del trabajo con su descripción, subtareas y materiales requeridos para reutilizarla en futuras tareas.
+        </p>
+      </section>
+
+      <div class="create-template-dialog__fields">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Título</mat-label>
+          <input matInput formControlName="title" placeholder="Ej. Instalación estándar de router y cableado" />
+          @if (form.controls.title.hasError('required') && form.controls.title.touched) {
+            <mat-error>El título es obligatorio.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="create-template-dialog__description-field">
+          <mat-label>Descripción</mat-label>
+          <textarea matInput rows="4" formControlName="description" placeholder="Describí el alcance operativo del template"></textarea>
+          @if (form.controls.description.hasError('required') && form.controls.description.touched) {
+            <mat-error>La descripción es obligatoria.</mat-error>
+          }
+        </mat-form-field>
+      </div>
+
+      <section class="create-template-dialog__section">
+        <app-template-subtasks-editor [subtasks]="subtasks" [buildSubtask]="subtaskFactory" />
+
+        @if (subtasks.hasError('required') && subtasks.touched) {
+          <p class="create-template-dialog__section-error">Agregá al menos una subtarea al template.</p>
+        }
+      </section>
+
+      <section class="create-template-dialog__section">
+        <app-template-materials-editor [requiredMaterials]="requiredMaterials" [materials]="materials" />
+      </section>
+
+      <mat-dialog-actions align="end">
+        <button mat-button type="button" mat-dialog-close>Cancelar</button>
+        <button mat-flat-button color="primary" type="submit">Guardar template</button>
+      </mat-dialog-actions>
+    </form>
+  }
+</mat-dialog-content>

@@ -1,0 +1,69 @@
+<mat-card class="ticket-attachments-section">
+  <mat-card-header>
+    <mat-card-title>Adjuntos del ticket</mat-card-title>
+    <mat-card-subtitle>
+      @if (canEdit()) {
+        Fotos y videos del diagnóstico técnico. El binario real no se persiste; la metadata sí.
+      } @else {
+        Evidencia visual cargada en el ticket. Visible para seguimiento cruzado entre técnico, depósito y admin.
+      }
+    </mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    @if (canEdit()) {
+      <div class="ticket-attachments-section__actions">
+        <input #fileInput type="file" accept="image/*,video/*" multiple hidden (change)="onFileSelection($event)" />
+
+        <button mat-stroked-button type="button" (click)="fileInput.click()">
+          <mat-icon>upload_file</mat-icon>
+          <span>Agregar fotos o videos</span>
+        </button>
+
+        <p class="ticket-attachments-section__hint">La preview completa dura durante la sesión activa del navegador.</p>
+      </div>
+    }
+
+    @if (attachments().length) {
+      <div class="ticket-attachments-section__list">
+        @for (attachment of attachments(); track trackByAttachmentId($index, attachment)) {
+          <article class="ticket-attachments-section__item">
+            <div class="ticket-attachments-section__preview" [class.ticket-attachments-section__preview--placeholder]="!canPreview(attachment)">
+              @if (attachment.kind === 'image' && attachment.previewUrl) {
+                <img [src]="attachment.previewUrl" [alt]="attachment.fileName" />
+              } @else if (attachment.kind === 'video' && attachment.previewUrl) {
+                <video controls preload="metadata">
+                  <source [src]="attachment.previewUrl" [type]="attachment.fileType" />
+                </video>
+              } @else {
+                <mat-icon>{{ iconFor(attachment) }}</mat-icon>
+              }
+            </div>
+
+            <div class="ticket-attachments-section__meta">
+              <div>
+                <p class="ticket-attachments-section__name">{{ attachment.fileName }}</p>
+                <p class="ticket-attachments-section__details">{{ attachment.fileType }} · {{ formatSize(attachment.size) }}</p>
+              </div>
+
+              @if (canEdit()) {
+                <button mat-icon-button type="button" aria-label="Quitar adjunto" (click)="removeAttachment(attachment.id)">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              }
+            </div>
+
+            @if (!attachment.previewUrl && (attachment.kind === 'image' || attachment.kind === 'video')) {
+              <p class="ticket-attachments-section__preview-note">La preview no se conserva luego de recargar. La metadata del archivo sí.</p>
+            }
+          </article>
+        }
+      </div>
+    } @else {
+      <div class="ticket-attachments-section__empty">
+        <mat-icon>perm_media</mat-icon>
+        <p>No hay adjuntos cargados todavía para este ticket.</p>
+      </div>
+    }
+  </mat-card-content>
+</mat-card>

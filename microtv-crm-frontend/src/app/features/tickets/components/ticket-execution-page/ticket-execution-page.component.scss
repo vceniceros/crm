@@ -1,0 +1,155 @@
+.ticket-execution-page {
+  display: grid;
+  gap: 1.35rem;
+  min-width: 0;
+}
+
+.ticket-execution-page__topbar,
+.ticket-execution-page__header,
+.ticket-execution-page__assignee,
+.ticket-execution-page__summary-card mat-card-content {
+  display: flex;
+}
+
+.ticket-execution-page__topbar {
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ticket-execution-page__back-link mat-icon {
+  margin-right: 0.35rem;
+}
+
+.ticket-execution-page__header {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.2rem;
+}
+
+.ticket-execution-page__header-side,
+.ticket-execution-page__assignee-blocks,
+.ticket-execution-page__main-column,
+.ticket-execution-page__sidebar {
+  display: grid;
+}
+
+.ticket-execution-page__header-side {
+  justify-items: end;
+  gap: 0.9rem;
+}
+
+.ticket-execution-page__assignee-blocks {
+  gap: 0.8rem;
+}
+
+.ticket-execution-page__assignee {
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.ticket-execution-page__meta-label,
+.ticket-execution-page__meta-value,
+.ticket-execution-page__summary-label,
+.ticket-execution-page__summary-value,
+.ticket-execution-page__summary-caption,
+.ticket-execution-page__empty-card h2,
+.ticket-execution-page__empty-card p {
+  margin: 0;
+}
+
+.ticket-execution-page__meta-label,
+.ticket-execution-page__summary-label {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ticket-execution-page__meta-value,
+.ticket-execution-page__summary-value {
+  margin-top: 0.25rem;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.ticket-execution-page__summary-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ticket-execution-page__summary-card,
+.ticket-execution-page__empty-card {
+  border: 1px solid rgba(23, 24, 26, 0.06);
+  border-radius: 1.45rem;
+  box-shadow: var(--shadow-panel);
+}
+
+.ticket-execution-page__summary-card mat-card-content {
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 100%;
+}
+
+.ticket-execution-page__summary-caption {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.ticket-execution-page__content {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1.55fr) minmax(18rem, 0.95fr);
+}
+
+.ticket-execution-page__main-column,
+.ticket-execution-page__sidebar {
+  align-content: start;
+  gap: 1rem;
+}
+
+.ticket-execution-page--empty {
+  place-items: center;
+  min-height: 50vh;
+}
+
+.ticket-execution-page__empty-card mat-card-content {
+  display: grid;
+  place-items: center;
+  gap: 0.8rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.ticket-execution-page__empty-card mat-icon {
+  color: var(--brand-red);
+  transform: scale(1.35);
+}
+
+@media (max-width: 1080px) {
+  .ticket-execution-page__summary-grid,
+  .ticket-execution-page__content {
+    grid-template-columns: 1fr;
+  }
+
+  .ticket-execution-page__header-side {
+    justify-items: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .ticket-execution-page__topbar,
+  .ticket-execution-page__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ticket-execution-page__back-link {
+    justify-content: center;
+    width: 100%;
+  }
+}

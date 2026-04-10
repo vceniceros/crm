@@ -1,0 +1,75 @@
+<mat-card class="task-attachments-section">
+  <mat-card-header>
+    <mat-card-title>Adjuntos mock</mat-card-title>
+    <mat-card-subtitle>Fotos y videos asociados al avance operativo. Se guarda metadata en localStorage.</mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    <div class="task-attachments-section__actions">
+      <input
+        #fileInput
+        type="file"
+        accept="image/*,video/*"
+        multiple
+        hidden
+        [disabled]="disabled()"
+        (change)="onFileSelection($event)"
+      />
+
+      <button mat-stroked-button type="button" [disabled]="disabled()" (click)="fileInput.click()">
+        <mat-icon>upload_file</mat-icon>
+        <span>Agregar fotos o videos</span>
+      </button>
+
+      <p class="task-attachments-section__hint">
+        @if (disabled()) {
+          Tarea finalizada: los adjuntos quedan solo en lectura.
+        } @else {
+          El binario real no se persiste; la preview solo dura en la sesión activa del navegador.
+        }
+      </p>
+    </div>
+
+    @if (attachments().length) {
+      <div class="task-attachments-section__list">
+        @for (attachment of attachments(); track trackByAttachmentId($index, attachment)) {
+          <article class="task-attachments-section__item">
+            <div class="task-attachments-section__preview" [class.task-attachments-section__preview--placeholder]="!canPreview(attachment)">
+              @if (attachment.kind === 'image' && attachment.previewUrl) {
+                <img [src]="attachment.previewUrl" [alt]="attachment.fileName" />
+              } @else if (attachment.kind === 'video' && attachment.previewUrl) {
+                <video controls preload="metadata">
+                  <source [src]="attachment.previewUrl" [type]="attachment.fileType" />
+                </video>
+              } @else {
+                <mat-icon>{{ iconFor(attachment) }}</mat-icon>
+              }
+            </div>
+
+            <div class="task-attachments-section__meta">
+              <div>
+                <p class="task-attachments-section__name">{{ attachment.fileName }}</p>
+                <p class="task-attachments-section__details">{{ attachment.fileType }} · {{ formatSize(attachment.size) }}</p>
+              </div>
+
+              @if (!disabled()) {
+                <button mat-icon-button type="button" aria-label="Quitar adjunto" (click)="removeAttachment(attachment.id)">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              }
+            </div>
+
+            @if (!attachment.previewUrl && (attachment.kind === 'image' || attachment.kind === 'video')) {
+              <p class="task-attachments-section__preview-note">La preview no se conserva después de recargar. La metadata del adjunto sí queda persistida.</p>
+            }
+          </article>
+        }
+      </div>
+    } @else {
+      <div class="task-attachments-section__empty">
+        <mat-icon>perm_media</mat-icon>
+        <p>No hay adjuntos cargados todavía.</p>
+      </div>
+    }
+  </mat-card-content>
+</mat-card>

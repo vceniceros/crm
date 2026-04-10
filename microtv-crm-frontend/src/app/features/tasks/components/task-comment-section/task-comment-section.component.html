@@ -1,0 +1,19 @@
+<mat-card class="task-comment-section">
+  <mat-card-header>
+    <mat-card-title>Comentario operativo</mat-card-title>
+    <mat-card-subtitle>Notas libres del ejecutor para conservar contexto mientras la tarea sigue en curso.</mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="task-comment-section__field">
+      <mat-label>Comentario general</mat-label>
+      <textarea
+        matInput
+        rows="6"
+        [formControl]="commentControl"
+        [placeholder]="disabled() ? 'La tarea está finalizada y el comentario quedó solo en lectura.' : 'Ej. Cliente confirmó horario, faltan fotos del gabinete.'"
+      ></textarea>
+      <mat-hint>{{ disabled() ? 'Solo lectura luego de finalizar la tarea.' : 'Se guarda automáticamente en el mock local.' }}</mat-hint>
+    </mat-form-field>
+  </mat-card-content>
+</mat-card>

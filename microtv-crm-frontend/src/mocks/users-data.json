@@ -1,0 +1,25 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Sergio M.",
+      "role": "admin",
+      "roleLabel": "Administrador",
+      "initials": "SM"
+    },
+    {
+      "id": 2,
+      "name": "Marcelo D.",
+      "role": "deposito",
+      "roleLabel": "Encargado de deposito",
+      "initials": "MD"
+    },
+    {
+      "id": 3,
+      "name": "Luis F.",
+      "role": "tecnico",
+      "roleLabel": "Tecnico",
+      "initials": "LF"
+    }
+  ]
+}

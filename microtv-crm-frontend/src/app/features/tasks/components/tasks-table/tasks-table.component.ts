@@ -1,5 +1,8 @@
 import { Component, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
 
 import { TasksTableData } from '../../../../core/models/task.model';
@@ -9,7 +12,7 @@ import { UserAvatarComponent } from '../../../../shared/ui/user-avatar/user-avat
 @Component({
   selector: 'app-tasks-table',
   standalone: true,
-  imports: [MatCardModule, MatTableModule, StatusBadgeComponent, UserAvatarComponent],
+  imports: [MatButtonModule, MatCardModule, MatIconModule, MatTableModule, RouterLink, StatusBadgeComponent, UserAvatarComponent],
   templateUrl: './tasks-table.component.html',
   styleUrl: './tasks-table.component.scss'
 })

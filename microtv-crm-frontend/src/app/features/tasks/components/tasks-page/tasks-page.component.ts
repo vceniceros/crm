@@ -5,8 +5,10 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 
 import { CreateTaskFormValue } from '../../../../core/models/create-task.model';
+import { TaskTemplateRecord } from '../../../../core/models/task-template.model';
 import { MockTasksService } from '../../../../core/services/mock-tasks.service';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
+import { CreateTemplateDialogComponent } from '../../../task-templates/components/create-template-dialog/create-template-dialog.component';
 import { CreateTaskDialogComponent } from '../create-task-dialog/create-task-dialog.component';
 import { TasksTableComponent } from '../tasks-table/tasks-table.component';
 
@@ -22,6 +24,21 @@ export class TasksPageComponent {
   private readonly mockTasksService = inject(MockTasksService);
 
   readonly tasksPage$ = this.mockTasksService.tasksPage$;
+
+  openCreateTemplateDialog(): void {
+    this.dialog
+      .open<CreateTemplateDialogComponent, undefined, TaskTemplateRecord>(CreateTemplateDialogComponent, {
+        autoFocus: false,
+        maxWidth: 'calc(100vw - 1.5rem)',
+        width: '68rem'
+      })
+      .afterClosed()
+      .subscribe((payload) => {
+        if (payload) {
+          console.log('Create template dialog result', payload);
+        }
+      });
+  }
 
   openCreateTaskDialog(): void {
     this.dialog

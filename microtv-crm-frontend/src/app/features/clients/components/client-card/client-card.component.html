@@ -1,0 +1,67 @@
+<mat-card class="client-card">
+  <div class="client-card__accent" aria-hidden="true"></div>
+
+  <mat-card-content>
+    <div class="client-card__header">
+      <div>
+        <p class="client-card__eyebrow">Cliente</p>
+        <h3 class="client-card__title">{{ client().razonSocial }}</h3>
+      </div>
+
+      <div class="client-card__monogram" aria-hidden="true">{{ initials() }}</div>
+    </div>
+
+    <div class="client-card__details">
+      <div class="client-card__detail">
+        <mat-icon>badge</mat-icon>
+        <div>
+          <p class="client-card__label">CUIT</p>
+          <p class="client-card__value">{{ client().cuit }}</p>
+        </div>
+      </div>
+
+      <div class="client-card__detail">
+        <mat-icon>mail</mat-icon>
+        <div>
+          <p class="client-card__label">Email</p>
+          <p class="client-card__value client-card__value--wrap">{{ client().email }}</p>
+        </div>
+      </div>
+
+      <div class="client-card__detail">
+        <mat-icon>phone</mat-icon>
+        <div>
+          <p class="client-card__label">Teléfono</p>
+          <p class="client-card__value">{{ client().telefono }}</p>
+        </div>
+      </div>
+
+      <div class="client-card__detail">
+        <mat-icon>location_on</mat-icon>
+        <div>
+          <p class="client-card__label">Ubicación</p>
+          <p class="client-card__value">{{ locationLabel() }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="client-card__actions">
+      @if (hasLocation()) {
+        <button mat-stroked-button type="button" class="client-card__action" (click)="emitOpenLocation()">
+          <mat-icon>map</mat-icon>
+          <span>Abrir ubicación</span>
+        </button>
+
+        <button mat-button type="button" class="client-card__action client-card__action--ghost" (click)="emitOpenExternalMaps()">
+          <mat-icon>open_in_new</mat-icon>
+          <span>Mostrar en Maps</span>
+        </button>
+      } @else {
+        <div class="client-card__location-hint" aria-label="Ubicación no disponible para este cliente">
+          <mat-icon>location_off</mat-icon>
+          <span>Sin ubicación disponible</span>
+        </div>
+      }
+    </div>
+  </mat-card-content>
+</mat-card>

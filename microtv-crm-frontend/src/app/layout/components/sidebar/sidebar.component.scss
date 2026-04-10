@@ -127,24 +127,5 @@
 }
 
 .sidebar__footer {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  padding: 0.95rem 0.4rem 0.2rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.sidebar__footer-copy {
-  min-width: 0;
-}
-
-.sidebar__footer-name {
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-
-.sidebar__footer-role {
-  margin-top: 0.2rem;
-  color: rgba(245, 247, 250, 0.58);
-  font-size: 0.8rem;
+  margin-top: auto;
 }

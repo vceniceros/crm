@@ -1,0 +1,160 @@
+:host {
+  display: block;
+}
+
+.create-client-dialog__form {
+  display: grid;
+  gap: 1.15rem;
+  min-width: min(100%, 42rem);
+  padding-top: 0.25rem;
+}
+
+.create-client-dialog__intro {
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(183, 28, 28, 0.05), rgba(255, 255, 255, 0.94));
+}
+
+.create-client-dialog__intro-title,
+.create-client-dialog__intro-copy {
+  margin: 0;
+}
+
+.create-client-dialog__intro-title {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.create-client-dialog__intro-copy {
+  margin-top: 0.3rem;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.create-client-dialog__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.create-client-dialog__wide-field {
+  grid-column: 1 / -1;
+}
+
+.create-client-dialog__location-card {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 248, 250, 0.94));
+}
+
+.create-client-dialog__location-header,
+.create-client-dialog__location-actions,
+.create-client-dialog__location-summary {
+  display: flex;
+}
+
+.create-client-dialog__location-header {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.create-client-dialog__location-actions {
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.create-client-dialog__location-title,
+.create-client-dialog__location-copy,
+.create-client-dialog__location-label,
+.create-client-dialog__location-value,
+.create-client-dialog__location-empty {
+  margin: 0;
+}
+
+.create-client-dialog__location-title {
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.create-client-dialog__location-copy,
+.create-client-dialog__location-empty {
+  margin-top: 0.3rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.create-client-dialog__location-summary {
+  gap: 1rem;
+  padding: 0.9rem 0.95rem;
+  border: 1px solid rgba(23, 24, 26, 0.06);
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.create-client-dialog__location-summary > div {
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.create-client-dialog__location-label {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.create-client-dialog__location-value {
+  margin-top: 0.28rem;
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.create-client-dialog__maps-link {
+  color: var(--accent-blue);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.create-client-dialog__maps-link:hover {
+  text-decoration: underline;
+}
+
+mat-dialog-content {
+  padding-top: 0.25rem;
+}
+
+mat-dialog-actions {
+  padding: 0;
+  margin-top: 0.1rem;
+}
+
+@media (max-width: 720px) {
+  .create-client-dialog__form {
+    min-width: 0;
+  }
+
+  .create-client-dialog__fields {
+    grid-template-columns: 1fr;
+  }
+
+  .create-client-dialog__wide-field {
+    grid-column: auto;
+  }
+
+  .create-client-dialog__location-header,
+  .create-client-dialog__location-summary {
+    flex-direction: column;
+  }
+}

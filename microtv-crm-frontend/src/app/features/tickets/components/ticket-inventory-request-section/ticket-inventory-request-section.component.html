@@ -1,0 +1,111 @@
+<mat-card class="ticket-inventory-request-section">
+  <mat-card-header>
+    <mat-card-title>Solicitud a depósito</mat-card-title>
+    <mat-card-subtitle>
+      El técnico puede pedir items sin ver stock. Depósito y administrador visualizan y deciden cada solicitud.
+    </mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    @if (canCreateRequest()) {
+      <section class="ticket-inventory-request-section__composer">
+        <div class="ticket-inventory-request-section__composer-grid" [formGroup]="itemForm">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Item solicitado</mat-label>
+            <mat-select formControlName="inventoryItemId">
+              @for (item of inventoryOptions(); track item.id) {
+                <mat-option [value]="item.id" [disabled]="isDraftSelected(item.id)">{{ item.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Cantidad</mat-label>
+            <input matInput type="number" min="1" formControlName="quantity" />
+          </mat-form-field>
+
+          <button mat-stroked-button type="button" (click)="addDraftItem()">
+            <mat-icon>playlist_add</mat-icon>
+            <span>Agregar</span>
+          </button>
+        </div>
+
+        @if (draftItems.length) {
+          <div class="ticket-inventory-request-section__draft-list">
+            @for (item of draftItems; track trackDraftItem($index, item)) {
+              <article class="ticket-inventory-request-section__draft-item">
+                <div>
+                  <p class="ticket-inventory-request-section__item-name">{{ item.inventoryItemName }}</p>
+                  <p class="ticket-inventory-request-section__item-meta">Cantidad solicitada: {{ item.quantity }}</p>
+                </div>
+
+                <button mat-icon-button type="button" aria-label="Quitar item" (click)="removeDraftItem(item.inventoryItemId)">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </article>
+            }
+          </div>
+
+          <div class="ticket-inventory-request-section__submit-row">
+            <p>La solicitud se registra en el ticket y queda a la espera de decisión de depósito.</p>
+            <button mat-flat-button color="primary" type="button" (click)="submitRequest()">Enviar solicitud</button>
+          </div>
+        }
+      </section>
+    }
+
+    @if (requests().length) {
+      <div class="ticket-inventory-request-section__requests">
+        @for (request of requests(); track request.id) {
+          <article class="ticket-inventory-request-section__request-card">
+            <div class="ticket-inventory-request-section__request-top">
+              <div>
+                <p class="ticket-inventory-request-section__request-title">Solicitud {{ request.id }}</p>
+                <p class="ticket-inventory-request-section__request-meta">
+                  {{ request.requestedByUserName }} · {{ request.requestedAt | date: 'dd/MM/yyyy HH:mm' }}
+                </p>
+              </div>
+
+              <app-status-badge [label]="statusLabel(request.status)" [tone]="statusTone(request.status)" />
+            </div>
+
+            <div class="ticket-inventory-request-section__items">
+              @for (item of request.items; track item.inventoryItemId) {
+                <div class="ticket-inventory-request-section__request-item">
+                  <span>{{ item.inventoryItemName }}</span>
+                  <strong>x{{ item.quantity }}</strong>
+                </div>
+              }
+            </div>
+
+            @if (request.depositDecisionComment) {
+              <p class="ticket-inventory-request-section__decision-note">{{ request.depositDecisionComment }}</p>
+            }
+
+            @if (canReviewRequests() && request.status === 'pending') {
+              <div class="ticket-inventory-request-section__decision-box">
+                <label [attr.for]="request.id + '-decision'">Comentario de decisión</label>
+                <textarea
+                  [id]="request.id + '-decision'"
+                  rows="3"
+                  [value]="decisionComment(request.id)"
+                  (input)="updateDecisionComment(request.id, $event)"
+                ></textarea>
+
+                <div class="ticket-inventory-request-section__decision-actions">
+                  <button mat-stroked-button type="button" (click)="decideRequest(request.id, 'rejected')">Rechazar</button>
+                  <button mat-flat-button color="primary" type="button" (click)="decideRequest(request.id, 'approved')">Autorizar</button>
+                </div>
+              </div>
+            }
+          </article>
+        }
+      </div>
+    } @else {
+      <div class="ticket-inventory-request-section__empty">
+        <mat-icon>inventory_2</mat-icon>
+        <p>No hay solicitudes registradas todavía.</p>
+      </div>
+    }
+  </mat-card-content>
+</mat-card>

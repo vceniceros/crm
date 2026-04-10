@@ -8,6 +8,13 @@
       />
 
       <div class="tasks-page__actions">
+        @if (tasksPage.templateAction; as templateAction) {
+          <button mat-stroked-button type="button" class="tasks-page__action tasks-page__action--secondary" (click)="openCreateTemplateDialog()">
+            <mat-icon>{{ templateAction.icon }}</mat-icon>
+            <span>{{ templateAction.label }}</span>
+          </button>
+        }
+
         <button mat-stroked-button type="button" class="tasks-page__action tasks-page__action--secondary">
           <mat-icon>{{ tasksPage.secondaryAction.icon }}</mat-icon>
           <span>{{ tasksPage.secondaryAction.label }}</span>

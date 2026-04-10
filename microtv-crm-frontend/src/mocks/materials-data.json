@@ -1,0 +1,11 @@
+{
+  "materials": [
+    { "id": 1, "name": "Cable UTP Cat6", "unit": "mts" },
+    { "id": 2, "name": "Conector RJ45", "unit": "un" },
+    { "id": 3, "name": "Precinto plástico", "unit": "un" },
+    { "id": 4, "name": "Router TP-Link Archer C6", "unit": "un" },
+    { "id": 5, "name": "Fuente 12V 2A", "unit": "un" },
+    { "id": 6, "name": "Caño corrugado 7/8", "unit": "mts" },
+    { "id": 7, "name": "Caja estanca 20x20", "unit": "un" }
+  ]
+}

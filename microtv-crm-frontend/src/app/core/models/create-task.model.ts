@@ -1,5 +1,5 @@
 import { ClientOption } from './client.model';
-import { TaskTemplateOption } from './task-template.model';
+import { TaskTemplateOption } from './task-template-option.model';
 
 export interface CreateTaskFormValue {
   title: string;

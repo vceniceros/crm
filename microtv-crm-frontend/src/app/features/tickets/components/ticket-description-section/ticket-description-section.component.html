@@ -1,0 +1,47 @@
+<mat-card class="ticket-description-section">
+  <mat-card-header>
+    <mat-card-title>Descripción del ticket</mat-card-title>
+    <mat-card-subtitle>Información base del problema reportado y del contexto operativo asociado.</mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    <p class="ticket-description-section__body">{{ ticket().description }}</p>
+
+    <div class="ticket-description-section__grid">
+      <div class="ticket-description-section__item">
+        <p class="ticket-description-section__label">Categoría</p>
+        <p class="ticket-description-section__value">{{ ticket().category }}</p>
+      </div>
+
+      <div class="ticket-description-section__item">
+        <p class="ticket-description-section__label">Dispositivo afectado</p>
+        <p class="ticket-description-section__value">{{ ticket().affectedDevice }}</p>
+      </div>
+
+      <div class="ticket-description-section__item">
+        <p class="ticket-description-section__label">Prioridad</p>
+        <app-priority-indicator [label]="ticket().priority" [tone]="ticket().priorityTone" />
+      </div>
+
+      <div class="ticket-description-section__item">
+        <p class="ticket-description-section__label">Estado</p>
+        <app-status-badge [label]="ticket().status" [tone]="ticket().statusTone" />
+      </div>
+
+      <div class="ticket-description-section__item">
+        <p class="ticket-description-section__label">Creado</p>
+        <p class="ticket-description-section__value">{{ ticket().createdAt | date: 'dd/MM/yyyy HH:mm' }}</p>
+      </div>
+
+      <div class="ticket-description-section__item">
+        <p class="ticket-description-section__label">Técnico asignado</p>
+        <p class="ticket-description-section__value">{{ ticket().assigneeName || 'Sin asignar' }}</p>
+      </div>
+
+      <div class="ticket-description-section__item ticket-description-section__item--wide">
+        <p class="ticket-description-section__label">Depósito asignado</p>
+        <p class="ticket-description-section__value">{{ ticket().depositAssigneeName || 'Sin asignar' }}</p>
+      </div>
+    </div>
+  </mat-card-content>
+</mat-card>

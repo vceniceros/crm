@@ -1,0 +1,20 @@
+@if (inventoryPage$ | async; as inventoryPage) {
+  <section class="inventory-page">
+    <div class="inventory-page__header">
+      <app-page-title
+        eyebrow="Deposito operativo"
+        [title]="inventoryPage.pageTitle"
+        [subtitle]="inventoryPage.pageSubtitle"
+      />
+
+      <div class="inventory-page__actions">
+        <button mat-flat-button color="primary" type="button" class="inventory-page__action" (click)="openCreateProductDialog()">
+          <mat-icon>{{ inventoryPage.primaryAction.icon }}</mat-icon>
+          <span>{{ inventoryPage.primaryAction.label }}</span>
+        </button>
+      </div>
+    </div>
+
+    <app-inventory-table [block]="inventoryPage.productsTable" />
+  </section>
+}

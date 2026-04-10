@@ -1,0 +1,37 @@
+<h2 mat-dialog-title>{{ data.client.razonSocial }}</h2>
+
+<mat-dialog-content class="client-location-dialog">
+  <section class="client-location-dialog__summary">
+    <div class="client-location-dialog__summary-icon" aria-hidden="true">
+      <mat-icon>location_on</mat-icon>
+    </div>
+
+    <div class="client-location-dialog__summary-copy">
+      <p class="client-location-dialog__eyebrow">Ubicación del cliente</p>
+      <p class="client-location-dialog__address">
+        {{ data.client.location?.addressLabel || 'Coordenadas mock sin dirección visible cargada.' }}
+      </p>
+      @if (coordinatesLabel(); as coordinates) {
+        <p class="client-location-dialog__coordinates">{{ coordinates }}</p>
+      }
+    </div>
+  </section>
+
+  @if (!hasValidLocation()) {
+    <section class="client-location-dialog__message client-location-dialog__message--invalid">
+      <mat-icon>location_off</mat-icon>
+      <div>
+        <p class="client-location-dialog__message-title">Ubicación no disponible</p>
+        <p class="client-location-dialog__message-copy">
+          Este cliente no tiene coordenadas válidas dentro del mock actual.
+        </p>
+      </div>
+    </section>
+  } @else {
+    <ng-container *ngComponentOutlet="locationMapComponent; inputs: locationMapInputs()"></ng-container>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-stroked-button type="button" (click)="close()">Cerrar</button>
+</mat-dialog-actions>

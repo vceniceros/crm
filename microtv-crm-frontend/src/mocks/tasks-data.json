@@ -1,6 +1,12 @@
 {
   "pageTitle": "Tareas pendientes",
   "pageSubtitle": "Vista inicial para seguimiento operativo de tareas activas, con foco en responsables, avance de subtareas y estado actual.",
+  "templateAction": {
+    "id": "create-template",
+    "label": "Crear template",
+    "icon": "post_add",
+    "variant": "secondary"
+  },
   "primaryAction": {
     "id": "create-task",
     "label": "Crear tarea",
@@ -23,51 +29,6 @@
       { "key": "status", "label": "Estado" },
       { "key": "assignedTo", "label": "Asignado a" }
     ],
-    "items": [
-      {
-        "id": "TS-3108",
-        "title": "Coordinar visita técnica por fallo en control de acceso",
-        "client": "Clínica Modelo",
-        "completedSubtasks": 2,
-        "totalSubtasks": 5,
-        "status": "Pendiente",
-        "statusTone": "neutral",
-        "assignedTo": "Luciano G.",
-        "assignedInitials": "LG"
-      },
-      {
-        "id": "TS-3104",
-        "title": "Verificar stock y despacho de sensores para nueva instalación",
-        "client": "Consorcio Libertad",
-        "completedSubtasks": 4,
-        "totalSubtasks": 6,
-        "status": "En progreso",
-        "statusTone": "progress",
-        "assignedTo": "Carla R.",
-        "assignedInitials": "CR"
-      },
-      {
-        "id": "TS-3099",
-        "title": "Confirmar documentación previa para migración de DVR",
-        "client": "Hotel Plaza",
-        "completedSubtasks": 1,
-        "totalSubtasks": 4,
-        "status": "Bloqueado",
-        "statusTone": "warning",
-        "assignedTo": "Diego P.",
-        "assignedInitials": "DP"
-      },
-      {
-        "id": "TS-3095",
-        "title": "Preparar agenda y checklist para mantenimiento preventivo",
-        "client": "Metalúrgica Sur",
-        "completedSubtasks": 3,
-        "totalSubtasks": 3,
-        "status": "Listo para validar",
-        "statusTone": "success",
-        "assignedTo": "Marina S.",
-        "assignedInitials": "MS"
-      }
-    ]
+    "items": []
   }
 }

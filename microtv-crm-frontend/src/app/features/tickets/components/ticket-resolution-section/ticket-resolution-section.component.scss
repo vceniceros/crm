@@ -1,0 +1,18 @@
+.ticket-resolution-section {
+  border: 1px solid rgba(23, 24, 26, 0.06);
+  border-radius: 1.45rem;
+  box-shadow: var(--shadow-panel);
+}
+
+.ticket-resolution-section mat-card-header,
+.ticket-resolution-section mat-card-content {
+  padding-inline: 1.25rem;
+}
+
+.ticket-resolution-section mat-card-header {
+  padding-top: 1.15rem;
+}
+
+.ticket-resolution-section__field {
+  width: 100%;
+}

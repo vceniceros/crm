@@ -1,0 +1,777 @@
+-- =====================================================
+-- MicroTV CRM - Esquema de Base de Datos Relacional
+-- Versión: 1.0
+-- Fecha: Abril 2026
+-- Normalización: BCNF donde razonable, 3NF mínimo
+-- =====================================================
+
+-- Extensiones necesarias (PostgreSQL)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- =====================================================
+-- SECCIÓN 1: USUARIOS Y SEGURIDAD
+-- =====================================================
+
+-- Tabla: roles
+-- Catálogo de roles del sistema
+CREATE TABLE roles (
+    role_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    role_key VARCHAR(50) NOT NULL UNIQUE, -- 'admin', 'tecnico', 'deposito'
+    role_label VARCHAR(100) NOT NULL,
+    description TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_roles_key ON roles(role_key) WHERE is_active = TRUE;
+
+COMMENT ON TABLE roles IS 'Catálogo de roles del sistema';
+COMMENT ON COLUMN roles.role_key IS 'Identificador único del rol (admin, tecnico, deposito)';
+
+-- Tabla: users
+-- Usuarios del sistema
+CREATE TABLE users (
+    user_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL, -- bcrypt hash
+    full_name VARCHAR(255) NOT NULL,
+    initials VARCHAR(10),
+    phone VARCHAR(50),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    last_login_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
+    
+    CONSTRAINT chk_email_format CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
+);
+
+CREATE INDEX idx_users_email ON users(email) WHERE deleted_at IS NULL;
+CREATE INDEX idx_users_active ON users(is_active) WHERE deleted_at IS NULL;
+
+COMMENT ON TABLE users IS 'Usuarios del sistema (técnicos, administrativos, depósito)';
+COMMENT ON COLUMN users.password_hash IS 'Hash bcrypt de la contraseña';
+COMMENT ON COLUMN users.initials IS 'Iniciales para avatar (ej: SM, MD, LF)';
+
+-- Tabla: user_roles
+-- Asignación many-to-many entre usuarios y roles
+CREATE TABLE user_roles (
+    user_role_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    role_id UUID NOT NULL REFERENCES roles(role_id) ON DELETE CASCADE,
+    assigned_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    assigned_by_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    
+    UNIQUE(user_id, role_id)
+);
+
+CREATE INDEX idx_user_roles_user ON user_roles(user_id);
+CREATE INDEX idx_user_roles_role ON user_roles(role_id);
+
+COMMENT ON TABLE user_roles IS 'Asignación de roles a usuarios (many-to-many)';
+
+-- Tabla: user_sessions
+-- Sesiones JWT para autenticación (futuro)
+CREATE TABLE user_sessions (
+    session_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    token_jti VARCHAR(255) NOT NULL UNIQUE, -- JWT ID (jti claim)
+    refresh_token_hash VARCHAR(255),
+    ip_address INET,
+    user_agent TEXT,
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_user_sessions_user ON user_sessions(user_id);
+CREATE INDEX idx_user_sessions_token ON user_sessions(token_jti);
+CREATE INDEX idx_user_sessions_expires ON user_sessions(expires_at) WHERE revoked_at IS NULL;
+
+COMMENT ON TABLE user_sessions IS 'Sesiones JWT activas para auditoría y revocación';
+COMMENT ON COLUMN user_sessions.token_jti IS 'JWT ID (claim jti) para identificar token único';
+
+-- =====================================================
+-- SECCIÓN 2: CLIENTES Y GEOGRAFÍA
+-- =====================================================
+
+-- Tabla: clients
+-- Clientes del CRM
+CREATE TABLE clients (
+    client_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    business_name VARCHAR(255) NOT NULL,
+    tax_id VARCHAR(50) NOT NULL UNIQUE, -- CUIT en Argentina
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
+    
+    CONSTRAINT chk_client_email_format CHECK (email IS NULL OR email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
+);
+
+CREATE INDEX idx_clients_tax_id ON clients(tax_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_clients_active ON clients(is_active) WHERE deleted_at IS NULL;
+
+COMMENT ON TABLE clients IS 'Clientes del CRM';
+COMMENT ON COLUMN clients.tax_id IS 'CUIT o identificación fiscal única';
+
+-- Tabla: locations
+-- Ubicaciones geográficas normalizadas
+CREATE TABLE locations (
+    location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    latitude DECIMAL(10, 8) NOT NULL,
+    longitude DECIMAL(11, 8) NOT NULL,
+    address_label VARCHAR(500), -- Descripción/etiqueta opcional
+    formatted_address TEXT, -- Dirección completa (si se obtiene de geocoding)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT chk_latitude CHECK (latitude BETWEEN -90 AND 90),
+    CONSTRAINT chk_longitude CHECK (longitude BETWEEN -180 AND 180)
+);
+
+CREATE INDEX idx_locations_coords ON locations(latitude, longitude);
+
+COMMENT ON TABLE locations IS 'Ubicaciones geográficas normalizadas (no necesariamente pertenecen a un cliente)';
+COMMENT ON COLUMN locations.address_label IS 'Etiqueta o descripción manual de la ubicación';
+COMMENT ON COLUMN locations.formatted_address IS 'Dirección formateada (de geocoding service si aplica)';
+
+-- Tabla: client_locations
+-- Relación many-to-many: un cliente puede tener múltiples sedes/oficinas
+CREATE TABLE client_locations (
+    client_location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    client_id UUID NOT NULL REFERENCES clients(client_id) ON DELETE CASCADE,
+    location_id UUID NOT NULL REFERENCES locations(location_id) ON DELETE CASCADE,
+    location_label VARCHAR(255), -- Ej: "Casa Central", "Sucursal Norte"
+    is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    UNIQUE(client_id, location_id)
+);
+
+CREATE INDEX idx_client_locations_client ON client_locations(client_id);
+CREATE INDEX idx_client_locations_location ON client_locations(location_id);
+
+COMMENT ON TABLE client_locations IS 'Sedes/oficinas del cliente (many-to-many)';
+COMMENT ON COLUMN client_locations.is_primary IS 'Indica si es la ubicación principal del cliente';
+
+-- =====================================================
+-- SECCIÓN 3: INVENTARIO Y PRODUCTOS
+-- =====================================================
+
+-- Tabla: inventory_categories
+-- Categorías de productos de inventario
+CREATE TABLE inventory_categories (
+    category_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    category_name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    parent_category_id UUID REFERENCES inventory_categories(category_id) ON DELETE SET NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_inventory_categories_parent ON inventory_categories(parent_category_id);
+
+COMMENT ON TABLE inventory_categories IS 'Categorías de productos (puede ser jerárquico)';
+
+-- Tabla: inventory_products
+-- Catálogo de productos (definición, NO stock)
+CREATE TABLE inventory_products (
+    product_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    category_id UUID REFERENCES inventory_categories(category_id) ON DELETE SET NULL,
+    product_name VARCHAR(255) NOT NULL,
+    product_code VARCHAR(100) UNIQUE, -- SKU o código interno
+    barcode VARCHAR(255), -- Código de barras
+    description TEXT,
+    unit_of_measure VARCHAR(50), -- 'unidad', 'metro', 'kg', etc.
+    image_url VARCHAR(500),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_inventory_products_category ON inventory_products(category_id);
+CREATE INDEX idx_inventory_products_code ON inventory_products(product_code);
+CREATE INDEX idx_inventory_products_barcode ON inventory_products(barcode);
+
+COMMENT ON TABLE inventory_products IS 'Catálogo de productos (definición sin stock)';
+COMMENT ON COLUMN inventory_products.unit_of_measure IS 'Unidad de medida: unidad, metro, kg, litro, etc.';
+
+-- Tabla: inventory_stock
+-- Stock actual por producto (y por almacén si hace falta en futuro)
+CREATE TABLE inventory_stock (
+    stock_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    product_id UUID NOT NULL REFERENCES inventory_products(product_id) ON DELETE CASCADE,
+    warehouse_id UUID, -- Futuro: referencia a tabla warehouses si hay múltiples almacenes
+    quantity_available DECIMAL(12, 3) NOT NULL DEFAULT 0,
+    quantity_reserved DECIMAL(12, 3) NOT NULL DEFAULT 0, -- Reservado para despachos pendientes
+    minimum_stock DECIMAL(12, 3), -- Stock mínimo (alerta)
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT chk_quantity_available CHECK (quantity_available >= 0),
+    CONSTRAINT chk_quantity_reserved CHECK (quantity_reserved >= 0),
+    
+    UNIQUE(product_id, warehouse_id) -- Por ahora warehouse_id será NULL (único almacén)
+);
+
+CREATE INDEX idx_inventory_stock_product ON inventory_stock(product_id);
+
+COMMENT ON TABLE inventory_stock IS 'Stock actual por producto (y almacén en futuro)';
+COMMENT ON COLUMN inventory_stock.quantity_reserved IS 'Cantidad reservada para despachos pendientes';
+COMMENT ON COLUMN inventory_stock.minimum_stock IS 'Stock mínimo para alertas de reposición';
+
+-- Tabla: inventory_movements
+-- Trazabilidad de movimientos de stock
+CREATE TABLE inventory_movements (
+    movement_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    product_id UUID NOT NULL REFERENCES inventory_products(product_id) ON DELETE CASCADE,
+    movement_type VARCHAR(50) NOT NULL, -- 'IN' (entrada), 'OUT' (salida), 'ADJUSTMENT', 'CONSUMPTION', 'RETURN'
+    quantity DECIMAL(12, 3) NOT NULL, -- Positivo para entrada, negativo para salida
+    reference_entity_type VARCHAR(50), -- 'ticket_dispatch', 'task', 'purchase_order', 'adjustment'
+    reference_entity_id UUID, -- ID de la entidad relacionada
+    notes TEXT,
+    performed_by_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    performed_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT chk_movement_type CHECK (movement_type IN ('IN', 'OUT', 'ADJUSTMENT', 'CONSUMPTION', 'RETURN'))
+);
+
+CREATE INDEX idx_inventory_movements_product ON inventory_movements(product_id);
+CREATE INDEX idx_inventory_movements_type ON inventory_movements(movement_type);
+CREATE INDEX idx_inventory_movements_reference ON inventory_movements(reference_entity_type, reference_entity_id);
+CREATE INDEX idx_inventory_movements_date ON inventory_movements(performed_at);
+
+COMMENT ON TABLE inventory_movements IS 'Historial de movimientos de stock para trazabilidad completa';
+COMMENT ON COLUMN inventory_movements.quantity IS 'Cantidad del movimiento (positivo=entrada, negativo=salida)';
+
+-- Tabla: stock_devices
+-- Dispositivos/equipos que el cliente tiene (ej: DVR, cámaras) y que pueden ser "afectados" en tickets
+CREATE TABLE stock_devices (
+    device_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    device_type VARCHAR(100) NOT NULL,
+    brand VARCHAR(100),
+    model VARCHAR(100),
+    serial_number VARCHAR(255) UNIQUE,
+    description TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_stock_devices_serial ON stock_devices(serial_number);
+
+COMMENT ON TABLE stock_devices IS 'Catálogo de dispositivos/equipos (DVR, cámaras, etc.) que pueden ser afectados en tickets';
+
+-- Tabla: client_devices
+-- Relación many-to-many: qué dispositivos tiene cada cliente
+CREATE TABLE client_devices (
+    client_device_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    client_id UUID NOT NULL REFERENCES clients(client_id) ON DELETE CASCADE,
+    device_id UUID NOT NULL REFERENCES stock_devices(device_id) ON DELETE CASCADE,
+    installation_date DATE,
+    location_id UUID REFERENCES locations(location_id) ON DELETE SET NULL,
+    notes TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    UNIQUE(client_id, device_id)
+);
+
+CREATE INDEX idx_client_devices_client ON client_devices(client_id);
+CREATE INDEX idx_client_devices_device ON client_devices(device_id);
+
+COMMENT ON TABLE client_devices IS 'Dispositivos instalados en cada cliente';
+
+-- =====================================================
+-- SECCIÓN 4: TEMPLATES DE TAREAS
+-- =====================================================
+
+-- Tabla: task_templates
+-- Plantillas reutilizables de tareas
+CREATE TABLE task_templates (
+    template_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    template_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    estimated_duration_hours DECIMAL(6, 2),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_task_templates_active ON task_templates(is_active);
+
+COMMENT ON TABLE task_templates IS 'Plantillas reutilizables de tareas (ej: Instalación estándar DVR)';
+
+-- Tabla: template_subtasks
+-- Subtareas predefinidas en un template (jerárquicas y secuenciales)
+CREATE TABLE template_subtasks (
+    template_subtask_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    template_id UUID NOT NULL REFERENCES task_templates(template_id) ON DELETE CASCADE,
+    parent_template_subtask_id UUID REFERENCES template_subtasks(template_subtask_id) ON DELETE CASCADE,
+    subtask_title VARCHAR(255) NOT NULL,
+    subtask_description TEXT,
+    order_index INT NOT NULL, -- Orden secuencial dentro del template
+    estimated_duration_minutes INT,
+    is_required BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT chk_order_index CHECK (order_index >= 0)
+);
+
+CREATE INDEX idx_template_subtasks_template ON template_subtasks(template_id, order_index);
+CREATE INDEX idx_template_subtasks_parent ON template_subtasks(parent_template_subtask_id);
+
+COMMENT ON TABLE template_subtasks IS 'Subtareas predefinidas en templates (jerárquicas con orden secuencial)';
+COMMENT ON COLUMN template_subtasks.order_index IS 'Orden secuencial de ejecución (0, 1, 2, ...)';
+
+-- Tabla: template_materials
+-- Materiales/productos requeridos por un template
+CREATE TABLE template_materials (
+    template_material_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    template_id UUID NOT NULL REFERENCES task_templates(template_id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES inventory_products(product_id) ON DELETE CASCADE,
+    quantity_required DECIMAL(12, 3) NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    UNIQUE(template_id, product_id)
+);
+
+CREATE INDEX idx_template_materials_template ON template_materials(template_id);
+CREATE INDEX idx_template_materials_product ON template_materials(product_id);
+
+COMMENT ON TABLE template_materials IS 'Materiales requeridos por un template de tarea';
+
+-- =====================================================
+-- SECCIÓN 5: TAREAS (TASKS)
+-- =====================================================
+
+-- Tabla: tasks
+-- Tareas (épicas/trabajos grandes)
+CREATE TABLE tasks (
+    task_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    task_title VARCHAR(255) NOT NULL,
+    task_description TEXT,
+    client_id UUID NOT NULL REFERENCES clients(client_id) ON DELETE CASCADE,
+    location_id UUID REFERENCES locations(location_id) ON DELETE SET NULL,
+    template_id UUID REFERENCES task_templates(template_id) ON DELETE SET NULL,
+    current_assigned_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    priority VARCHAR(50) NOT NULL DEFAULT 'MEDIA',
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    is_finalized BOOLEAN NOT NULL DEFAULT FALSE,
+    finalized_at TIMESTAMPTZ,
+    finalized_by_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_by_user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
+    
+    CONSTRAINT chk_task_priority CHECK (priority IN ('BAJA', 'MEDIA', 'ALTA', 'CRITICA')),
+    CONSTRAINT chk_task_status CHECK (status IN ('PENDING', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED'))
+);
+
+CREATE INDEX idx_tasks_client ON tasks(client_id);
+CREATE INDEX idx_tasks_location ON tasks(location_id);
+CREATE INDEX idx_tasks_assigned_user ON tasks(current_assigned_user_id);
+CREATE INDEX idx_tasks_status ON tasks(status) WHERE deleted_at IS NULL;
+CREATE INDEX idx_tasks_created_at ON tasks(created_at);
+
+COMMENT ON TABLE tasks IS 'Tareas (trabajos grandes divididos en subtareas)';
+COMMENT ON COLUMN tasks.current_assigned_user_id IS 'Usuario asignado actual (puede cambiar por subtarea)';
+COMMENT ON COLUMN tasks.is_finalized IS 'Indica si la tarea fue finalizada completamente';
+
+-- Tabla: subtasks
+-- Subtareas de una tarea (instancias ejecutables)
+CREATE TABLE subtasks (
+    subtask_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    task_id UUID NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+    parent_subtask_id UUID REFERENCES subtasks(subtask_id) ON DELETE CASCADE,
+    template_subtask_id UUID REFERENCES template_subtasks(template_subtask_id) ON DELETE SET NULL,
+    subtask_title VARCHAR(255) NOT NULL,
+    subtask_description TEXT,
+    order_index INT NOT NULL,
+    current_assigned_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    is_required BOOLEAN NOT NULL DEFAULT TRUE,
+    is_completed BOOLEAN NOT NULL DEFAULT FALSE,
+    completed_at TIMESTAMPTZ,
+    completion_notes TEXT, -- Descripción de cierre obligatoria
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT chk_subtask_order_index CHECK (order_index >= 0)
+);
+
+CREATE INDEX idx_subtasks_task ON subtasks(task_id, order_index);
+CREATE INDEX idx_subtasks_parent ON subtasks(parent_subtask_id);
+CREATE INDEX idx_subtasks_assigned_user ON subtasks(current_assigned_user_id);
+CREATE INDEX idx_subtasks_completed ON subtasks(is_completed);
+
+COMMENT ON TABLE subtasks IS 'Subtareas de una tarea (instancias ejecutables con secuencia)';
+COMMENT ON COLUMN subtasks.order_index IS 'Orden secuencial de ejecución (subtarea N bloquea a N+1)';
+COMMENT ON COLUMN subtasks.completion_notes IS 'Notas de cierre (obligatorias al completar)';
+
+-- Tabla: subtask_checklist_items
+-- Items/checks dentro de una subtarea
+CREATE TABLE subtask_checklist_items (
+    checklist_item_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    subtask_id UUID NOT NULL REFERENCES subtasks(subtask_id) ON DELETE CASCADE,
+    item_label VARCHAR(500) NOT NULL,
+    item_order INT NOT NULL,
+    is_required BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT chk_item_order CHECK (item_order >= 0)
+);
+
+CREATE INDEX idx_subtask_checklist_items_subtask ON subtask_checklist_items(subtask_id, item_order);
+
+COMMENT ON TABLE subtask_checklist_items IS 'Items/checks dentro de una subtarea (ej: verificar voltaje, instalar bracket)';
+
+-- Tabla: subtask_checklist_progress
+-- Progreso de checklist (qué items están completados)
+CREATE TABLE subtask_checklist_progress (
+    progress_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    checklist_item_id UUID NOT NULL REFERENCES subtask_checklist_items(checklist_item_id) ON DELETE CASCADE,
+    is_checked BOOLEAN NOT NULL DEFAULT FALSE,
+    checked_at TIMESTAMPTZ,
+    checked_by_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    
+    UNIQUE(checklist_item_id)
+);
+
+CREATE INDEX idx_subtask_checklist_progress_item ON subtask_checklist_progress(checklist_item_id);
+
+COMMENT ON TABLE subtask_checklist_progress IS 'Progreso de checklist (qué items están marcados)';
+
+-- Tabla: subtask_assignments
+-- Historial de asignaciones de subtarea (quién, cuándo)
+CREATE TABLE subtask_assignments (
+    assignment_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    subtask_id UUID NOT NULL REFERENCES subtasks(subtask_id) ON DELETE CASCADE,
+    assigned_user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    assigned_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    assigned_by_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    unassigned_at TIMESTAMPTZ,
+    notes TEXT
+);
+
+CREATE INDEX idx_subtask_assignments_subtask ON subtask_assignments(subtask_id, assigned_at DESC);
+CREATE INDEX idx_subtask_assignments_user ON subtask_assignments(assigned_user_id);
+
+COMMENT ON TABLE subtask_assignments IS 'Historial de asignaciones de subtareas (trazabilidad de cambios de manos)';
+
+-- Tabla: task_attachments
+-- Adjuntos multimedia de tareas/subtareas
+CREATE TABLE task_attachments (
+    attachment_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    task_id UUID NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+    subtask_id UUID REFERENCES subtasks(subtask_id) ON DELETE CASCADE,
+    file_name VARCHAR(500) NOT NULL,
+    file_url VARCHAR(1000) NOT NULL,
+    file_size_bytes BIGINT,
+    mime_type VARCHAR(100),
+    attachment_type VARCHAR(50) NOT NULL, -- 'PHOTO', 'VIDEO', 'DOCUMENT'
+    uploaded_by_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    uploaded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT chk_attachment_type CHECK (attachment_type IN ('PHOTO', 'VIDEO', 'DOCUMENT'))
+);
+
+CREATE INDEX idx_task_attachments_task ON task_attachments(task_id);
+CREATE INDEX idx_task_attachments_subtask ON task_attachments(subtask_id);
+CREATE INDEX idx_task_attachments_uploaded_at ON task_attachments(uploaded_at);
+
+COMMENT ON TABLE task_attachments IS 'Adjuntos multimedia (fotos, videos) de tareas/subtareas';
+COMMENT ON COLUMN task_attachments.file_url IS 'URL consumible por frontend (storage externo, no blob en BD)';
+
+-- =====================================================
+-- SECCIÓN 6: TICKETS
+-- =====================================================
+
+-- Tabla: ticket_categories
+-- Categorías de tickets
+CREATE TABLE ticket_categories (
+    category_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    category_name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE ticket_categories IS 'Categorías de tickets (ej: Soporte técnico, Mantenimiento)';
+
+-- Tabla: ticket_statuses
+-- Estados del ciclo de vida del ticket
+CREATE TABLE ticket_statuses (
+    status_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    status_key VARCHAR(50) NOT NULL UNIQUE,
+    status_label VARCHAR(100) NOT NULL,
+    status_order INT NOT NULL,
+    is_final BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT chk_status_order CHECK (status_order >= 0)
+);
+
+COMMENT ON TABLE ticket_statuses IS 'Estados del ciclo de vida del ticket (open, in_progress, resolved, closed)';
+COMMENT ON COLUMN ticket_statuses.is_final IS 'Indica si es un estado final (closed, cancelled)';
+
+-- Tabla: ticket_priorities
+-- Prioridades de tickets
+CREATE TABLE ticket_priorities (
+    priority_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    priority_key VARCHAR(50) NOT NULL UNIQUE,
+    priority_label VARCHAR(100) NOT NULL,
+    priority_level INT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT chk_priority_level CHECK (priority_level >= 0)
+);
+
+COMMENT ON TABLE ticket_priorities IS 'Prioridades de tickets (baja, media, alta, crítica)';
+
+-- Tabla: tickets
+-- Tickets (incidencias/problemas)
+CREATE TABLE tickets (
+    ticket_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    ticket_title VARCHAR(255) NOT NULL,
+    ticket_description TEXT,
+    client_id UUID NOT NULL REFERENCES clients(client_id) ON DELETE CASCADE,
+    location_id UUID REFERENCES locations(location_id) ON DELETE SET NULL,
+    category_id UUID REFERENCES ticket_categories(category_id) ON DELETE SET NULL,
+    priority_id UUID NOT NULL REFERENCES ticket_priorities(priority_id) ON DELETE RESTRICT,
+    status_id UUID NOT NULL REFERENCES ticket_statuses(status_id) ON DELETE RESTRICT,
+    affected_device_id UUID REFERENCES stock_devices(device_id) ON DELETE SET NULL,
+    current_technician_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    current_warehouse_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    resolved_at TIMESTAMPTZ,
+    closed_at TIMESTAMPTZ,
+    created_by_user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_tickets_client ON tickets(client_id);
+CREATE INDEX idx_tickets_location ON tickets(location_id);
+CREATE INDEX idx_tickets_category ON tickets(category_id);
+CREATE INDEX idx_tickets_status ON tickets(status_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_tickets_priority ON tickets(priority_id);
+CREATE INDEX idx_tickets_technician ON tickets(current_technician_id);
+CREATE INDEX idx_tickets_warehouse_user ON tickets(current_warehouse_user_id);
+CREATE INDEX idx_tickets_created_at ON tickets(created_at);
+
+COMMENT ON TABLE tickets IS 'Tickets (incidencias/problemas reportados por clientes)';
+COMMENT ON COLUMN tickets.current_technician_id IS 'Técnico asignado actual';
+COMMENT ON COLUMN tickets.current_warehouse_user_id IS 'Usuario de depósito asignado';
+
+-- Tabla: ticket_assignments
+-- Historial de asignaciones de tickets (técnicos y depósito)
+CREATE TABLE ticket_assignments (
+    assignment_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    ticket_id UUID NOT NULL REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    assignment_type VARCHAR(50) NOT NULL, -- 'TECHNICIAN', 'WAREHOUSE'
+    assigned_user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    assigned_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    assigned_by_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    unassigned_at TIMESTAMPTZ,
+    notes TEXT,
+    
+    CONSTRAINT chk_assignment_type CHECK (assignment_type IN ('TECHNICIAN', 'WAREHOUSE'))
+);
+
+CREATE INDEX idx_ticket_assignments_ticket ON ticket_assignments(ticket_id, assigned_at DESC);
+CREATE INDEX idx_ticket_assignments_user ON ticket_assignments(assigned_user_id);
+CREATE INDEX idx_ticket_assignments_type ON ticket_assignments(assignment_type);
+
+COMMENT ON TABLE ticket_assignments IS 'Historial de asignaciones de tickets (técnicos y depósito)';
+
+-- Tabla: ticket_resolution_notes
+-- Notas de resolución del ticket (comentarios del técnico)
+CREATE TABLE ticket_resolution_notes (
+    note_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    ticket_id UUID NOT NULL REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    note_text TEXT NOT NULL,
+    created_by_user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_ticket_resolution_notes_ticket ON ticket_resolution_notes(ticket_id, created_at DESC);
+
+COMMENT ON TABLE ticket_resolution_notes IS 'Notas de resolución del ticket (comentarios del técnico)';
+
+-- Tabla: ticket_attachments
+-- Adjuntos multimedia de tickets
+CREATE TABLE ticket_attachments (
+    attachment_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    ticket_id UUID NOT NULL REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    file_name VARCHAR(500) NOT NULL,
+    file_url VARCHAR(1000) NOT NULL,
+    file_size_bytes BIGINT,
+    mime_type VARCHAR(100),
+    attachment_type VARCHAR(50) NOT NULL, -- 'PHOTO', 'VIDEO', 'DOCUMENT'
+    uploaded_by_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    uploaded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT chk_ticket_attachment_type CHECK (attachment_type IN ('PHOTO', 'VIDEO', 'DOCUMENT'))
+);
+
+CREATE INDEX idx_ticket_attachments_ticket ON ticket_attachments(ticket_id);
+CREATE INDEX idx_ticket_attachments_uploaded_at ON ticket_attachments(uploaded_at);
+
+COMMENT ON TABLE ticket_attachments IS 'Adjuntos multimedia de tickets';
+
+-- Tabla: ticket_inventory_requests
+-- Solicitudes de materiales desde un ticket
+CREATE TABLE ticket_inventory_requests (
+    request_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    ticket_id UUID NOT NULL REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    request_status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    requested_by_user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE SET NULL,
+    requested_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reviewed_by_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    reviewed_at TIMESTAMPTZ,
+    review_notes TEXT,
+    
+    CONSTRAINT chk_request_status CHECK (request_status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'))
+);
+
+CREATE INDEX idx_ticket_inventory_requests_ticket ON ticket_inventory_requests(ticket_id);
+CREATE INDEX idx_ticket_inventory_requests_status ON ticket_inventory_requests(request_status);
+CREATE INDEX idx_ticket_inventory_requests_requested_by ON ticket_inventory_requests(requested_by_user_id);
+
+COMMENT ON TABLE ticket_inventory_requests IS 'Solicitudes de materiales desde ticket (técnico solicita a depósito)';
+COMMENT ON COLUMN ticket_inventory_requests.request_status IS 'Estado: PENDING, APPROVED, REJECTED, CANCELLED';
+
+-- Tabla: ticket_inventory_request_items
+-- Items dentro de una solicitud de inventario
+CREATE TABLE ticket_inventory_request_items (
+    request_item_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    request_id UUID NOT NULL REFERENCES ticket_inventory_requests(request_id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES inventory_products(product_id) ON DELETE CASCADE,
+    quantity_requested DECIMAL(12, 3) NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT chk_quantity_requested CHECK (quantity_requested > 0)
+);
+
+CREATE INDEX idx_ticket_inventory_request_items_request ON ticket_inventory_request_items(request_id);
+CREATE INDEX idx_ticket_inventory_request_items_product ON ticket_inventory_request_items(product_id);
+
+COMMENT ON TABLE ticket_inventory_request_items IS 'Productos solicitados en cada request';
+
+-- Tabla: ticket_dispatches
+-- Despachos de materiales desde depósito para un ticket
+CREATE TABLE ticket_dispatches (
+    dispatch_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    ticket_id UUID NOT NULL REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    request_id UUID REFERENCES ticket_inventory_requests(request_id) ON DELETE SET NULL,
+    dispatched_by_user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE SET NULL,
+    dispatched_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    dispatch_notes TEXT
+);
+
+CREATE INDEX idx_ticket_dispatches_ticket ON ticket_dispatches(ticket_id);
+CREATE INDEX idx_ticket_dispatches_request ON ticket_dispatches(request_id);
+CREATE INDEX idx_ticket_dispatches_dispatched_by ON ticket_dispatches(dispatched_by_user_id);
+
+COMMENT ON TABLE ticket_dispatches IS 'Despachos de materiales desde depósito (puede o no estar relacionado con request)';
+COMMENT ON COLUMN ticket_dispatches.request_id IS 'Request relacionado (nullable: puede haber despachos sin request previo)';
+
+-- Tabla: ticket_dispatch_items
+-- Items despachados en cada despacho
+CREATE TABLE ticket_dispatch_items (
+    dispatch_item_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    dispatch_id UUID NOT NULL REFERENCES ticket_dispatches(dispatch_id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES inventory_products(product_id) ON DELETE CASCADE,
+    quantity_dispatched DECIMAL(12, 3) NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT chk_quantity_dispatched CHECK (quantity_dispatched > 0)
+);
+
+CREATE INDEX idx_ticket_dispatch_items_dispatch ON ticket_dispatch_items(dispatch_id);
+CREATE INDEX idx_ticket_dispatch_items_product ON ticket_dispatch_items(product_id);
+
+COMMENT ON TABLE ticket_dispatch_items IS 'Productos despachados en cada despacho';
+
+-- =====================================================
+-- SECCIÓN 7: TRIGGERS Y FUNCIONES
+-- =====================================================
+
+-- Función para actualizar updated_at automáticamente
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Aplicar trigger a todas las tablas con updated_at
+CREATE TRIGGER update_roles_updated_at BEFORE UPDATE ON roles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_clients_updated_at BEFORE UPDATE ON clients FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_locations_updated_at BEFORE UPDATE ON locations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_inventory_categories_updated_at BEFORE UPDATE ON inventory_categories FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_inventory_products_updated_at BEFORE UPDATE ON inventory_products FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_inventory_stock_updated_at BEFORE UPDATE ON inventory_stock FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_stock_devices_updated_at BEFORE UPDATE ON stock_devices FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_task_templates_updated_at BEFORE UPDATE ON task_templates FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_subtasks_updated_at BEFORE UPDATE ON subtasks FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_ticket_categories_updated_at BEFORE UPDATE ON ticket_categories FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_tickets_updated_at BEFORE UPDATE ON tickets FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_ticket_resolution_notes_updated_at BEFORE UPDATE ON ticket_resolution_notes FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- =====================================================
+-- DATOS SEMILLA (SEED DATA)
+-- =====================================================
+
+-- Roles básicos
+INSERT INTO roles (role_key, role_label, description) VALUES
+('admin', 'Administrador', 'Acceso total al sistema'),
+('tecnico', 'Técnico', 'Ejecuta tareas y tickets en campo'),
+('deposito', 'Encargado de Depósito', 'Gestiona inventario y despachos');
+
+-- Prioridades de tickets
+INSERT INTO ticket_priorities (priority_key, priority_label, priority_level) VALUES
+('BAJA', 'Baja', 1),
+('MEDIA', 'Media', 2),
+('ALTA', 'Alta', 3),
+('CRITICA', 'Crítica', 4);
+
+-- Estados de tickets
+INSERT INTO ticket_statuses (status_key, status_label, status_order, is_final) VALUES
+('OPEN', 'Abierto', 1, FALSE),
+('IN_PROGRESS', 'En Progreso', 2, FALSE),
+('AWAITING_APPROVAL', 'Esperando Aprobación', 3, FALSE),
+('RESOLVED', 'Resuelto', 4, FALSE),
+('CLOSED', 'Cerrado', 5, TRUE),
+('CANCELLED', 'Cancelado', 6, TRUE);
+
+-- =====================================================
+-- FIN DEL ESQUEMA
+-- =====================================================
+
+-- COMENTARIOS FINALES:
+-- 1. Este esquema está normalizado hacia BCNF donde es razonable
+-- 2. Separa claramente definición de ejecución (templates vs tasks/tickets)
+-- 3. Separa catálogo de stock de movimientos (inventory_products vs inventory_stock vs inventory_movements)
+-- 4. Ubicaciones normalizadas (no embebidas en clientes)
+-- 5. Historial de asignaciones para trazabilidad
+-- 6. Adjuntos como metadata (URLs, no blobs)
+-- 7. Secuencia de subtareas con order_index robusto
+-- 8. Soft deletes con deleted_at donde aplica
+-- 9. Auditoría con created_at, updated_at en todas las tablas
+-- 10. Preparado para migración futura (JWT sessions, multi-warehouse, etc.)

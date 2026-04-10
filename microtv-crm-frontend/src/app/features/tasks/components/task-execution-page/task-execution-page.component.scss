@@ -1,0 +1,179 @@
+.task-execution-page {
+  display: grid;
+  gap: 1.35rem;
+  min-width: 0;
+}
+
+.task-execution-page__topbar,
+.task-execution-page__header,
+.task-execution-page__assignee,
+.task-execution-page__summary-card mat-card-content {
+  display: flex;
+}
+
+.task-execution-page__topbar {
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.task-execution-page__back-link mat-icon,
+.task-execution-page__topbar button mat-icon {
+  margin-right: 0.35rem;
+}
+
+.task-execution-page__header {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.2rem;
+}
+
+.task-execution-page__header-side {
+  display: grid;
+  justify-items: end;
+  gap: 0.9rem;
+}
+
+.task-execution-page__assignee {
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.task-execution-page__meta-label,
+.task-execution-page__meta-value,
+.task-execution-page__summary-label,
+.task-execution-page__summary-value,
+.task-execution-page__summary-caption,
+.task-execution-page__footer-note,
+.task-execution-page__empty-card h2,
+.task-execution-page__empty-card p {
+  margin: 0;
+}
+
+.task-execution-page__meta-label,
+.task-execution-page__summary-label {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.task-execution-page__meta-value,
+.task-execution-page__summary-value {
+  margin-top: 0.25rem;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.task-execution-page__summary-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.task-execution-page__summary-card,
+.task-execution-page__checklist-card,
+.task-execution-page__empty-card {
+  border: 1px solid rgba(23, 24, 26, 0.06);
+  border-radius: 1.45rem;
+  box-shadow: var(--shadow-panel);
+}
+
+.task-execution-page__summary-card mat-card-content {
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 100%;
+}
+
+.task-execution-page__summary-caption {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.task-execution-page__progress-bar {
+  width: 100%;
+  height: 0.6rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(23, 24, 26, 0.08);
+}
+
+.task-execution-page__progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand-red), #f4b740);
+}
+
+.task-execution-page__content {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1.65fr) minmax(18rem, 0.95fr);
+}
+
+.task-execution-page__checklist-card mat-card-header,
+.task-execution-page__checklist-card mat-card-content {
+  padding-inline: 1.25rem;
+}
+
+.task-execution-page__checklist-card mat-card-header {
+  padding-top: 1.15rem;
+}
+
+.task-execution-page__sidebar {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+}
+
+.task-execution-page__footer-note {
+  color: #9a6b09;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.task-execution-page--empty {
+  place-items: center;
+  min-height: 50vh;
+}
+
+.task-execution-page__empty-card mat-card-content {
+  display: grid;
+  place-items: center;
+  gap: 0.8rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.task-execution-page__empty-card mat-icon {
+  color: var(--brand-red);
+  transform: scale(1.35);
+}
+
+@media (max-width: 1080px) {
+  .task-execution-page__summary-grid,
+  .task-execution-page__content {
+    grid-template-columns: 1fr;
+  }
+
+  .task-execution-page__header-side {
+    justify-items: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .task-execution-page__topbar,
+  .task-execution-page__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .task-execution-page__topbar button,
+  .task-execution-page__back-link {
+    justify-content: center;
+    width: 100%;
+  }
+}

@@ -4,7 +4,7 @@
   </mat-card-header>
 
   <mat-card-content>
-    <div class="tasks-table__scroll">
+    <div class="tasks-table__desktop-scroll">
       <table mat-table [dataSource]="block().items" class="tasks-table__table">
         <ng-container matColumnDef="id">
           <th mat-header-cell *matHeaderCellDef>{{ labelFor('id') }}</th>
@@ -15,6 +15,10 @@
           <th mat-header-cell *matHeaderCellDef>{{ labelFor('title') }}</th>
           <td mat-cell *matCellDef="let task">
             <div class="tasks-table__title">{{ task.title }}</div>
+            <a mat-button class="tasks-table__open-link" [routerLink]="['/tasks', task.id]">
+              <span>Ver ejecución</span>
+              <mat-icon>arrow_forward</mat-icon>
+            </a>
           </td>
         </ng-container>
 
@@ -53,6 +57,54 @@
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
       </table>
+    </div>
+
+    <div class="tasks-table__mobile-list" aria-label="Listado móvil de tareas">
+      @for (task of block().items; track task.id) {
+        <article class="tasks-table__mobile-card">
+          <div class="tasks-table__mobile-top">
+            <div>
+              <p class="tasks-table__mobile-label">{{ labelFor('id') }}</p>
+              <p class="tasks-table__mobile-id">{{ task.id }}</p>
+            </div>
+
+            <app-status-badge [label]="task.status" [tone]="task.statusTone" />
+          </div>
+
+          <div class="tasks-table__mobile-block">
+            <p class="tasks-table__mobile-label">{{ labelFor('title') }}</p>
+            <p class="tasks-table__mobile-title">{{ task.title }}</p>
+          </div>
+
+          <div class="tasks-table__mobile-grid">
+            <div class="tasks-table__mobile-block">
+              <p class="tasks-table__mobile-label">{{ labelFor('client') }}</p>
+              <p class="tasks-table__mobile-value">{{ task.client }}</p>
+            </div>
+
+            <div class="tasks-table__mobile-block">
+              <p class="tasks-table__mobile-label">{{ labelFor('subtasks') }}</p>
+              <div class="tasks-table__subtasks">
+                <strong>{{ task.completedSubtasks }} / {{ task.totalSubtasks }}</strong>
+                <span>{{ completionRatio(task.completedSubtasks, task.totalSubtasks) }}% completo</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tasks-table__mobile-block">
+            <p class="tasks-table__mobile-label">{{ labelFor('assignedTo') }}</p>
+            <div class="tasks-table__assignee">
+              <app-user-avatar [initials]="task.assignedInitials" [size]="32" />
+              <span>{{ task.assignedTo }}</span>
+            </div>
+          </div>
+
+          <a mat-stroked-button class="tasks-table__mobile-action" [routerLink]="['/tasks', task.id]">
+            <span>Ver ejecución</span>
+            <mat-icon>arrow_forward</mat-icon>
+          </a>
+        </article>
+      }
     </div>
   </mat-card-content>
 </mat-card>

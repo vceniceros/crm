@@ -1,0 +1,37 @@
+@if (viewModel$ | async; as viewModel) {
+  <section class="clients-page">
+    <div class="clients-page__header">
+      <app-page-title
+        eyebrow="Relación comercial"
+        [title]="viewModel.page.pageTitle"
+        [subtitle]="viewModel.page.pageSubtitle"
+      />
+
+      @if (viewModel.canCreate) {
+        <div class="clients-page__actions">
+          <button mat-flat-button color="primary" type="button" class="clients-page__action" (click)="openCreateClientDialog()">
+            <mat-icon>person_add</mat-icon>
+            <span>Crear cliente</span>
+          </button>
+        </div>
+      }
+    </div>
+
+    <section class="clients-page__intro-card" aria-label="Resumen de clientes">
+      <div>
+        <p class="clients-page__intro-label">Base activa</p>
+        <p class="clients-page__intro-value">{{ viewModel.page.items.length }} clientes</p>
+      </div>
+
+      <p class="clients-page__intro-copy">
+        Vista principal pensada para lectura rápida: razón social visible arriba y datos de contacto ordenados en cada card.
+      </p>
+    </section>
+
+    <app-clients-grid
+      [clients]="viewModel.page.items"
+      (openLocation)="openLocationDialog($event)"
+      (openExternalMaps)="openExternalMaps($event)"
+    />
+  </section>
+}
