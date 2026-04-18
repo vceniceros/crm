@@ -1,6 +1,8 @@
 export interface CreateInventoryProductFormValue {
   name: string;
-  categoryId: number | string | null;
-  imageUrl?: string | null;
+  productCode: string;
+  categoryId: string | null;
+  imageFile?: File | null;
   initialStock: number | null;
+  requiresTracking: boolean;
 }

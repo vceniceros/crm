@@ -20,6 +20,14 @@
         </mat-form-field>
 
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Codigo de producto</mat-label>
+          <input matInput formControlName="productCode" placeholder="Ej. PRD-FUENTE-12V-001" />
+          @if (form.controls.productCode.hasError('required') && form.controls.productCode.touched) {
+            <mat-error>El codigo es obligatorio.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Categoria</mat-label>
           <mat-select formControlName="categoryId">
             @for (category of categories; track category.id) {
@@ -31,11 +39,17 @@
           }
         </mat-form-field>
 
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="create-product-dialog__wide-field">
-          <mat-label>Imagen</mat-label>
-          <input matInput formControlName="imageUrl" placeholder="https://ejemplo.com/producto.jpg" />
-          <mat-hint>Opcional. Si no se informa, el listado mostrara un placeholder.</mat-hint>
-        </mat-form-field>
+        <div class="create-product-dialog__upload create-product-dialog__wide-field">
+          <label class="create-product-dialog__upload-label" for="product-image">Imagen</label>
+          <input id="product-image" type="file" accept="image/jpeg,image/png,image/webp" (change)="onFileSelected($event)" />
+          <p class="create-product-dialog__upload-hint">Opcional. Formatos permitidos: JPG, PNG, WEBP. Máximo 2 MB.</p>
+          @if (selectedFileName(); as selectedFileName) {
+            <p class="create-product-dialog__upload-file">Archivo seleccionado: {{ selectedFileName }}</p>
+          }
+          @if (imageError(); as imageError) {
+            <p class="create-product-dialog__upload-error">{{ imageError }}</p>
+          }
+        </div>
 
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Stock inicial</mat-label>
@@ -47,11 +61,21 @@
             <mat-error>El stock inicial no puede ser negativo.</mat-error>
           }
         </mat-form-field>
+
+        <mat-checkbox formControlName="requiresTracking" class="create-product-dialog__wide-field">
+          Requiere serial o código de barras por unidad
+        </mat-checkbox>
       </div>
 
+      @if (submissionError(); as submissionError) {
+        <div class="create-product-dialog__feedback" role="alert">
+          <span>{{ submissionError }}</span>
+        </div>
+      }
+
       <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">Cargar producto</button>
+        <button mat-button type="button" mat-dialog-close [disabled]="isSubmitting()">Cancelar</button>
+        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || isSubmitting()">Cargar producto</button>
       </mat-dialog-actions>
     </form>
   }

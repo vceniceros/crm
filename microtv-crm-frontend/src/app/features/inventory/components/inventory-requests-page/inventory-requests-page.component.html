@@ -1,0 +1,62 @@
+<section class="inventory-requests-page">
+  <app-page-title
+    eyebrow="Depósito"
+    title="Solicitudes abiertas de materiales"
+    subtitle="Bandeja operativa para revisar pedidos adicionales originados en tareas o tickets y avanzar al despacho real."
+  />
+
+  @if (requests$ | async; as requests) {
+    @if (!requests.length) {
+      <mat-card class="inventory-requests-page__message">
+        <mat-card-content>
+          <mat-icon>inventory_2</mat-icon>
+          <p>No hay solicitudes abiertas para depósito.</p>
+        </mat-card-content>
+      </mat-card>
+    } @else {
+      <div class="inventory-requests-page__list">
+        @for (request of requests; track request.inventory_request_id) {
+          <mat-card class="inventory-requests-page__card">
+            <mat-card-content>
+              <div class="inventory-requests-page__top">
+                <div>
+                  <p class="inventory-requests-page__eyebrow">{{ request.source_type }} · {{ request.source_reference_id }}</p>
+                  <h2>{{ request.inventory_request_id }}</h2>
+                  <p class="inventory-requests-page__meta">{{ formatInventoryRequestStatus(request.request_status) }} · {{ request.requested_at | date: 'dd/MM/yyyy HH:mm' }}</p>
+                </div>
+
+                <a mat-stroked-button [routerLink]="sourceRoute(request.source_type, request.source_reference_id)">
+                  <mat-icon>open_in_new</mat-icon>
+                  <span>Abrir origen</span>
+                </a>
+              </div>
+
+              <p class="inventory-requests-page__reason">{{ request.request_reason || 'Sin motivo general cargado.' }}</p>
+
+              <div class="inventory-requests-page__items">
+                @for (item of request.items; track item.inventory_request_item_id) {
+                  <article class="inventory-requests-page__item">
+                    <div>
+                      <strong>{{ item.product_name }}</strong>
+                      <span>{{ item.product_code }}{{ item.requires_tracking ? ' · tracking unitario' : '' }}</span>
+                    </div>
+                    <span>x{{ item.quantity_requested }}</span>
+                  </article>
+                }
+              </div>
+
+              @if (request.request_status === 'PENDING') {
+                <div class="inventory-requests-page__actions">
+                  <button mat-stroked-button type="button" (click)="reject(request.inventory_request_id)">Rechazar</button>
+                  <button mat-flat-button color="primary" type="button" (click)="approve(request.inventory_request_id)">Aprobar</button>
+                </div>
+              } @else {
+                <p class="inventory-requests-page__meta">La solicitud ya está aprobada. Abrí la tarea o ticket para registrar el despacho real.</p>
+              }
+            </mat-card-content>
+          </mat-card>
+        }
+      </div>
+    }
+  }
+</section>

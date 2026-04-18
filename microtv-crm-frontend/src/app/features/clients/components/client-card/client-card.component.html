@@ -24,7 +24,7 @@
         <mat-icon>mail</mat-icon>
         <div>
           <p class="client-card__label">Email</p>
-          <p class="client-card__value client-card__value--wrap">{{ client().email }}</p>
+          <p class="client-card__value client-card__value--wrap">{{ client().email || 'Sin email' }}</p>
         </div>
       </div>
 
@@ -32,7 +32,15 @@
         <mat-icon>phone</mat-icon>
         <div>
           <p class="client-card__label">Teléfono</p>
-          <p class="client-card__value">{{ client().telefono }}</p>
+          <p class="client-card__value">{{ client().telefono || 'Sin teléfono' }}</p>
+        </div>
+      </div>
+
+      <div class="client-card__detail">
+        <mat-icon>verified</mat-icon>
+        <div>
+          <p class="client-card__label">Estado</p>
+          <p class="client-card__value">{{ client().isActive ? 'Activo' : 'Inactivo' }}</p>
         </div>
       </div>
 
@@ -46,6 +54,20 @@
     </div>
 
     <div class="client-card__actions">
+      @if (canEdit()) {
+        <button mat-stroked-button type="button" class="client-card__action" (click)="emitEdit()">
+          <mat-icon>edit</mat-icon>
+          <span>Editar</span>
+        </button>
+      }
+
+      @if (canDelete()) {
+        <button mat-stroked-button type="button" class="client-card__action client-card__action--warn" (click)="emitDelete()">
+          <mat-icon>delete</mat-icon>
+          <span>Eliminar</span>
+        </button>
+      }
+
       @if (hasLocation()) {
         <button mat-stroked-button type="button" class="client-card__action" (click)="emitOpenLocation()">
           <mat-icon>map</mat-icon>
@@ -59,7 +81,7 @@
       } @else {
         <div class="client-card__location-hint" aria-label="Ubicación no disponible para este cliente">
           <mat-icon>location_off</mat-icon>
-          <span>Sin ubicación disponible</span>
+          <span>Sin ubicación cargada</span>
         </div>
       }
     </div>

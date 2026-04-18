@@ -1,0 +1,132 @@
+.task-template-form-page {
+  display: grid;
+  gap: 1rem;
+}
+
+.task-template-form-page__form,
+.task-template-form-page__subtasks,
+.task-template-form-page__items-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.task-template-form-page__panel,
+.task-template-form-page__message {
+  border-radius: 1.25rem;
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  box-shadow: var(--shadow-panel);
+}
+
+.task-template-form-page__general-grid,
+.task-template-form-page__subtask-grid,
+.task-template-form-page__item-fields,
+.task-template-form-page__material-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.task-template-form-page__full-width {
+  grid-column: 1 / -1;
+}
+
+.task-template-form-page__subtasks-header,
+.task-template-form-page__subtask-top,
+.task-template-form-page__materials-header,
+.task-template-form-page__items-header,
+.task-template-form-page__icon-actions,
+.task-template-form-page__footer-actions,
+.task-template-form-page__message mat-card-content {
+  display: flex;
+}
+
+.task-template-form-page__subtasks-header,
+.task-template-form-page__subtask-top,
+.task-template-form-page__materials-header,
+.task-template-form-page__items-header,
+.task-template-form-page__footer-actions {
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.task-template-form-page__subtask-top,
+.task-template-form-page__materials-header,
+.task-template-form-page__items-header,
+.task-template-form-page__footer-actions,
+.task-template-form-page__message mat-card-content {
+  align-items: center;
+}
+
+.task-template-form-page__eyebrow,
+.task-template-form-page__subtask-top h3,
+.task-template-form-page__message p {
+  margin: 0;
+}
+
+.task-template-form-page__eyebrow {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.task-template-form-page__actions-inline,
+.task-template-form-page__icon-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.task-template-form-page__materials-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.task-template-form-page__materials-header h2,
+.task-template-form-page__materials-header p,
+.task-template-form-page__materials-empty,
+.task-template-form-page__material-hint {
+  margin: 0;
+}
+
+.task-template-form-page__materials-empty,
+.task-template-form-page__material-hint {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.task-template-form-page__material-row {
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(23, 24, 26, 0.03);
+}
+
+.task-template-form-page__item-row {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border-radius: 1rem;
+  background: rgba(23, 24, 26, 0.03);
+}
+
+.task-template-form-page__message--error mat-icon {
+  color: #b3261e;
+}
+
+@media (max-width: 900px) {
+  .task-template-form-page__general-grid,
+  .task-template-form-page__subtask-grid,
+  .task-template-form-page__item-fields,
+  .task-template-form-page__material-row {
+    grid-template-columns: 1fr;
+  }
+
+  .task-template-form-page__subtasks-header,
+  .task-template-form-page__subtask-top,
+  .task-template-form-page__materials-header,
+  .task-template-form-page__items-header,
+  .task-template-form-page__footer-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

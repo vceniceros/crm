@@ -1,7 +1,7 @@
 <mat-card class="task-attachments-section">
   <mat-card-header>
-    <mat-card-title>Adjuntos mock</mat-card-title>
-    <mat-card-subtitle>Fotos y videos asociados al avance operativo. Se guarda metadata en localStorage.</mat-card-subtitle>
+    <mat-card-title>Adjuntos de tarea</mat-card-title>
+    <mat-card-subtitle>Fotos y videos asociados al avance operativo, validados por una fachada reutilizable.</mat-card-subtitle>
   </mat-card-header>
 
   <mat-card-content>
@@ -9,26 +9,30 @@
       <input
         #fileInput
         type="file"
-        accept="image/*,video/*"
+        [accept]="acceptAttribute"
         multiple
         hidden
-        [disabled]="disabled()"
+        [disabled]="disabled() || isUploading()"
         (change)="onFileSelection($event)"
       />
 
-      <button mat-stroked-button type="button" [disabled]="disabled()" (click)="fileInput.click()">
+      <button mat-stroked-button type="button" [disabled]="disabled() || isUploading()" (click)="fileInput.click()">
         <mat-icon>upload_file</mat-icon>
-        <span>Agregar fotos o videos</span>
+        <span>{{ isUploading() ? 'Subiendo multimedia...' : 'Agregar fotos o videos' }}</span>
       </button>
 
       <p class="task-attachments-section__hint">
         @if (disabled()) {
           Tarea finalizada: los adjuntos quedan solo en lectura.
         } @else {
-          El binario real no se persiste; la preview solo dura en la sesión activa del navegador.
+          La clasificación y validación se resuelven en la fachada, y el archivo queda persistido en el backend al subirlo.
         }
       </p>
     </div>
+
+    @if (uploadError(); as uploadError) {
+      <p class="task-attachments-section__error">{{ uploadError }}</p>
+    }
 
     @if (attachments().length) {
       <div class="task-attachments-section__list">
@@ -60,7 +64,11 @@
             </div>
 
             @if (!attachment.previewUrl && (attachment.kind === 'image' || attachment.kind === 'video')) {
-              <p class="task-attachments-section__preview-note">La preview no se conserva después de recargar. La metadata del adjunto sí queda persistida.</p>
+              <p class="task-attachments-section__preview-note">No se pudo generar una preview para este archivo.</p>
+            }
+
+            @if (attachment.storagePath) {
+              <p class="task-attachments-section__preview-note">Destino resuelto: {{ attachment.storagePath }}</p>
             }
           </article>
         }

@@ -7,7 +7,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import type { CircleMarker, Map as LeafletMap } from 'leaflet';
 
 import { AppLocation, LocationPickerDialogData, LocationSelectionResult } from '../../../core/models/location.model';
-import { LocationLinkService } from '../../services/location-link.service';
+import { LocationFacade } from '../../facades/location.facade';
 
 const DEFAULT_CENTER: AppLocation = {
   latitude: -34.6037,
@@ -25,7 +25,7 @@ const DEFAULT_CENTER: AppLocation = {
 })
 export class LocationPickerDialogComponent implements AfterViewInit, OnDestroy {
   private readonly dialogRef = inject(MatDialogRef<LocationPickerDialogComponent, LocationSelectionResult>);
-  private readonly locationLinkService = inject(LocationLinkService);
+  private readonly locationFacade = inject(LocationFacade);
   private readonly platformId = inject(PLATFORM_ID);
   readonly data = inject<LocationPickerDialogData | null>(MAT_DIALOG_DATA, { optional: true }) ?? {};
 
@@ -34,10 +34,10 @@ export class LocationPickerDialogComponent implements AfterViewInit, OnDestroy {
   readonly state = signal<'idle' | 'loading' | 'ready' | 'error'>('idle');
   readonly errorMessage = signal('');
   readonly selectedLocation = signal<AppLocation | null>(this.getInitialLocation());
-  readonly googleMapsUrl = computed(() => this.locationLinkService.buildGoogleMapsUrl(this.selectedLocation()));
+  readonly googleMapsUrl = computed(() => this.locationFacade.buildNavigationUrl(this.selectedLocation()));
   readonly coordinatesLabel = computed(() => {
     const location = this.selectedLocation();
-    if (!this.locationLinkService.isValidLocation(location)) {
+    if (!this.locationFacade.isValid(location)) {
       return 'Todavía no marcaste un punto en el mapa.';
     }
 
@@ -67,7 +67,7 @@ export class LocationPickerDialogComponent implements AfterViewInit, OnDestroy {
     const location = this.selectedLocation();
     const googleMapsUrl = this.googleMapsUrl();
 
-    if (!this.locationLinkService.isValidLocation(location) || !googleMapsUrl) {
+    if (!this.locationFacade.isValid(location) || !googleMapsUrl) {
       return;
     }
 
@@ -78,7 +78,7 @@ export class LocationPickerDialogComponent implements AfterViewInit, OnDestroy {
   }
 
   openSelectedLocationInMaps(): void {
-    this.locationLinkService.openInGoogleMaps(this.selectedLocation());
+    this.locationFacade.openNavigation(this.selectedLocation());
   }
 
   private async initializeMap(): Promise<void> {
@@ -102,7 +102,7 @@ export class LocationPickerDialogComponent implements AfterViewInit, OnDestroy {
 
       this.mapInstance = leaflet.map(mapElement, {
         center,
-        zoom: this.locationLinkService.isValidLocation(this.selectedLocation()) ? 15 : 12,
+        zoom: this.locationFacade.isValid(this.selectedLocation()) ? 15 : 12,
         zoomControl: true
       });
 
@@ -112,16 +112,12 @@ export class LocationPickerDialogComponent implements AfterViewInit, OnDestroy {
         })
         .addTo(this.mapInstance);
 
-      if (this.locationLinkService.isValidLocation(this.selectedLocation())) {
+      if (this.locationFacade.isValid(this.selectedLocation())) {
         this.renderMarker(this.selectedLocation() as AppLocation, this.data.title ?? 'Ubicación seleccionada');
       }
 
       this.mapInstance.on('click', (event) => {
-        const nextLocation: AppLocation = {
-          latitude: event.latlng.lat,
-          longitude: event.latlng.lng,
-          addressLabel: buildMapSelectionLabel(event.latlng.lat, event.latlng.lng)
-        };
+        const nextLocation = this.locationFacade.createFromMapSelection(event.latlng.lat, event.latlng.lng);
 
         this.selectedLocation.set(nextLocation);
         this.renderMarker(nextLocation, this.data.title ?? 'Ubicación seleccionada');
@@ -167,12 +163,8 @@ export class LocationPickerDialogComponent implements AfterViewInit, OnDestroy {
 
   private getInitialLocation(): AppLocation | null {
     const candidate = this.data.initialLocation;
-    return this.locationLinkService.isValidLocation(candidate) ? candidate : null;
+    return this.locationFacade.isValid(candidate) ? candidate : null;
   }
-}
-
-function buildMapSelectionLabel(latitude: number, longitude: number): string {
-  return `Punto marcado ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
 }
 
 function resolvePickerErrorMessage(error: unknown): string {

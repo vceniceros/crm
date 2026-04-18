@@ -1,0 +1,200 @@
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
+import { Observable, throwError } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
+
+import { crmApiConfig } from '../config/crm-api.config';
+import {
+  ClientSummary,
+  CreateLocationRequest,
+  CrmUserOption,
+  CreateTaskFromTemplateRequest,
+  PersistedLocation,
+  CreateTaskTemplateRequest,
+  ExecuteSubtaskActionRequest,
+  SetTaskTemplateActivationRequest,
+  TaskDetail,
+  TaskSummary,
+  TaskTemplate,
+  UnassignedSubtaskQueueItem,
+  UpdateSubtaskProgressRequest,
+  UpdateTaskTemplateRequest
+} from '../models/task-management.model';
+import { TaskAttachment } from '../models/task-attachment.model';
+import { AppLocation } from '../models/location.model';
+import { AuthSessionService } from './auth-session.service';
+
+interface ApiErrorEnvelope {
+  error?: {
+    code?: string;
+    message?: string;
+  };
+}
+
+@Injectable({ providedIn: 'root' })
+export class TaskManagementService {
+  private readonly http = inject(HttpClient);
+  private readonly authSessionService = inject(AuthSessionService);
+
+  listTemplates(): Observable<TaskTemplate[]> {
+    return this.request<TaskTemplate[]>('get', '/tasks/templates');
+  }
+
+  getTemplate(templateId: string): Observable<TaskTemplate> {
+    return this.request<TaskTemplate>('get', `/tasks/templates/${templateId}`);
+  }
+
+  createTemplate(payload: CreateTaskTemplateRequest): Observable<TaskTemplate> {
+    return this.request<TaskTemplate>('post', '/tasks/templates', payload);
+  }
+
+  updateTemplate(templateId: string, payload: UpdateTaskTemplateRequest): Observable<TaskTemplate> {
+    return this.request<TaskTemplate>('put', `/tasks/templates/${templateId}`, payload);
+  }
+
+  setTemplateActivation(templateId: string, payload: SetTaskTemplateActivationRequest): Observable<TaskTemplate> {
+    return this.request<TaskTemplate>('patch', `/tasks/templates/${templateId}/activation`, payload);
+  }
+
+  listClients(): Observable<ClientSummary[]> {
+    return this.request<ClientSummary[]>('get', '/clients');
+  }
+
+  listCrmUsersByRole(roleKey: string): Observable<CrmUserOption[]> {
+    return this.request<CrmUserOption[]>('get', `/crm-users?role_key=${encodeURIComponent(roleKey)}`);
+  }
+
+  createTaskFromTemplate(payload: CreateTaskFromTemplateRequest): Observable<TaskDetail> {
+    return this.request<TaskDetail>('post', '/tasks', payload);
+  }
+
+  createLocation(location: AppLocation): Observable<PersistedLocation> {
+    const payload: CreateLocationRequest = {
+      latitude: location.latitude,
+      longitude: location.longitude,
+      address_label: location.addressLabel?.trim() || null,
+      formatted_address: location.addressLabel?.trim() || null
+    };
+
+    return this.request<{
+      location_id: string;
+      latitude: number;
+      longitude: number;
+      address_label: string | null;
+      formatted_address: string | null;
+    }>('post', '/locations', payload).pipe(map((response) => this.mapPersistedLocation(response)));
+  }
+
+  listAssignedTasks(): Observable<TaskSummary[]> {
+    return this.request<TaskSummary[]>('get', '/tasks/assigned/me');
+  }
+
+  listTrackingTasks(): Observable<TaskSummary[]> {
+    return this.request<TaskSummary[]>('get', '/tasks/tracking/me');
+  }
+
+  listUnassignedSubtasks(): Observable<UnassignedSubtaskQueueItem[]> {
+    return this.request<UnassignedSubtaskQueueItem[]>('get', '/tasks/unassigned/me');
+  }
+
+  getTaskDetail(taskId: string): Observable<TaskDetail> {
+    return this.request<TaskDetail>('get', `/tasks/${taskId}`);
+  }
+
+  claimSubtask(subtaskId: string): Observable<TaskDetail> {
+    return this.request<TaskDetail>('post', `/tasks/subtasks/${subtaskId}/claim`, {});
+  }
+
+  saveSubtaskProgress(subtaskId: string, payload: UpdateSubtaskProgressRequest): Observable<TaskDetail> {
+    return this.request<TaskDetail>('put', `/tasks/subtasks/${subtaskId}/items`, payload);
+  }
+
+  executeSubtaskAction(subtaskId: string, payload: ExecuteSubtaskActionRequest): Observable<TaskDetail> {
+    return this.request<TaskDetail>('post', `/tasks/subtasks/${subtaskId}/actions`, payload);
+  }
+
+  uploadTaskAttachments(taskId: string, files: readonly File[], subtaskId?: string | null): Observable<TaskAttachment[]> {
+    const headers = this.buildAuthHeaders();
+    if (!headers) {
+      return throwError(() => new Error('No hay una sesión autenticada válida para operar tareas.'));
+    }
+
+    const formData = new FormData();
+    files.forEach((file) => formData.append('files', file));
+    if (subtaskId) {
+      formData.append('subtask_id', subtaskId);
+    }
+
+    return this.http
+      .post<TaskAttachment[]>(`${crmApiConfig.baseUrl}/tasks/${taskId}/attachments`, formData, { headers })
+      .pipe(catchError((error) => this.handleRequestError(error)));
+  }
+
+  deleteTaskAttachment(attachmentId: string): Observable<void> {
+    const headers = this.buildAuthHeaders();
+    if (!headers) {
+      return throwError(() => new Error('No hay una sesión autenticada válida para operar tareas.'));
+    }
+
+    return this.http
+      .delete<void>(`${crmApiConfig.baseUrl}/tasks/attachments/${attachmentId}`, { headers })
+      .pipe(catchError((error) => this.handleRequestError(error)));
+  }
+
+  private request<T>(method: 'get' | 'post' | 'put' | 'patch', path: string, body?: unknown): Observable<T> {
+    const headers = this.buildAuthHeaders();
+    if (!headers) {
+      return throwError(() => new Error('No hay una sesión autenticada válida para operar tareas.'));
+    }
+
+    const url = `${crmApiConfig.baseUrl}${path}`;
+    if (method === 'get') {
+      return this.http.get<T>(url, { headers }).pipe(catchError((error) => this.handleRequestError(error)));
+    }
+
+    if (method === 'put') {
+      return this.http.put<T>(url, body ?? {}, { headers }).pipe(catchError((error) => this.handleRequestError(error)));
+    }
+
+    if (method === 'patch') {
+      return this.http.patch<T>(url, body ?? {}, { headers }).pipe(catchError((error) => this.handleRequestError(error)));
+    }
+
+    return this.http.post<T>(url, body ?? {}, { headers }).pipe(catchError((error) => this.handleRequestError(error)));
+  }
+
+  private mapPersistedLocation(location: {
+    location_id: string;
+    latitude: number;
+    longitude: number;
+    address_label: string | null;
+  }): PersistedLocation {
+    return {
+      locationId: location.location_id,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      addressLabel: location.address_label?.trim() || undefined
+    };
+  }
+
+  private buildAuthHeaders(): HttpHeaders | null {
+    const session = this.authSessionService.sessionSnapshot();
+    const accessToken = session?.tokens.access_token;
+    if (!accessToken) {
+      return null;
+    }
+
+    return new HttpHeaders({
+      Authorization: `Bearer ${accessToken}`
+    });
+  }
+
+  private handleRequestError(error: unknown): Observable<never> {
+    const apiMessage = (error as { error?: ApiErrorEnvelope })?.error?.error?.message;
+    if (typeof apiMessage === 'string' && apiMessage.trim()) {
+      return throwError(() => new Error(apiMessage));
+    }
+
+    return throwError(() => new Error('No se pudo completar la operación de tareas.'));
+  }
+}

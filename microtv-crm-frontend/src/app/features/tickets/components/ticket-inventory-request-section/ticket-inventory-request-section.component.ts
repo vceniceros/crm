@@ -44,7 +44,8 @@ export class TicketInventoryRequestSectionComponent {
     quantity: this.formBuilder.control(1, {
       validators: [Validators.required, Validators.min(1)],
       nonNullable: true
-    })
+    }),
+    notes: this.formBuilder.control<string | null>(null)
   });
 
   draftItems: TicketInventoryRequestItem[] = [];
@@ -68,11 +69,12 @@ export class TicketInventoryRequestSectionComponent {
       {
         inventoryItemId: selectedItem.id,
         inventoryItemName: selectedItem.name,
-        quantity: this.itemForm.controls.quantity.getRawValue()
+        quantity: this.itemForm.controls.quantity.getRawValue(),
+        notes: this.itemForm.controls.notes.getRawValue()?.trim() || undefined
       }
     ];
 
-    this.itemForm.reset({ inventoryItemId: null, quantity: 1 });
+    this.itemForm.reset({ inventoryItemId: null, quantity: 1, notes: null });
   }
 
   removeDraftItem(inventoryItemId: number | string): void {
@@ -86,7 +88,7 @@ export class TicketInventoryRequestSectionComponent {
 
     this.requestCreated.emit(this.draftItems.map((item) => ({ ...item })));
     this.draftItems = [];
-    this.itemForm.reset({ inventoryItemId: null, quantity: 1 });
+    this.itemForm.reset({ inventoryItemId: null, quantity: 1, notes: null });
   }
 
   updateDecisionComment(requestId: string, event: Event): void {

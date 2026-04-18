@@ -4,15 +4,19 @@ export interface InventoryPageAction {
 }
 
 export interface InventoryProduct {
-  id: number;
+  id: string;
+  productId: string;
+  productCode: string;
   name: string;
+  productName: string;
+  categoryId: string;
   category: string;
   imageUrl?: string | null;
   stock: number;
-}
-
-export interface InventoryProductsMockData {
-  items: InventoryProduct[];
+  requiresTracking: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string | null;
 }
 
 export interface InventoryTableColumn {
@@ -32,3 +36,5 @@ export interface InventoryPageData {
   primaryAction: InventoryPageAction;
   productsTable: InventoryTableData;
 }
+
+export type InventoryProductsMockData = { items: InventoryProduct[] };

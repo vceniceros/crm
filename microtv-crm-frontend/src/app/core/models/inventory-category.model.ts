@@ -1,8 +1,7 @@
 export interface InventoryCategory {
-  id: number | string;
+  id: string;
+  code?: string;
   name: string;
 }
 
-export interface InventoryCategoriesMockData {
-  categories: InventoryCategory[];
-}
+export type InventoryCategoriesMockData = { categories: { id: string; name: string }[] };

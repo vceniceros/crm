@@ -1,0 +1,109 @@
+.task-template-detail-page {
+  display: grid;
+  gap: 1rem;
+}
+
+.task-template-detail-page__header,
+.task-template-detail-page__meta-card mat-card-content,
+.task-template-detail-page__subtask-header,
+.task-template-detail-page__subtask-meta,
+.task-template-detail-page__item-row,
+.task-template-detail-page__message mat-card-content {
+  display: flex;
+}
+
+.task-template-detail-page__header,
+.task-template-detail-page__subtask-header,
+.task-template-detail-page__subtask-meta,
+.task-template-detail-page__item-row {
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.task-template-detail-page__header {
+  align-items: flex-start;
+}
+
+.task-template-detail-page__header-side {
+  display: grid;
+  justify-items: end;
+  gap: 0.75rem;
+}
+
+.task-template-detail-page__meta-card,
+.task-template-detail-page__subtask-card,
+.task-template-detail-page__message {
+  border-radius: 1.25rem;
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  box-shadow: var(--shadow-panel);
+}
+
+.task-template-detail-page__meta-card mat-card-content {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.task-template-detail-page__meta-card div,
+.task-template-detail-page__subtask-meta div,
+.task-template-detail-page__item-row div,
+.task-template-detail-page__subtask-tags {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.task-template-detail-page__meta-card span,
+.task-template-detail-page__subtask-meta span,
+.task-template-detail-page__order,
+.task-template-detail-page__item-row span {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.task-template-detail-page__description,
+.task-template-detail-page__subtask-card h2,
+.task-template-detail-page__order,
+.task-template-detail-page__message p {
+  margin: 0;
+}
+
+.task-template-detail-page__subtask-tags span {
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(23, 24, 26, 0.06);
+  font-size: 0.8rem;
+}
+
+.task-template-detail-page__items {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.task-template-detail-page__item-row {
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  background: rgba(23, 24, 26, 0.03);
+}
+
+.task-template-detail-page__message mat-card-content {
+  align-items: center;
+}
+
+@media (max-width: 840px) {
+  .task-template-detail-page__header,
+  .task-template-detail-page__subtask-header,
+  .task-template-detail-page__subtask-meta,
+  .task-template-detail-page__item-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .task-template-detail-page__header-side {
+    justify-items: start;
+  }
+}

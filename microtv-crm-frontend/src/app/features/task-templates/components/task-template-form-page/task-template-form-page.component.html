@@ -1,0 +1,251 @@
+<section class="task-template-form-page">
+  <a mat-stroked-button routerLink="/tasks/templates" class="task-template-form-page__back-link">
+    <mat-icon>arrow_back</mat-icon>
+    <span>Volver a templates</span>
+  </a>
+
+  <div class="task-template-form-page__header">
+    <app-page-title
+      eyebrow="Templates de tarea"
+      [title]="isEditMode() ? 'Editar template operativo' : 'Nuevo template operativo'"
+      subtitle="Armá un template completo con subtareas ordenadas, checklist reales, reglas de cierre y política de asignación."
+    />
+  </div>
+
+  @if (isLoading()) {
+    <mat-card class="task-template-form-page__message">
+      <mat-card-content>
+        <mat-spinner diameter="32"></mat-spinner>
+        <p>Cargando template...</p>
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    <form class="task-template-form-page__form" [formGroup]="form" (ngSubmit)="submit()">
+      @if (errorMessage(); as errorMessage) {
+        <mat-card class="task-template-form-page__message task-template-form-page__message--error">
+          <mat-card-content>
+            <mat-icon>error</mat-icon>
+            <p>{{ errorMessage }}</p>
+          </mat-card-content>
+        </mat-card>
+      }
+
+      <mat-card class="task-template-form-page__panel">
+        <mat-card-content class="task-template-form-page__general-grid">
+          <mat-form-field appearance="outline">
+            <mat-label>Nombre del template</mat-label>
+            <input matInput formControlName="template_name" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="task-template-form-page__full-width">
+            <mat-label>Descripción</mat-label>
+            <textarea matInput rows="3" formControlName="description"></textarea>
+          </mat-form-field>
+
+          @if (isEditMode()) {
+            <mat-slide-toggle formControlName="is_active">Template activo</mat-slide-toggle>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="task-template-form-page__panel">
+        <mat-card-content>
+          <div class="task-template-form-page__materials-header">
+            <div>
+              <h2>Productos mínimos requeridos</h2>
+              <p>Definí el mínimo operativo que debe visualizarse en cada tarea generada desde este template.</p>
+            </div>
+
+            <button mat-stroked-button type="button" (click)="addRequiredMaterial()">
+              <mat-icon>inventory_2</mat-icon>
+              <span>Agregar producto</span>
+            </button>
+          </div>
+
+          @if (!requiredMaterials.length) {
+            <p class="task-template-form-page__materials-empty">Este template todavía no exige productos mínimos.</p>
+          }
+
+          <div formArrayName="required_materials" class="task-template-form-page__materials-list">
+            @for (material of requiredMaterials.controls; track $index; let materialIndex = $index) {
+              <div class="task-template-form-page__material-row" [formGroupName]="materialIndex">
+                <mat-form-field appearance="outline">
+                  <mat-label>Producto</mat-label>
+                  <mat-select formControlName="product_id">
+                    @for (product of availableProductsFor(materialIndex); track product.productId) {
+                      <mat-option [value]="product.productId">
+                        {{ product.productName }} · {{ product.productCode }}{{ product.requiresTracking ? ' · tracking unitario' : '' }}
+                      </mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Cantidad mínima</mat-label>
+                  <input matInput type="number" min="1" formControlName="quantity_required" />
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="task-template-form-page__full-width">
+                  <mat-label>Observación</mat-label>
+                  <input matInput formControlName="notes" placeholder="Ej. llevar kit completo o validar firmware" />
+                </mat-form-field>
+
+                @if (selectedProduct(material.get('product_id')?.value); as selectedProduct) {
+                  <p class="task-template-form-page__material-hint">
+                    {{ selectedProduct.productName }}{{ selectedProduct.requiresTracking ? ' requiere serial o barcode por unidad al despachar.' : ' no requiere tracking unitario.' }}
+                  </p>
+                }
+
+                <div class="task-template-form-page__icon-actions">
+                  <button mat-icon-button type="button" (click)="removeRequiredMaterial(materialIndex)" aria-label="Quitar producto requerido">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <div class="task-template-form-page__subtasks-header">
+        <h2>Subtareas del template</h2>
+        <button mat-flat-button color="primary" type="button" (click)="addSubtask()">
+          <mat-icon>add</mat-icon>
+          <span>Agregar subtarea</span>
+        </button>
+      </div>
+
+      <div formArrayName="subtasks" class="task-template-form-page__subtasks">
+        @for (subtask of subtasks.controls; track $index; let subtaskIndex = $index) {
+          <mat-card class="task-template-form-page__panel" [formGroupName]="subtaskIndex">
+            <mat-card-content>
+              <div class="task-template-form-page__subtask-top">
+                <div>
+                  <p class="task-template-form-page__eyebrow">Subtarea {{ subtaskIndex + 1 }}</p>
+                  <h3>{{ subtask.get('subtask_title')?.value || 'Nueva subtarea' }}</h3>
+                </div>
+
+                <div class="task-template-form-page__icon-actions">
+                  <button mat-icon-button type="button" (click)="moveSubtask(subtaskIndex, -1)" [disabled]="subtaskIndex === 0">
+                    <mat-icon>arrow_upward</mat-icon>
+                  </button>
+                  <button mat-icon-button type="button" (click)="moveSubtask(subtaskIndex, 1)" [disabled]="subtaskIndex === subtasks.length - 1">
+                    <mat-icon>arrow_downward</mat-icon>
+                  </button>
+                  <button mat-icon-button type="button" (click)="duplicateSubtask(subtaskIndex)">
+                    <mat-icon>content_copy</mat-icon>
+                  </button>
+                  <button mat-icon-button type="button" (click)="removeSubtask(subtaskIndex)">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </div>
+              </div>
+
+              <div class="task-template-form-page__subtask-grid">
+                <mat-form-field appearance="outline">
+                  <mat-label>Título</mat-label>
+                  <input matInput formControlName="subtask_title" />
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Rol responsable</mat-label>
+                  <mat-select formControlName="responsible_role_key" (selectionChange)="onResponsibleRoleChange(subtaskIndex)">
+                    @for (role of roleOptions; track role.value) {
+                      <mat-option [value]="role.value">{{ role.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Usuario por defecto</mat-label>
+                  <mat-select formControlName="default_responsible_crm_user_id">
+                    <mat-option [value]="null">Sin usuario por defecto</mat-option>
+                    @for (user of getAvailableUsers(subtaskIndex); track user.crm_user_id) {
+                      <mat-option [value]="user.crm_user_id">{{ formatUserLabel(user) }}</mat-option>
+                    }
+                  </mat-select>
+                  <mat-hint>
+                    @if (isLoadingUsers(subtaskIndex)) {
+                      Cargando usuarios del rol...
+                    } @else if (!getAvailableUsers(subtaskIndex).length) {
+                      No hay usuarios activos para este rol.
+                    } @else {
+                      Elegí con un click el usuario por defecto de esta subtarea.
+                    }
+                  </mat-hint>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Política de asignación</mat-label>
+                  <mat-select formControlName="next_assignment_policy">
+                    @for (policy of assignmentPolicyOptions; track policy.value) {
+                      <mat-option [value]="policy.value">{{ policy.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="task-template-form-page__full-width">
+                  <mat-label>Descripción</mat-label>
+                  <textarea matInput rows="2" formControlName="subtask_description"></textarea>
+                </mat-form-field>
+
+                <mat-checkbox formControlName="close_comment_required">Comentario obligatorio al cerrar</mat-checkbox>
+              </div>
+
+              <div class="task-template-form-page__items-header">
+                <h4>Ítems</h4>
+                <div class="task-template-form-page__actions-inline">
+                  <button mat-stroked-button type="button" (click)="addItem(subtaskIndex, 'checkbox')">Agregar checkbox</button>
+                  <button mat-stroked-button type="button" (click)="addItem(subtaskIndex, 'text')">Agregar texto</button>
+                </div>
+              </div>
+
+              <div [formArrayName]="'items'" class="task-template-form-page__items-list">
+                @for (item of items(subtaskIndex).controls; track $index; let itemIndex = $index) {
+                  <div class="task-template-form-page__item-row" [formGroupName]="itemIndex">
+                    <div class="task-template-form-page__item-fields">
+                      <mat-form-field appearance="outline">
+                        <mat-label>Label</mat-label>
+                        <input matInput formControlName="item_label" />
+                      </mat-form-field>
+
+                      <mat-form-field appearance="outline">
+                        <mat-label>Tipo</mat-label>
+                        <mat-select formControlName="item_type">
+                          <mat-option value="checkbox">Checkbox</mat-option>
+                          <mat-option value="text">Texto</mat-option>
+                        </mat-select>
+                      </mat-form-field>
+
+                      <mat-checkbox formControlName="is_required">Obligatorio</mat-checkbox>
+                    </div>
+
+                    <div class="task-template-form-page__icon-actions">
+                      <button mat-icon-button type="button" (click)="moveItem(subtaskIndex, itemIndex, -1)" [disabled]="itemIndex === 0">
+                        <mat-icon>arrow_upward</mat-icon>
+                      </button>
+                      <button mat-icon-button type="button" (click)="moveItem(subtaskIndex, itemIndex, 1)" [disabled]="itemIndex === items(subtaskIndex).length - 1">
+                        <mat-icon>arrow_downward</mat-icon>
+                      </button>
+                      <button mat-icon-button type="button" (click)="removeItem(subtaskIndex, itemIndex)">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+            </mat-card-content>
+          </mat-card>
+        }
+      </div>
+
+      <div class="task-template-form-page__footer-actions">
+        <a mat-button routerLink="/tasks/templates">Cancelar</a>
+        <button mat-flat-button color="primary" type="submit" [disabled]="isSaving()">
+          <mat-icon>{{ isSaving() ? 'hourglass_top' : 'save' }}</mat-icon>
+          <span>{{ isSaving() ? 'Guardando...' : (isEditMode() ? 'Guardar cambios' : 'Crear template') }}</span>
+        </button>
+      </div>
+    </form>
+  }
+</section>

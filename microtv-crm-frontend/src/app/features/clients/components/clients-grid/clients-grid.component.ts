@@ -12,6 +12,10 @@ import { ClientCardComponent } from '../client-card/client-card.component';
 })
 export class ClientsGridComponent {
   readonly clients = input.required<readonly ClientItem[]>();
+  readonly canEdit = input(false);
+  readonly canDelete = input(false);
+  readonly editClient = output<ClientItem>();
+  readonly deleteClient = output<ClientItem>();
   readonly openLocation = output<ClientItem>();
   readonly openExternalMaps = output<ClientItem>();
 }

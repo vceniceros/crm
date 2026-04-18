@@ -2,9 +2,13 @@
   "name": "microtv-crm-frontend",
   "version": "0.0.0",
   "scripts": {
+    "sync:runtime-env": "node ./scripts/sync-runtime-env.mjs",
     "ng": "ng",
+    "prestart": "npm run sync:runtime-env",
     "start": "ng serve --host 0.0.0.0 --allowed-hosts",
+    "prebuild": "npm run sync:runtime-env",
     "build": "ng build",
+    "prewatch": "npm run sync:runtime-env",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:microtv-crm-frontend": "node dist/microtv-crm-frontend/server/server.mjs"
@@ -12,6 +16,7 @@
   "private": true,
   "packageManager": "npm@10.8.2",
   "dependencies": {
+    "@angular/animations": "^21.2.7",
     "@angular/cdk": "^21.2.5",
     "@angular/common": "^21.2.0",
     "@angular/compiler": "^21.2.0",

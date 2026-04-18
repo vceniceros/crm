@@ -7,11 +7,42 @@ import { InventoryPageData, InventoryProduct, InventoryProductsMockData, Invento
 import inventoryCategoriesData from '../../../mocks/inventory-categories-data.json';
 import inventoryProductsData from '../../../mocks/inventory-products-data.json';
 
-const categories = (inventoryCategoriesData as InventoryCategoriesMockData).categories;
-const initialProducts = (inventoryProductsData as InventoryProductsMockData).items;
+type RawInventoryCategory = { id: number | string; name: string };
+type RawInventoryProduct = {
+  id: number | string;
+  name: string;
+  category: string;
+  imageUrl?: string | null;
+  stock: number;
+};
+
+const rawCategories = inventoryCategoriesData as { categories: RawInventoryCategory[] };
+const categories: InventoryCategory[] = rawCategories.categories.map((category) => ({
+  id: String(category.id),
+  name: category.name
+}));
+
+const categoryIdByName = new Map(categories.map((category) => [category.name, category.id]));
+const rawProducts = inventoryProductsData as { items: RawInventoryProduct[] };
+const initialProducts: InventoryProduct[] = rawProducts.items.map((product) => ({
+  id: `PRD-${String(product.id)}`,
+  productId: crypto.randomUUID(),
+  productCode: `PRD-${String(product.id)}`,
+  name: product.name,
+  productName: product.name,
+  categoryId: categoryIdByName.get(product.category) ?? crypto.randomUUID(),
+  category: product.category,
+  imageUrl: product.imageUrl ?? null,
+  stock: product.stock,
+  requiresTracking: false,
+  isActive: true,
+  createdAt: new Date().toISOString(),
+  updatedAt: null
+}));
+
 const tableColumns: InventoryTableColumn[] = [
   { key: 'image', label: 'Imagen' },
-  { key: 'id', label: 'ID' },
+  { key: 'id', label: 'Codigo' },
   { key: 'name', label: 'Producto' },
   { key: 'category', label: 'Categoria' },
   { key: 'stock', label: 'Stock actual' },
@@ -22,7 +53,6 @@ const tableColumns: InventoryTableColumn[] = [
 export class MockInventoryService {
   private readonly categoryNameById = new Map(categories.map((category) => [String(category.id), category.name]));
   private readonly productsSubject = new BehaviorSubject<InventoryProduct[]>(initialProducts);
-  private nextProductId = initialProducts.reduce((maxId, product) => Math.max(maxId, product.id), 0) + 1;
 
   readonly categories$ = of<InventoryCategory[]>(categories).pipe(
     shareReplay({ bufferSize: 1, refCount: false })
@@ -47,27 +77,36 @@ export class MockInventoryService {
 
   createProduct(payload: CreateInventoryProductFormValue) {
     const categoryName = this.categoryNameById.get(String(payload.categoryId ?? '')) ?? 'Varios';
+    const productCode = payload.productCode.trim().toUpperCase();
     const product: InventoryProduct = {
-      id: this.nextProductId++,
+      id: productCode,
+      productId: crypto.randomUUID(),
+      productCode,
       name: payload.name.trim(),
+      productName: payload.name.trim(),
+      categoryId: payload.categoryId ?? '',
       category: categoryName,
-      imageUrl: this.normalizeImageUrl(payload.imageUrl),
-      stock: this.sanitizeStock(payload.initialStock)
+      imageUrl: this.resolveImageUrl(payload.imageFile),
+      stock: this.sanitizeStock(payload.initialStock),
+      requiresTracking: payload.requiresTracking,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: null,
     };
 
     this.productsSubject.next([product, ...this.productsSubject.getValue()]);
     return of(product);
   }
 
-  addStock(productId: number): void {
-    this.updateProduct(productId, (product) => ({
+  addStock(productId: string) {
+    return this.updateProduct(productId, (product) => ({
       ...product,
       stock: product.stock + 1
     }));
   }
 
-  removeStock(productId: number): void {
-    this.updateProduct(productId, (product) => {
+  removeStock(productId: string) {
+    return this.updateProduct(productId, (product) => {
       if (product.stock === 0) {
         return product;
       }
@@ -79,6 +118,16 @@ export class MockInventoryService {
     });
   }
 
+  deleteProduct(productId: string) {
+    const currentProduct = this.productsSubject.getValue().find((product) => product.productId === productId) ?? null;
+    if (currentProduct?.imageUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(currentProduct.imageUrl);
+    }
+
+    this.productsSubject.next(this.productsSubject.getValue().filter((product) => product.productId !== productId));
+    return of(void 0);
+  }
+
   private buildTable(items: InventoryProduct[]): InventoryTableData {
     return {
       title: 'Productos en deposito',
@@ -87,21 +136,33 @@ export class MockInventoryService {
     };
   }
 
-  private normalizeImageUrl(imageUrl?: string | null): string | null {
-    const value = imageUrl?.trim();
-    return value ? value : null;
+  private resolveImageUrl(imageFile?: File | null): string | null {
+    if (!imageFile) {
+      return null;
+    }
+    return URL.createObjectURL(imageFile);
   }
 
   private sanitizeStock(stock: number | null): number {
     return Math.max(0, Math.trunc(stock ?? 0));
   }
 
-  private updateProduct(productId: number, project: (product: InventoryProduct) => InventoryProduct): void {
-    const nextProducts = this.productsSubject
-      .getValue()
-      .map((product) => (product.id === productId ? project(product) : product));
+  private updateProduct(productId: string, project: (product: InventoryProduct) => InventoryProduct) {
+    let updatedProduct: InventoryProduct | null = null;
+    const nextProducts = this.productsSubject.getValue().map((product) => {
+      if (product.productId !== productId) {
+        return product;
+      }
+
+      updatedProduct = project({
+        ...product,
+        updatedAt: new Date().toISOString()
+      });
+      return updatedProduct;
+    });
 
     this.productsSubject.next(nextProducts);
+    return of(updatedProduct ?? nextProducts.find((product) => product.productId === productId) ?? nextProducts[0]);
   }
 }
 

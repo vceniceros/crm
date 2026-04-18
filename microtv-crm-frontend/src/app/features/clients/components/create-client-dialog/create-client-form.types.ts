@@ -5,6 +5,7 @@ export interface CreateClientFormModel {
   cuit: FormControl<string>;
   email: FormControl<string>;
   telefono: FormControl<string>;
+  isActive: FormControl<boolean>;
 }
 
 export type CreateClientFormGroup = FormGroup<CreateClientFormModel>;

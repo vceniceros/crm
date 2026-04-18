@@ -24,6 +24,11 @@
             <input matInput type="number" min="1" formControlName="quantity" />
           </mat-form-field>
 
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Observación</mat-label>
+            <input matInput formControlName="notes" />
+          </mat-form-field>
+
           <button mat-stroked-button type="button" (click)="addDraftItem()">
             <mat-icon>playlist_add</mat-icon>
             <span>Agregar</span>
@@ -37,6 +42,9 @@
                 <div>
                   <p class="ticket-inventory-request-section__item-name">{{ item.inventoryItemName }}</p>
                   <p class="ticket-inventory-request-section__item-meta">Cantidad solicitada: {{ item.quantity }}</p>
+                  @if (item.notes) {
+                    <p class="ticket-inventory-request-section__item-meta">{{ item.notes }}</p>
+                  }
                 </div>
 
                 <button mat-icon-button type="button" aria-label="Quitar item" (click)="removeDraftItem(item.inventoryItemId)">
@@ -64,6 +72,9 @@
                 <p class="ticket-inventory-request-section__request-meta">
                   {{ request.requestedByUserName }} · {{ request.requestedAt | date: 'dd/MM/yyyy HH:mm' }}
                 </p>
+                @if (request.requestReason) {
+                  <p class="ticket-inventory-request-section__request-meta">{{ request.requestReason }}</p>
+                }
               </div>
 
               <app-status-badge [label]="statusLabel(request.status)" [tone]="statusTone(request.status)" />
@@ -72,7 +83,7 @@
             <div class="ticket-inventory-request-section__items">
               @for (item of request.items; track item.inventoryItemId) {
                 <div class="ticket-inventory-request-section__request-item">
-                  <span>{{ item.inventoryItemName }}</span>
+                  <span>{{ item.inventoryItemName }}{{ item.requiresTracking ? ' · tracking unitario' : '' }}</span>
                   <strong>x{{ item.quantity }}</strong>
                 </div>
               }

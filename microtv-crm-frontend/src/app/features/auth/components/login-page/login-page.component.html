@@ -1,0 +1,109 @@
+<section class="login-page">
+  <div class="login-page__content">
+    <article class="login-page__hero">
+      <p class="login-page__eyebrow">MicroTV CRM</p>
+      <h1 class="login-page__title">Entrá a la maqueta con autenticación real sobre auth.microtv.ar</h1>
+      <p class="login-page__description">
+        Este acceso inicial valida credenciales contra auth, sincroniza el contexto local del CRM y te deja dentro de la
+        interfaz actual sin romper la arquitectura por capas.
+      </p>
+
+      <div class="login-page__highlights">
+        <div class="login-page__highlight">
+          <mat-icon>verified_user</mat-icon>
+          <div>
+            <strong>JWT validado en backend</strong>
+            <span>El frontend nunca interpreta claims sensibles por su cuenta.</span>
+          </div>
+        </div>
+
+        <div class="login-page__highlight">
+          <mat-icon>apartment</mat-icon>
+          <div>
+            <strong>Contexto local minimo</strong>
+            <span>El CRM persiste solamente el snapshot necesario para operar la maqueta.</span>
+          </div>
+        </div>
+
+        <div class="login-page__highlight">
+          <mat-icon>devices</mat-icon>
+          <div>
+            <strong>Responsive de verdad</strong>
+            <span>La pantalla se adapta a notebook, tablet y celular sin cambiar de flujo.</span>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <mat-card class="login-card" appearance="outlined">
+      <div class="login-card__header">
+        <p class="login-card__eyebrow">Acceso operativo</p>
+        <h2 class="login-card__title">Iniciar sesión</h2>
+        <p class="login-card__subtitle">Probá con cualquiera de las cuentas seed del auth local.</p>
+      </div>
+
+      <form class="login-card__form" [formGroup]="form" (ngSubmit)="submit()">
+        <mat-form-field appearance="outline">
+          <mat-label>Email</mat-label>
+          <input matInput type="email" formControlName="email" autocomplete="email" />
+          <mat-icon matSuffix>mail</mat-icon>
+          @if (form.controls.email.invalid && form.controls.email.touched) {
+            <mat-error>Ingresá un email válido.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Contraseña</mat-label>
+          <input
+            matInput
+            [type]="showPassword() ? 'text' : 'password'"
+            formControlName="password"
+            autocomplete="current-password"
+          />
+          <button
+            type="button"
+            mat-icon-button
+            matSuffix
+            (click)="togglePasswordVisibility()"
+            [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+          >
+            <mat-icon>{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+          @if (form.controls.password.invalid && form.controls.password.touched) {
+            <mat-error>La contraseña es obligatoria.</mat-error>
+          }
+        </mat-form-field>
+
+        @if (feedbackMessage(); as message) {
+          <div class="login-card__feedback" [class.login-card__feedback--info]="feedbackTone() === 'info'">
+            <mat-icon>{{ feedbackTone() === 'info' ? 'info' : 'error' }}</mat-icon>
+            <span>{{ message }}</span>
+          </div>
+        }
+
+        <button mat-flat-button type="submit" class="login-card__submit" [disabled]="isSubmitting()">
+          @if (isSubmitting()) {
+            <mat-spinner diameter="20" />
+          } @else {
+            <span>Entrar al CRM</span>
+          }
+        </button>
+      </form>
+
+      <div class="login-card__accounts">
+        <p class="login-card__accounts-title">Usuarios seed del auth local</p>
+
+        @for (account of seedAccounts; track account.email) {
+          <button type="button" class="login-card__account" (click)="useSeedAccount(account)">
+            <div>
+              <strong>{{ account.label }}</strong>
+              <span>{{ account.email }}</span>
+              <small>{{ account.roleLabel }}</small>
+            </div>
+            <code>{{ account.password }}</code>
+          </button>
+        }
+      </div>
+    </mat-card>
+  </div>
+</section>

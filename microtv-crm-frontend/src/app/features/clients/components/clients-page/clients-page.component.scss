@@ -71,9 +71,54 @@
   line-height: 1.55;
 }
 
+.clients-page__status-card,
+.clients-page__empty-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(23, 24, 26, 0.06);
+  border-radius: 1.2rem;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow-panel);
+}
+
+.clients-page__status-card--info {
+  color: var(--text-secondary);
+}
+
+.clients-page__status-card--error {
+  border-color: rgba(183, 28, 28, 0.18);
+  background: rgba(183, 28, 28, 0.04);
+}
+
+.clients-page__empty-card {
+  display: grid;
+  justify-content: start;
+}
+
+.clients-page__empty-title,
+.clients-page__empty-copy {
+  margin: 0;
+}
+
+.clients-page__empty-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.clients-page__empty-copy {
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
 @media (max-width: 900px) {
   .clients-page__header,
-  .clients-page__intro-card {
+  .clients-page__intro-card,
+  .clients-page__status-card {
     align-items: stretch;
     flex-direction: column;
   }
@@ -89,7 +134,8 @@
   }
 
   .clients-page__actions,
-  .clients-page__action {
+  .clients-page__action,
+  .clients-page__status-card button {
     width: 100%;
   }
 }

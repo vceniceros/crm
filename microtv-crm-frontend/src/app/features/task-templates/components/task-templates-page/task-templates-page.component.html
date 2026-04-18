@@ -1,0 +1,97 @@
+<section class="task-templates-page">
+  <div class="task-templates-page__header">
+    <app-page-title
+      eyebrow="Templates de tarea"
+      title="Plantillas operativas"
+      subtitle="Definí y mantené los templates reales que después instancian el flujo operativo de tareas del CRM."
+    />
+
+    @if (canManage()) {
+      <div class="task-templates-page__actions">
+        <a mat-stroked-button routerLink="/tasks">
+          <mat-icon>assignment</mat-icon>
+          <span>Ir a operación</span>
+        </a>
+
+        <a mat-flat-button color="primary" routerLink="/tasks/templates/new">
+          <mat-icon>add</mat-icon>
+          <span>Nuevo template</span>
+        </a>
+      </div>
+    }
+  </div>
+
+  @if (errorMessage(); as errorMessage) {
+    <mat-card class="task-templates-page__message task-templates-page__message--error">
+      <mat-card-content>
+        <mat-icon>error</mat-icon>
+        <p>{{ errorMessage }}</p>
+        <button mat-stroked-button type="button" (click)="refresh()">Reintentar</button>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  @if (isLoading()) {
+    <mat-card class="task-templates-page__message">
+      <mat-card-content>
+        <mat-spinner diameter="32"></mat-spinner>
+        <p>Cargando templates reales...</p>
+      </mat-card-content>
+    </mat-card>
+  } @else if (!templates().length) {
+    <mat-card class="task-templates-page__message">
+      <mat-card-content>
+        <mat-icon>inventory_2</mat-icon>
+        <p>No hay templates activos disponibles.</p>
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    <div class="task-templates-page__grid">
+      @for (template of templates(); track template.template_id) {
+        <mat-card class="task-templates-page__card">
+          <mat-card-content>
+            <div class="task-templates-page__card-top">
+              <div>
+                <p class="task-templates-page__eyebrow">Template</p>
+                <h2>{{ template.template_name }}</h2>
+              </div>
+
+              <app-status-badge [label]="template.is_active ? 'Activo' : 'Inactivo'" [tone]="toTaskTone(template.is_active ? 'IN_PROGRESS' : 'BLOCKED')" />
+            </div>
+
+            <p class="task-templates-page__description">{{ template.description || 'Sin descripción operativa.' }}</p>
+
+            <div class="task-templates-page__meta-grid">
+              <div>
+                <span>Subtareas</span>
+                <strong>{{ template.subtasks.length }}</strong>
+              </div>
+
+              <div>
+                <span>Última actualización</span>
+                <strong>{{ template.updated_at ? (template.updated_at | date: 'dd/MM/yyyy HH:mm') : (template.created_at | date: 'dd/MM/yyyy HH:mm') }}</strong>
+              </div>
+            </div>
+
+            @if (template.subtasks[0]; as firstSubtask) {
+              <div class="task-templates-page__preview">
+                <p class="task-templates-page__preview-title">Primera subtarea</p>
+                <strong>{{ firstSubtask.subtask_title }}</strong>
+                <span>{{ formatRoleKey(firstSubtask.responsible_role_key) }} · {{ formatAssignmentPolicy(firstSubtask.next_assignment_policy) }}</span>
+              </div>
+            }
+          </mat-card-content>
+
+          <mat-card-actions align="end">
+            <a mat-button [routerLink]="['/tasks/templates', template.template_id]">Ver detalle</a>
+            @if (canManage()) {
+              <a mat-button [routerLink]="['/tasks/templates', template.template_id, 'edit']">Editar</a>
+              <button mat-button type="button" (click)="goToCreateTask(template.template_id)">Crear tarea</button>
+              <button mat-button type="button" (click)="toggleActivation(template)">{{ template.is_active ? 'Desactivar' : 'Activar' }}</button>
+            }
+          </mat-card-actions>
+        </mat-card>
+      }
+    </div>
+  }
+</section>

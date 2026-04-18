@@ -3,7 +3,7 @@
     type="button"
     class="sidebar-user-switcher"
     [matMenuTriggerFor]="usersMenu"
-    aria-label="Cambiar usuario activo"
+    aria-label="Ver cuenta activa"
   >
     <app-user-avatar [initials]="viewModel.activeUser.initials" [size]="44" />
 
@@ -16,27 +16,27 @@
   </button>
 
   <mat-menu #usersMenu="matMenu" xPosition="before" yPosition="above" class="sidebar-user-switcher__menu-panel">
-    <div class="sidebar-user-switcher__menu" role="listbox" aria-label="Seleccionar usuario activo">
-      @for (user of viewModel.users; track user.id) {
-        <button
-          mat-menu-item
-          type="button"
-          class="sidebar-user-switcher__menu-item"
-          [class.sidebar-user-switcher__menu-item--active]="user.isActive"
-          (click)="setActiveUser(user.id)"
-        >
-          <app-user-avatar [initials]="user.initials" [size]="34" />
+    <div class="sidebar-user-switcher__menu" aria-label="Cuenta activa del CRM">
+      <div class="sidebar-user-switcher__account-card">
+        <app-user-avatar [initials]="viewModel.activeUser.initials" [size]="38" />
 
-          <span class="sidebar-user-switcher__menu-copy">
-            <span class="sidebar-user-switcher__menu-name">{{ user.name }}</span>
-            <span class="sidebar-user-switcher__menu-role">{{ user.roleLabel }}</span>
-          </span>
+        <div class="sidebar-user-switcher__menu-copy">
+          <span class="sidebar-user-switcher__menu-name">{{ viewModel.activeUser.name }}</span>
+          <span class="sidebar-user-switcher__menu-role">{{ viewModel.activeUser.roleLabel }}</span>
+          <span class="sidebar-user-switcher__menu-email">{{ viewModel.email }}</span>
+        </div>
+      </div>
 
-          @if (user.isActive) {
-            <mat-icon class="sidebar-user-switcher__menu-check">check</mat-icon>
-          }
-        </button>
-      }
+      <div class="sidebar-user-switcher__chips">
+        @for (roleKey of viewModel.roleKeys; track roleKey) {
+          <span class="sidebar-user-switcher__chip">{{ roleKey }}</span>
+        }
+      </div>
+
+      <button mat-menu-item type="button" class="sidebar-user-switcher__logout" (click)="logout()">
+        <mat-icon>logout</mat-icon>
+        <span>Cerrar sesión</span>
+      </button>
     </div>
   </mat-menu>
 }

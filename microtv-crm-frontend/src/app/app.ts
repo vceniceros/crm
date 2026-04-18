@@ -1,5 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+
+import { AuthSessionService } from './core/services/auth-session.service';
 
 @Component({
   selector: 'app-root',
@@ -8,4 +10,10 @@ import { RouterOutlet } from '@angular/router';
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
-export class App {}
+export class App {
+  private readonly authSessionService = inject(AuthSessionService);
+
+  constructor() {
+    this.authSessionService.bootstrap();
+  }
+}

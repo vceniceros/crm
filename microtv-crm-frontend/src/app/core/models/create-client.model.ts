@@ -5,5 +5,6 @@ export interface CreateClientFormValue {
   cuit: string;
   email: string;
   telefono: string;
+  isActive: boolean;
   location: ClientLocation | null;
 }

@@ -1,0 +1,23 @@
+"""Repository exports for the CRM backend."""
+
+from crm_backend.repositories.client_repository import ClientRepository
+from crm_backend.repositories.crm_role_repository import CrmRoleRepository
+from crm_backend.repositories.crm_user_repository import CrmUserRepository
+from crm_backend.repositories.inventory_flow_repository import InventoryFlowRepository
+from crm_backend.repositories.location_repository import LocationRepository
+from crm_backend.repositories.stock_category_repository import StockCategoryRepository
+from crm_backend.repositories.stock_product_repository import StockProductRepository
+from crm_backend.repositories.task_repository import TaskRepository
+from crm_backend.repositories.task_template_repository import TaskTemplateRepository
+
+__all__ = [
+	"ClientRepository",
+	"CrmRoleRepository",
+	"CrmUserRepository",
+	"InventoryFlowRepository",
+	"LocationRepository",
+	"StockCategoryRepository",
+	"StockProductRepository",
+	"TaskRepository",
+	"TaskTemplateRepository",
+]

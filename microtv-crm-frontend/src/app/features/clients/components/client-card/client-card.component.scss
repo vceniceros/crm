@@ -124,6 +124,10 @@
   color: var(--accent-blue);
 }
 
+.client-card__action--warn {
+  color: var(--brand-red);
+}
+
 .client-card__action mat-icon,
 .client-card__location-hint mat-icon {
   margin-right: 0.4rem;

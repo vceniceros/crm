@@ -1,0 +1,19 @@
+import { MediaUploadContext, MediaUploadStrategy } from './media-upload.types';
+import { hasAnyExtension, validateFile } from './media-upload.utils';
+
+const VIDEO_MIME_TYPES = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
+const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov'];
+const VIDEO_MAX_BYTES = 128 * 1024 * 1024;
+
+export class VideoUploadStrategy implements MediaUploadStrategy {
+  readonly kind = 'video' as const;
+  readonly acceptPattern = 'video/mp4,video/webm,video/quicktime';
+
+  supports(file: File): boolean {
+    return VIDEO_MIME_TYPES.has(file.type) || hasAnyExtension(file.name, VIDEO_EXTENSIONS);
+  }
+
+  validate(file: File): void {
+    validateFile(file, VIDEO_MAX_BYTES, 'El video supera el límite de 128 MB.', 'Formato de video no soportado.', (candidate) => this.supports(candidate));
+  }
+}

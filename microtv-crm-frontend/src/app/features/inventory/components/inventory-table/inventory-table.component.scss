@@ -79,6 +79,10 @@
   border-radius: 999px;
 }
 
+.inventory-table__delete-button {
+  color: #a31818;
+}
+
 .mdc-data-table__header-cell,
 .mdc-data-table__cell {
   border-bottom-color: rgba(23, 24, 26, 0.08);
@@ -163,7 +167,7 @@ td.mat-mdc-cell {
 
 .inventory-table__actions--mobile {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
 }
 
 @media (max-width: 640px) {

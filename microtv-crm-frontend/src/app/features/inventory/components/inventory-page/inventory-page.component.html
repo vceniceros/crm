@@ -8,13 +8,84 @@
       />
 
       <div class="inventory-page__actions">
-        <button mat-flat-button color="primary" type="button" class="inventory-page__action" (click)="openCreateProductDialog()">
-          <mat-icon>{{ inventoryPage.primaryAction.icon }}</mat-icon>
-          <span>{{ inventoryPage.primaryAction.label }}</span>
-        </button>
+        @if (canCreateProducts()) {
+          <button mat-flat-button color="primary" type="button" class="inventory-page__action" (click)="openCreateProductDialog()" [disabled]="isLoading$ | async">
+            <mat-icon>{{ inventoryPage.primaryAction.icon }}</mat-icon>
+            <span>{{ inventoryPage.primaryAction.label }}</span>
+          </button>
+        }
       </div>
     </div>
 
-    <app-inventory-table [block]="inventoryPage.productsTable" />
+    @if (errorMessage$ | async; as errorMessage) {
+      <div class="inventory-page__feedback" role="alert">
+        <mat-icon>error</mat-icon>
+        <span>{{ errorMessage }}</span>
+      </div>
+    }
+
+    @if (isLoading$ | async) {
+      <div class="inventory-page__status">
+        <mat-icon>sync</mat-icon>
+        <span>Cargando datos reales de depósito...</span>
+      </div>
+    }
+
+    <form class="inventory-page__filters">
+      <label class="inventory-page__filter-field inventory-page__filter-field--search">
+        <span class="inventory-page__filter-label">Buscar por codigo o imagen</span>
+        <span class="inventory-page__input-shell">
+          <mat-icon>search</mat-icon>
+          <input
+            type="search"
+            [value]="inventoryPage.filters.query"
+            placeholder="Ej. PRD-UTP-EXT-001 o utp.png"
+            (input)="updateQuery($event)"
+          />
+        </span>
+      </label>
+
+      <label class="inventory-page__filter-field">
+        <span class="inventory-page__filter-label">Categoria</span>
+        <span class="inventory-page__select-shell">
+          <select [value]="inventoryPage.filters.categoryId" (change)="updateCategory($event)">
+            <option value="all">Todas</option>
+            @for (category of inventoryPage.categories; track category.id) {
+              <option [value]="category.id">{{ category.name }}</option>
+            }
+          </select>
+        </span>
+      </label>
+
+      <button
+        mat-stroked-button
+        type="button"
+        class="inventory-page__clear-filters"
+        [disabled]="!inventoryPage.hasActiveFilters"
+        (click)="clearFilters()"
+      >
+        <mat-icon>filter_alt_off</mat-icon>
+        <span>Limpiar</span>
+      </button>
+    </form>
+
+    <div class="inventory-page__results" aria-live="polite">
+      <mat-icon>inventory_2</mat-icon>
+      <span>
+        Mostrando {{ inventoryPage.filteredItems }} de {{ inventoryPage.totalItems }} productos
+      </span>
+    </div>
+
+    @if (inventoryPage.productsTable.items.length > 0) {
+      <app-inventory-table [block]="inventoryPage.productsTable" />
+    } @else {
+      <div class="inventory-page__empty-state" role="status">
+        <mat-icon>search_off</mat-icon>
+        <div>
+          <p class="inventory-page__empty-title">No hay coincidencias para los filtros actuales.</p>
+          <p class="inventory-page__empty-copy">Proba con otro codigo, referencia de imagen o una categoria distinta.</p>
+        </div>
+      </div>
+    }
   </section>
 }

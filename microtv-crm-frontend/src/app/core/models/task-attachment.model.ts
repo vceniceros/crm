@@ -5,6 +5,9 @@ export interface TaskAttachment {
   fileName: string;
   fileType: string;
   kind: TaskAttachmentKind;
+  context?: 'task';
   previewUrl?: string | null;
+  publicUrl?: string | null;
+  storagePath?: string | null;
   size?: number | null;
 }

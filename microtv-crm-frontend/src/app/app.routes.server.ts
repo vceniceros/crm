@@ -6,6 +6,14 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Server
   },
   {
+    path: 'tasks/templates/:templateId/edit',
+    renderMode: RenderMode.Server
+  },
+  {
+    path: 'tasks/templates/:templateId',
+    renderMode: RenderMode.Server
+  },
+  {
     path: 'tasks/:taskId',
     renderMode: RenderMode.Server
   },

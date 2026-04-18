@@ -9,7 +9,7 @@
     <div class="client-location-dialog__summary-copy">
       <p class="client-location-dialog__eyebrow">Ubicación del cliente</p>
       <p class="client-location-dialog__address">
-        {{ data.client.location?.addressLabel || 'Coordenadas mock sin dirección visible cargada.' }}
+        {{ data.client.location?.addressLabel || 'Sin ubicación cargada.' }}
       </p>
       @if (coordinatesLabel(); as coordinates) {
         <p class="client-location-dialog__coordinates">{{ coordinates }}</p>
@@ -23,7 +23,7 @@
       <div>
         <p class="client-location-dialog__message-title">Ubicación no disponible</p>
         <p class="client-location-dialog__message-copy">
-          Este cliente no tiene coordenadas válidas dentro del mock actual.
+          Este cliente no tiene coordenadas válidas cargadas en la base real del CRM.
         </p>
       </div>
     </section>
@@ -33,5 +33,8 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
+  @if (hasValidLocation()) {
+    <button mat-button type="button" (click)="openInMaps()">Abrir en Maps</button>
+  }
   <button mat-stroked-button type="button" (click)="close()">Cerrar</button>
 </mat-dialog-actions>

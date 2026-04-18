@@ -10,15 +10,15 @@ import { MockUserRole } from '../models/user-role.model';
 import { MockUserContextService } from './mock-user-context.service';
 
 const moduleRules: MockModuleAccessRule[] = [
-  { moduleKey: 'dashboard', allowedRoles: ['admin', 'deposito', 'tecnico'] },
-  { moduleKey: 'tickets', allowedRoles: ['admin', 'deposito', 'tecnico'] },
-  { moduleKey: 'tasks', allowedRoles: ['admin', 'deposito', 'tecnico'] },
-  { moduleKey: 'inventory', allowedRoles: ['admin', 'deposito'] },
-  { moduleKey: 'installations', allowedRoles: ['admin'] },
-  { moduleKey: 'clients', allowedRoles: ['admin', 'deposito', 'tecnico'] },
-  { moduleKey: 'billing', allowedRoles: ['admin'] },
-  { moduleKey: 'reports', allowedRoles: ['admin'] },
-  { moduleKey: 'settings', allowedRoles: ['admin'] }
+  { moduleKey: 'dashboard', allowedRoles: ['admin', 'ejecutivo', 'deposito', 'tecnico'] },
+  { moduleKey: 'tickets', allowedRoles: ['admin', 'ejecutivo', 'deposito', 'tecnico'] },
+  { moduleKey: 'tasks', allowedRoles: ['admin', 'ejecutivo', 'deposito', 'tecnico'] },
+  { moduleKey: 'inventory', allowedRoles: ['admin', 'ejecutivo', 'deposito'] },
+  { moduleKey: 'installations', allowedRoles: ['admin', 'ejecutivo'] },
+  { moduleKey: 'clients', allowedRoles: ['admin', 'ejecutivo', 'deposito', 'tecnico'] },
+  { moduleKey: 'billing', allowedRoles: ['admin', 'ejecutivo'] },
+  { moduleKey: 'reports', allowedRoles: ['admin', 'ejecutivo'] },
+  { moduleKey: 'settings', allowedRoles: ['admin', 'ejecutivo'] }
 ];
 
 @Injectable({ providedIn: 'root' })
@@ -50,7 +50,15 @@ export class MockAccessControlService {
   }
 
   canCreateClients() {
-    return this.isAdmin();
+    return this.activeRole$.pipe(map((role) => role === 'admin' || role === 'ejecutivo'));
+  }
+
+  canEditClients() {
+    return this.canCreateClients();
+  }
+
+  canDeleteClients() {
+    return this.canCreateClients();
   }
 
   canUserViewTicketExecution(user: MockUserProfile, technicianAssigneeId: number | string | null, depositAssigneeId: number | string | null): boolean {

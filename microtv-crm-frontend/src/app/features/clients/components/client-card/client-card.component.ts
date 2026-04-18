@@ -17,6 +17,10 @@ export class ClientCardComponent {
   private readonly locationLinkService = inject(LocationLinkService);
 
   readonly client = input.required<ClientItem>();
+  readonly canEdit = input(false);
+  readonly canDelete = input(false);
+  readonly editClient = output<ClientItem>();
+  readonly deleteClient = output<ClientItem>();
   readonly openLocation = output<ClientItem>();
   readonly openExternalMaps = output<ClientItem>();
 
@@ -37,10 +41,14 @@ export class ClientCardComponent {
   locationLabel(): string {
     const location = this.client().location;
     if (!this.locationLinkService.isValidLocation(location)) {
-      return 'Ubicación mock pendiente';
+      return 'Sin ubicación cargada';
     }
 
     return location.addressLabel?.trim() || `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
+  }
+
+  emitEdit(): void {
+    this.editClient.emit(this.client());
   }
 
   emitOpenLocation(): void {
@@ -57,5 +65,9 @@ export class ClientCardComponent {
     }
 
     this.openExternalMaps.emit(this.client());
+  }
+
+  emitDelete(): void {
+    this.deleteClient.emit(this.client());
   }
 }

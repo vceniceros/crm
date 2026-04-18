@@ -8,11 +8,12 @@ export interface ClientOption {
 export type ClientLocation = AppLocation;
 
 export interface ClientItem {
-  id: number;
+  id: number | string;
   razonSocial: string;
   cuit: string;
-  email: string;
-  telefono: string;
+  email: string | null;
+  telefono: string | null;
+  isActive: boolean;
   location: ClientLocation | null;
 }
 

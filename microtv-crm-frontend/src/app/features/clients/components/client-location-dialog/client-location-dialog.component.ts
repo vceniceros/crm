@@ -47,6 +47,10 @@ export class ClientLocationDialogComponent {
 
   constructor(@Inject(MAT_DIALOG_DATA) readonly data: ClientLocationDialogData) {}
 
+  openInMaps(): void {
+    this.locationLinkService.openInGoogleMaps(this.location());
+  }
+
   close(): void {
     this.dialogRef.close();
   }

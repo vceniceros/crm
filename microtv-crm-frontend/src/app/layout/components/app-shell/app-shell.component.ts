@@ -1,10 +1,10 @@
 import { AsyncPipe } from '@angular/common';
-import { Component, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, DestroyRef, ViewChild, inject } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { filter, map, startWith } from 'rxjs';
-import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
+import { MatSidenav, MatSidenavContent, MatSidenavModule } from '@angular/material/sidenav';
 
 import { MockLayoutDataService } from '../../../core/services/mock-layout-data.service';
 import { SidebarComponent } from '../sidebar/sidebar.component';
@@ -19,8 +19,11 @@ import { TopbarComponent } from '../topbar/topbar.component';
 })
 export class AppShellComponent {
   private readonly breakpointObserver = inject(BreakpointObserver);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly mockLayoutDataService = inject(MockLayoutDataService);
   private readonly router = inject(Router);
+
+  @ViewChild(MatSidenavContent) private sidenavContent?: MatSidenavContent;
 
   readonly layoutData$ = this.mockLayoutDataService.layoutData$;
   readonly isCompact = toSignal(
@@ -37,6 +40,17 @@ export class AppShellComponent {
     ),
     { initialValue: this.getCurrentRouteTitle() }
   );
+
+  constructor() {
+    this.router.events
+      .pipe(
+        filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(() => {
+        this.sidenavContent?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      });
+  }
 
   closeIfCompact(drawer: MatSidenav): void {
     if (this.isCompact()) {

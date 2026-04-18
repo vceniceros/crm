@@ -33,6 +33,13 @@
   line-height: 1.45;
 }
 
+.task-attachments-section__error {
+  margin: 0.85rem 0 0;
+  color: #b42318;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 .task-attachments-section__list {
   display: grid;
   gap: 0.9rem;

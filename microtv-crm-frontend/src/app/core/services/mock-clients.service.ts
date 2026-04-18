@@ -9,7 +9,8 @@ import clientsData from '../../../mocks/clients-data.json';
 export class MockClientsService {
   private readonly pageData = clientsData as ClientsPageData;
   private readonly clientsSubject = new BehaviorSubject<ClientItem[]>(this.pageData.items);
-  private nextClientId = this.pageData.items.reduce((maxId, client) => Math.max(maxId, client.id), 0) + 1;
+  private nextClientId =
+    this.pageData.items.reduce((maxId, client) => Math.max(maxId, this.toNumericId(client.id)), 0) + 1;
 
   readonly clients$ = this.clientsSubject.asObservable();
   readonly clientsPage$ = this.clients$.pipe(
@@ -26,13 +27,18 @@ export class MockClientsService {
       id: this.nextClientId++,
       razonSocial: payload.razonSocial.trim(),
       cuit: payload.cuit.trim(),
-      email: payload.email.trim(),
-      telefono: payload.telefono.trim(),
+      email: payload.email.trim() || null,
+      telefono: payload.telefono.trim() || null,
+      isActive: true,
       location: payload.location
     };
 
     this.clientsSubject.next([client, ...this.clientsSubject.getValue()]);
     return of(client);
+  }
+
+  private toNumericId(clientId: number | string): number {
+    return typeof clientId === 'number' ? clientId : Number.parseInt(clientId, 10) || 0;
   }
 }
 

@@ -9,13 +9,20 @@
     },
     {
       "id": 2,
+      "name": "Patricia E.",
+      "role": "ejecutivo",
+      "roleLabel": "Ejecutivo",
+      "initials": "PE"
+    },
+    {
+      "id": 3,
       "name": "Marcelo D.",
       "role": "deposito",
       "roleLabel": "Encargado de deposito",
       "initials": "MD"
     },
     {
-      "id": 3,
+      "id": 4,
       "name": "Luis F.",
       "role": "tecnico",
       "roleLabel": "Tecnico",

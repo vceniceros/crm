@@ -47,7 +47,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Tabla: crm_users
 -- Usuarios del CRM (perfil operativo local, NO gestiona autenticación)
-CREATE TABLE crm_users (
+CREATE TABLE IF NOT EXISTS crm_users (
     -- Identidad local del CRM
     crm_user_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     
@@ -84,10 +84,10 @@ CREATE TABLE crm_users (
     CONSTRAINT chk_no_passwords CHECK (TRUE)
 );
 
-CREATE INDEX idx_crm_users_auth_user_id ON crm_users(auth_user_id);
-CREATE INDEX idx_crm_users_email ON crm_users(email) WHERE deleted_at IS NULL;
-CREATE INDEX idx_crm_users_active ON crm_users(is_active_in_crm) WHERE deleted_at IS NULL;
-CREATE INDEX idx_crm_users_auth_tenant ON crm_users(last_auth_tenant_type, last_auth_tenant_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_crm_users_auth_user_id ON crm_users(auth_user_id);
+CREATE INDEX IF NOT EXISTS idx_crm_users_email ON crm_users(email) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_crm_users_active ON crm_users(is_active_in_crm) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_crm_users_auth_tenant ON crm_users(last_auth_tenant_type, last_auth_tenant_id) WHERE deleted_at IS NULL;
 
 COMMENT ON TABLE crm_users IS 
 'Usuarios del CRM con perfil operativo local. 
@@ -145,7 +145,7 @@ independiente de auth.users.status.';
 
 -- Tabla: crm_roles
 -- Roles funcionales del CRM (capacidades operativas)
-CREATE TABLE crm_roles (
+CREATE TABLE IF NOT EXISTS crm_roles (
     crm_role_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     role_key VARCHAR(50) NOT NULL UNIQUE,
     role_label VARCHAR(100) NOT NULL,
@@ -155,7 +155,7 @@ CREATE TABLE crm_roles (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_crm_roles_key ON crm_roles(role_key) WHERE is_active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_crm_roles_key ON crm_roles(role_key) WHERE is_active = TRUE;
 
 COMMENT ON TABLE crm_roles IS 
 'Roles FUNCIONALES del CRM (capacidades operativas dentro del sistema). 
@@ -168,7 +168,7 @@ admin_crm, tecnico_campo, encargado_deposito, dispatcher, etc.';
 
 -- Tabla: crm_user_roles
 -- Asignación de roles funcionales a usuarios del CRM
-CREATE TABLE crm_user_roles (
+CREATE TABLE IF NOT EXISTS crm_user_roles (
     crm_user_role_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     crm_user_id UUID NOT NULL REFERENCES crm_users(crm_user_id) ON DELETE CASCADE,
     crm_role_id UUID NOT NULL REFERENCES crm_roles(crm_role_id) ON DELETE CASCADE,
@@ -178,8 +178,8 @@ CREATE TABLE crm_user_roles (
     UNIQUE(crm_user_id, crm_role_id)
 );
 
-CREATE INDEX idx_crm_user_roles_user ON crm_user_roles(crm_user_id);
-CREATE INDEX idx_crm_user_roles_role ON crm_user_roles(crm_role_id);
+CREATE INDEX IF NOT EXISTS idx_crm_user_roles_user ON crm_user_roles(crm_user_id);
+CREATE INDEX IF NOT EXISTS idx_crm_user_roles_role ON crm_user_roles(crm_role_id);
 
 COMMENT ON TABLE crm_user_roles IS 
 'Asignación de roles funcionales del CRM a usuarios (M2M). 
@@ -192,7 +192,7 @@ Independiente de last_auth_roles_json (que es solo snapshot de auth).';
 
 -- Tabla: clients
 -- Clientes del CRM (empresas/personas a las que se brinda servicio)
-CREATE TABLE clients (
+CREATE TABLE IF NOT EXISTS clients (
     client_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     business_name VARCHAR(255) NOT NULL,
     tax_id VARCHAR(50) NOT NULL UNIQUE, -- CUIT en Argentina
@@ -207,8 +207,8 @@ CREATE TABLE clients (
         CHECK (email IS NULL OR email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
 );
 
-CREATE INDEX idx_clients_tax_id ON clients(tax_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_clients_active ON clients(is_active) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_clients_tax_id ON clients(tax_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_clients_active ON clients(is_active) WHERE deleted_at IS NULL;
 
 COMMENT ON TABLE clients IS 
 'Clientes del CRM (NO confundir con auth.companies que son organizaciones operadoras)';
@@ -217,7 +217,7 @@ COMMENT ON COLUMN clients.tax_id IS 'CUIT o identificación fiscal única';
 
 -- Tabla: locations
 -- Ubicaciones geográficas normalizadas
-CREATE TABLE locations (
+CREATE TABLE IF NOT EXISTS locations (
     location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     latitude DECIMAL(10, 8) NOT NULL,
     longitude DECIMAL(11, 8) NOT NULL,
@@ -230,14 +230,14 @@ CREATE TABLE locations (
     CONSTRAINT chk_longitude CHECK (longitude BETWEEN -180 AND 180)
 );
 
-CREATE INDEX idx_locations_coords ON locations(latitude, longitude);
+CREATE INDEX IF NOT EXISTS idx_locations_coords ON locations(latitude, longitude);
 
 COMMENT ON TABLE locations IS 
 'Ubicaciones geográficas normalizadas (no necesariamente pertenecen a un cliente)';
 
 -- Tabla: client_locations
 -- Relación many-to-many: un cliente puede tener múltiples sedes/oficinas
-CREATE TABLE client_locations (
+CREATE TABLE IF NOT EXISTS client_locations (
     client_location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     client_id UUID NOT NULL REFERENCES clients(client_id) ON DELETE CASCADE,
     location_id UUID NOT NULL REFERENCES locations(location_id) ON DELETE CASCADE,
@@ -248,11 +248,11 @@ CREATE TABLE client_locations (
     UNIQUE(client_id, location_id)
 );
 
-CREATE INDEX idx_client_locations_client ON client_locations(client_id);
-CREATE INDEX idx_client_locations_location ON client_locations(location_id);
+CREATE INDEX IF NOT EXISTS idx_client_locations_client ON client_locations(client_id);
+CREATE INDEX IF NOT EXISTS idx_client_locations_location ON client_locations(location_id);
 
 -- Índice único parcial: solo UNA ubicación primaria por cliente
-CREATE UNIQUE INDEX idx_client_locations_primary_unique 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_client_locations_primary_unique 
     ON client_locations(client_id) 
     WHERE is_primary = TRUE;
 
@@ -266,7 +266,7 @@ Constraint: máximo una ubicación primaria por cliente.';
 
 -- Tabla: warehouses
 -- Almacenes/depósitos físicos
-CREATE TABLE warehouses (
+CREATE TABLE IF NOT EXISTS warehouses (
     warehouse_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     warehouse_name VARCHAR(255) NOT NULL UNIQUE,
     address TEXT,
@@ -275,14 +275,14 @@ CREATE TABLE warehouses (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_warehouses_active ON warehouses(is_active);
+CREATE INDEX IF NOT EXISTS idx_warehouses_active ON warehouses(is_active);
 
 COMMENT ON TABLE warehouses IS 
 'Almacenes/depósitos físicos donde se gestiona inventario';
 
 -- Tabla: inventory_categories
 -- Categorías de productos de inventario
-CREATE TABLE inventory_categories (
+CREATE TABLE IF NOT EXISTS inventory_categories (
     category_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     category_name VARCHAR(255) NOT NULL UNIQUE,
     description TEXT,
@@ -292,14 +292,14 @@ CREATE TABLE inventory_categories (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_inventory_categories_parent ON inventory_categories(parent_category_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_categories_parent ON inventory_categories(parent_category_id);
 
 COMMENT ON TABLE inventory_categories IS 
 'Categorías de productos (puede ser jerárquico)';
 
 -- Tabla: inventory_products
 -- Catálogo de productos (definición, NO stock)
-CREATE TABLE inventory_products (
+CREATE TABLE IF NOT EXISTS inventory_products (
     product_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     category_id UUID REFERENCES inventory_categories(category_id) ON DELETE SET NULL,
     product_name VARCHAR(255) NOT NULL,
@@ -314,16 +314,16 @@ CREATE TABLE inventory_products (
     deleted_at TIMESTAMPTZ
 );
 
-CREATE INDEX idx_inventory_products_category ON inventory_products(category_id);
-CREATE INDEX idx_inventory_products_code ON inventory_products(product_code) WHERE deleted_at IS NULL;
-CREATE INDEX idx_inventory_products_barcode ON inventory_products(barcode) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_inventory_products_category ON inventory_products(category_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_products_code ON inventory_products(product_code) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_inventory_products_barcode ON inventory_products(barcode) WHERE deleted_at IS NULL;
 
 COMMENT ON TABLE inventory_products IS 
 'Catálogo de productos (definición sin stock)';
 
 -- Tabla: inventory_stock
 -- Stock actual por producto y almacén
-CREATE TABLE inventory_stock (
+CREATE TABLE IF NOT EXISTS inventory_stock (
     stock_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     product_id UUID NOT NULL REFERENCES inventory_products(product_id) ON DELETE CASCADE,
     warehouse_id UUID NOT NULL REFERENCES warehouses(warehouse_id) ON DELETE CASCADE,
@@ -338,8 +338,8 @@ CREATE TABLE inventory_stock (
     UNIQUE(product_id, warehouse_id)
 );
 
-CREATE INDEX idx_inventory_stock_product ON inventory_stock(product_id);
-CREATE INDEX idx_inventory_stock_warehouse ON inventory_stock(warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_stock_product ON inventory_stock(product_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_stock_warehouse ON inventory_stock(warehouse_id);
 
 COMMENT ON TABLE inventory_stock IS 
 'Stock actual por producto y almacén. 
@@ -347,7 +347,7 @@ warehouse_id es NOT NULL (al menos un depósito debe existir).';
 
 -- Tabla: inventory_movements
 -- Trazabilidad de movimientos de stock
-CREATE TABLE inventory_movements (
+CREATE TABLE IF NOT EXISTS inventory_movements (
     movement_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     product_id UUID NOT NULL REFERENCES inventory_products(product_id) ON DELETE CASCADE,
     warehouse_id UUID NOT NULL REFERENCES warehouses(warehouse_id) ON DELETE CASCADE,
@@ -368,11 +368,11 @@ CREATE TABLE inventory_movements (
         CHECK (movement_type IN ('IN', 'OUT', 'ADJUSTMENT', 'CONSUMPTION', 'RETURN'))
 );
 
-CREATE INDEX idx_inventory_movements_product ON inventory_movements(product_id);
-CREATE INDEX idx_inventory_movements_warehouse ON inventory_movements(warehouse_id);
-CREATE INDEX idx_inventory_movements_type ON inventory_movements(movement_type);
-CREATE INDEX idx_inventory_movements_reference ON inventory_movements(reference_entity_type, reference_entity_id);
-CREATE INDEX idx_inventory_movements_date ON inventory_movements(performed_at);
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_product ON inventory_movements(product_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_warehouse ON inventory_movements(warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_type ON inventory_movements(movement_type);
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_reference ON inventory_movements(reference_entity_type, reference_entity_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_date ON inventory_movements(performed_at);
 
 COMMENT ON TABLE inventory_movements IS 
 'Historial de movimientos de stock para trazabilidad completa. 
@@ -385,7 +385,7 @@ Polimorfismo débil: el backend valida consistencia.';
 
 -- Tabla: stock_devices
 -- Dispositivos/equipos que el cliente tiene (ej: DVR, cámaras)
-CREATE TABLE stock_devices (
+CREATE TABLE IF NOT EXISTS stock_devices (
     device_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     device_type VARCHAR(100) NOT NULL,
     brand VARCHAR(100),
@@ -397,14 +397,14 @@ CREATE TABLE stock_devices (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_stock_devices_serial ON stock_devices(serial_number);
+CREATE INDEX IF NOT EXISTS idx_stock_devices_serial ON stock_devices(serial_number);
 
 COMMENT ON TABLE stock_devices IS 
 'Catálogo de dispositivos/equipos (DVR, cámaras, etc.) que pueden ser afectados en tickets';
 
 -- Tabla: client_devices
 -- Relación many-to-many: qué dispositivos tiene cada cliente
-CREATE TABLE client_devices (
+CREATE TABLE IF NOT EXISTS client_devices (
     client_device_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     client_id UUID NOT NULL REFERENCES clients(client_id) ON DELETE CASCADE,
     device_id UUID NOT NULL REFERENCES stock_devices(device_id) ON DELETE CASCADE,
@@ -417,8 +417,8 @@ CREATE TABLE client_devices (
     UNIQUE(client_id, device_id)
 );
 
-CREATE INDEX idx_client_devices_client ON client_devices(client_id);
-CREATE INDEX idx_client_devices_device ON client_devices(device_id);
+CREATE INDEX IF NOT EXISTS idx_client_devices_client ON client_devices(client_id);
+CREATE INDEX IF NOT EXISTS idx_client_devices_device ON client_devices(device_id);
 
 COMMENT ON TABLE client_devices IS 
 'Dispositivos instalados en cada cliente';
@@ -429,7 +429,7 @@ COMMENT ON TABLE client_devices IS
 
 -- Tabla: task_templates
 -- Plantillas reutilizables de tareas
-CREATE TABLE task_templates (
+CREATE TABLE IF NOT EXISTS task_templates (
     template_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     template_name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -440,14 +440,14 @@ CREATE TABLE task_templates (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_task_templates_active ON task_templates(is_active);
+CREATE INDEX IF NOT EXISTS idx_task_templates_active ON task_templates(is_active);
 
 COMMENT ON TABLE task_templates IS 
 'Plantillas reutilizables de tareas (ej: Instalación estándar DVR)';
 
 -- Tabla: template_subtasks
 -- Subtareas predefinidas en un template
-CREATE TABLE template_subtasks (
+CREATE TABLE IF NOT EXISTS template_subtasks (
     template_subtask_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     template_id UUID NOT NULL REFERENCES task_templates(template_id) ON DELETE CASCADE,
     parent_template_subtask_id UUID REFERENCES template_subtasks(template_subtask_id) ON DELETE CASCADE,
@@ -462,8 +462,8 @@ CREATE TABLE template_subtasks (
     UNIQUE(template_id, order_index)
 );
 
-CREATE INDEX idx_template_subtasks_template ON template_subtasks(template_id, order_index);
-CREATE INDEX idx_template_subtasks_parent ON template_subtasks(parent_template_subtask_id);
+CREATE INDEX IF NOT EXISTS idx_template_subtasks_template ON template_subtasks(template_id, order_index);
+CREATE INDEX IF NOT EXISTS idx_template_subtasks_parent ON template_subtasks(parent_template_subtask_id);
 
 COMMENT ON TABLE template_subtasks IS 
 'Subtareas predefinidas en templates (jerárquicas con orden secuencial). 
@@ -471,7 +471,7 @@ Constraint: order_index único por template.';
 
 -- Tabla: template_subtask_checklist_items
 -- Items de checklist predefinidos para subtareas de template
-CREATE TABLE template_subtask_checklist_items (
+CREATE TABLE IF NOT EXISTS template_subtask_checklist_items (
     template_checklist_item_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     template_subtask_id UUID NOT NULL REFERENCES template_subtasks(template_subtask_id) ON DELETE CASCADE,
     item_label VARCHAR(500) NOT NULL,
@@ -483,7 +483,7 @@ CREATE TABLE template_subtask_checklist_items (
     UNIQUE(template_subtask_id, item_order)
 );
 
-CREATE INDEX idx_template_subtask_checklist_items_subtask 
+CREATE INDEX IF NOT EXISTS idx_template_subtask_checklist_items_subtask 
     ON template_subtask_checklist_items(template_subtask_id, item_order);
 
 COMMENT ON TABLE template_subtask_checklist_items IS 
@@ -492,7 +492,7 @@ El backend los instancia al crear una task desde template.';
 
 -- Tabla: template_materials
 -- Materiales/productos requeridos por un template
-CREATE TABLE template_materials (
+CREATE TABLE IF NOT EXISTS template_materials (
     template_material_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     template_id UUID NOT NULL REFERENCES task_templates(template_id) ON DELETE CASCADE,
     product_id UUID NOT NULL REFERENCES inventory_products(product_id) ON DELETE CASCADE,
@@ -503,8 +503,8 @@ CREATE TABLE template_materials (
     UNIQUE(template_id, product_id)
 );
 
-CREATE INDEX idx_template_materials_template ON template_materials(template_id);
-CREATE INDEX idx_template_materials_product ON template_materials(product_id);
+CREATE INDEX IF NOT EXISTS idx_template_materials_template ON template_materials(template_id);
+CREATE INDEX IF NOT EXISTS idx_template_materials_product ON template_materials(product_id);
 
 COMMENT ON TABLE template_materials IS 
 'Materiales requeridos por un template de tarea';
@@ -515,7 +515,7 @@ COMMENT ON TABLE template_materials IS
 
 -- Tabla: tasks
 -- Tareas (épicas/trabajos grandes)
-CREATE TABLE tasks (
+CREATE TABLE IF NOT EXISTS tasks (
     task_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     task_title VARCHAR(255) NOT NULL,
     task_description TEXT,
@@ -539,19 +539,19 @@ CREATE TABLE tasks (
     CONSTRAINT chk_task_status CHECK (status IN ('PENDING', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED'))
 );
 
-CREATE INDEX idx_tasks_client ON tasks(client_id);
-CREATE INDEX idx_tasks_location ON tasks(location_id);
-CREATE INDEX idx_tasks_assigned_user ON tasks(current_assigned_crm_user_id);
-CREATE INDEX idx_tasks_status ON tasks(status) WHERE deleted_at IS NULL;
-CREATE INDEX idx_tasks_created_at ON tasks(created_at);
-CREATE INDEX idx_tasks_created_by ON tasks(created_by_crm_user_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_client ON tasks(client_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_location ON tasks(location_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_assigned_user ON tasks(current_assigned_crm_user_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_created_by ON tasks(created_by_crm_user_id);
 
 COMMENT ON TABLE tasks IS 
 'Tareas (trabajos grandes divididos en subtareas)';
 
 -- Tabla: task_material_assignments
 -- Materiales asignados/consumidos en una task
-CREATE TABLE task_material_assignments (
+CREATE TABLE IF NOT EXISTS task_material_assignments (
     assignment_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     task_id UUID NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
     product_id UUID NOT NULL REFERENCES inventory_products(product_id) ON DELETE CASCADE,
@@ -571,8 +571,8 @@ CREATE TABLE task_material_assignments (
     UNIQUE(task_id, product_id)
 );
 
-CREATE INDEX idx_task_material_assignments_task ON task_material_assignments(task_id);
-CREATE INDEX idx_task_material_assignments_product ON task_material_assignments(product_id);
+CREATE INDEX IF NOT EXISTS idx_task_material_assignments_task ON task_material_assignments(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_material_assignments_product ON task_material_assignments(product_id);
 
 COMMENT ON TABLE task_material_assignments IS 
 'Materiales asignados y consumidos en tasks. 
@@ -581,7 +581,7 @@ Tasks son épicas planificadas: los materiales se asignan por adelantado.';
 
 -- Tabla: subtasks
 -- Subtareas de una tarea (instancias ejecutables)
-CREATE TABLE subtasks (
+CREATE TABLE IF NOT EXISTS subtasks (
     subtask_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     task_id UUID NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
     parent_subtask_id UUID REFERENCES subtasks(subtask_id) ON DELETE CASCADE,
@@ -603,10 +603,10 @@ CREATE TABLE subtasks (
     UNIQUE(task_id, order_index)
 );
 
-CREATE INDEX idx_subtasks_task ON subtasks(task_id, order_index);
-CREATE INDEX idx_subtasks_parent ON subtasks(parent_subtask_id);
-CREATE INDEX idx_subtasks_assigned_user ON subtasks(current_assigned_crm_user_id);
-CREATE INDEX idx_subtasks_completed ON subtasks(is_completed);
+CREATE INDEX IF NOT EXISTS idx_subtasks_task ON subtasks(task_id, order_index);
+CREATE INDEX IF NOT EXISTS idx_subtasks_parent ON subtasks(parent_subtask_id);
+CREATE INDEX IF NOT EXISTS idx_subtasks_assigned_user ON subtasks(current_assigned_crm_user_id);
+CREATE INDEX IF NOT EXISTS idx_subtasks_completed ON subtasks(is_completed);
 
 COMMENT ON TABLE subtasks IS 
 'Subtareas de una tarea (instancias ejecutables con secuencia). 
@@ -616,7 +616,7 @@ Constraints:
 
 -- Tabla: subtask_checklist_items
 -- Items/checks dentro de una subtarea
-CREATE TABLE subtask_checklist_items (
+CREATE TABLE IF NOT EXISTS subtask_checklist_items (
     checklist_item_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     subtask_id UUID NOT NULL REFERENCES subtasks(subtask_id) ON DELETE CASCADE,
     item_label VARCHAR(500) NOT NULL,
@@ -628,7 +628,7 @@ CREATE TABLE subtask_checklist_items (
     UNIQUE(subtask_id, item_order)
 );
 
-CREATE INDEX idx_subtask_checklist_items_subtask ON subtask_checklist_items(subtask_id, item_order);
+CREATE INDEX IF NOT EXISTS idx_subtask_checklist_items_subtask ON subtask_checklist_items(subtask_id, item_order);
 
 COMMENT ON TABLE subtask_checklist_items IS 
 'Items/checks dentro de una subtarea (ej: verificar voltaje, instalar bracket). 
@@ -636,7 +636,7 @@ Constraint: item_order único por subtask.';
 
 -- Tabla: subtask_checklist_progress
 -- Progreso de checklist (qué items están completados)
-CREATE TABLE subtask_checklist_progress (
+CREATE TABLE IF NOT EXISTS subtask_checklist_progress (
     progress_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     checklist_item_id UUID NOT NULL REFERENCES subtask_checklist_items(checklist_item_id) ON DELETE CASCADE,
     is_checked BOOLEAN NOT NULL DEFAULT FALSE,
@@ -646,14 +646,14 @@ CREATE TABLE subtask_checklist_progress (
     UNIQUE(checklist_item_id)
 );
 
-CREATE INDEX idx_subtask_checklist_progress_item ON subtask_checklist_progress(checklist_item_id);
+CREATE INDEX IF NOT EXISTS idx_subtask_checklist_progress_item ON subtask_checklist_progress(checklist_item_id);
 
 COMMENT ON TABLE subtask_checklist_progress IS 
 'Progreso de checklist (qué items están marcados)';
 
 -- Tabla: subtask_assignments
 -- Historial de asignaciones de subtarea
-CREATE TABLE subtask_assignments (
+CREATE TABLE IF NOT EXISTS subtask_assignments (
     assignment_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     subtask_id UUID NOT NULL REFERENCES subtasks(subtask_id) ON DELETE CASCADE,
     
@@ -665,8 +665,8 @@ CREATE TABLE subtask_assignments (
     notes TEXT
 );
 
-CREATE INDEX idx_subtask_assignments_subtask ON subtask_assignments(subtask_id, assigned_at DESC);
-CREATE INDEX idx_subtask_assignments_user ON subtask_assignments(assigned_crm_user_id);
+CREATE INDEX IF NOT EXISTS idx_subtask_assignments_subtask ON subtask_assignments(subtask_id, assigned_at DESC);
+CREATE INDEX IF NOT EXISTS idx_subtask_assignments_user ON subtask_assignments(assigned_crm_user_id);
 
 COMMENT ON TABLE subtask_assignments IS 
 'Historial de asignaciones de subtareas (trazabilidad de cambios de manos). 
@@ -674,7 +674,7 @@ assigned_crm_user_id es NOT NULL + ON DELETE RESTRICT (preservar historial).';
 
 -- Tabla: task_attachments
 -- Adjuntos multimedia de tareas/subtareas
-CREATE TABLE task_attachments (
+CREATE TABLE IF NOT EXISTS task_attachments (
     attachment_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     task_id UUID NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
     subtask_id UUID REFERENCES subtasks(subtask_id) ON DELETE CASCADE,
@@ -689,9 +689,9 @@ CREATE TABLE task_attachments (
     CONSTRAINT chk_attachment_type CHECK (attachment_type IN ('PHOTO', 'VIDEO', 'DOCUMENT'))
 );
 
-CREATE INDEX idx_task_attachments_task ON task_attachments(task_id);
-CREATE INDEX idx_task_attachments_subtask ON task_attachments(subtask_id);
-CREATE INDEX idx_task_attachments_uploaded_at ON task_attachments(uploaded_at);
+CREATE INDEX IF NOT EXISTS idx_task_attachments_task ON task_attachments(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_attachments_subtask ON task_attachments(subtask_id);
+CREATE INDEX IF NOT EXISTS idx_task_attachments_uploaded_at ON task_attachments(uploaded_at);
 
 COMMENT ON TABLE task_attachments IS 
 'Adjuntos multimedia (fotos, videos) de tareas/subtareas';
@@ -702,7 +702,7 @@ COMMENT ON TABLE task_attachments IS
 
 -- Tabla: ticket_categories
 -- Categorías de tickets
-CREATE TABLE ticket_categories (
+CREATE TABLE IF NOT EXISTS ticket_categories (
     category_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     category_name VARCHAR(100) NOT NULL UNIQUE,
     description TEXT,
@@ -716,7 +716,7 @@ COMMENT ON TABLE ticket_categories IS
 
 -- Tabla: ticket_statuses
 -- Estados del ciclo de vida del ticket
-CREATE TABLE ticket_statuses (
+CREATE TABLE IF NOT EXISTS ticket_statuses (
     status_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     status_key VARCHAR(50) NOT NULL UNIQUE,
     status_label VARCHAR(100) NOT NULL,
@@ -732,7 +732,7 @@ COMMENT ON TABLE ticket_statuses IS
 
 -- Tabla: ticket_priorities
 -- Prioridades de tickets
-CREATE TABLE ticket_priorities (
+CREATE TABLE IF NOT EXISTS ticket_priorities (
     priority_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     priority_key VARCHAR(50) NOT NULL UNIQUE,
     priority_label VARCHAR(100) NOT NULL,
@@ -747,7 +747,7 @@ COMMENT ON TABLE ticket_priorities IS
 
 -- Tabla: tickets
 -- Tickets (incidencias/problemas)
-CREATE TABLE tickets (
+CREATE TABLE IF NOT EXISTS tickets (
     ticket_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     ticket_title VARCHAR(255) NOT NULL,
     ticket_description TEXT,
@@ -769,22 +769,22 @@ CREATE TABLE tickets (
     deleted_at TIMESTAMPTZ
 );
 
-CREATE INDEX idx_tickets_client ON tickets(client_id);
-CREATE INDEX idx_tickets_location ON tickets(location_id);
-CREATE INDEX idx_tickets_category ON tickets(category_id);
-CREATE INDEX idx_tickets_status ON tickets(status_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_tickets_priority ON tickets(priority_id);
-CREATE INDEX idx_tickets_technician ON tickets(current_technician_crm_user_id);
-CREATE INDEX idx_tickets_warehouse ON tickets(current_warehouse_crm_user_id);
-CREATE INDEX idx_tickets_created_at ON tickets(created_at);
-CREATE INDEX idx_tickets_created_by ON tickets(created_by_crm_user_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_client ON tickets(client_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_location ON tickets(location_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_tickets_priority ON tickets(priority_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_technician ON tickets(current_technician_crm_user_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_warehouse ON tickets(current_warehouse_crm_user_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_created_at ON tickets(created_at);
+CREATE INDEX IF NOT EXISTS idx_tickets_created_by ON tickets(created_by_crm_user_id);
 
 COMMENT ON TABLE tickets IS 
 'Tickets (incidencias/problemas reportados por clientes)';
 
 -- Tabla: ticket_assignments
 -- Historial de asignaciones de tickets (técnicos y depósito)
-CREATE TABLE ticket_assignments (
+CREATE TABLE IF NOT EXISTS ticket_assignments (
     assignment_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     ticket_id UUID NOT NULL REFERENCES tickets(ticket_id) ON DELETE CASCADE,
     assignment_type VARCHAR(50) NOT NULL, -- 'TECHNICIAN', 'WAREHOUSE'
@@ -799,9 +799,9 @@ CREATE TABLE ticket_assignments (
     CONSTRAINT chk_assignment_type CHECK (assignment_type IN ('TECHNICIAN', 'WAREHOUSE'))
 );
 
-CREATE INDEX idx_ticket_assignments_ticket ON ticket_assignments(ticket_id, assigned_at DESC);
-CREATE INDEX idx_ticket_assignments_user ON ticket_assignments(assigned_crm_user_id);
-CREATE INDEX idx_ticket_assignments_type ON ticket_assignments(assignment_type);
+CREATE INDEX IF NOT EXISTS idx_ticket_assignments_ticket ON ticket_assignments(ticket_id, assigned_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ticket_assignments_user ON ticket_assignments(assigned_crm_user_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_assignments_type ON ticket_assignments(assignment_type);
 
 COMMENT ON TABLE ticket_assignments IS 
 'Historial de asignaciones de tickets (técnicos y depósito). 
@@ -809,7 +809,7 @@ assigned_crm_user_id es NOT NULL + ON DELETE RESTRICT (preservar historial).';
 
 -- Tabla: ticket_resolution_notes
 -- Notas de resolución del ticket
-CREATE TABLE ticket_resolution_notes (
+CREATE TABLE IF NOT EXISTS ticket_resolution_notes (
     note_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     ticket_id UUID NOT NULL REFERENCES tickets(ticket_id) ON DELETE CASCADE,
     note_text TEXT NOT NULL,
@@ -820,14 +820,14 @@ CREATE TABLE ticket_resolution_notes (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_ticket_resolution_notes_ticket ON ticket_resolution_notes(ticket_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ticket_resolution_notes_ticket ON ticket_resolution_notes(ticket_id, created_at DESC);
 
 COMMENT ON TABLE ticket_resolution_notes IS 
 'Notas de resolución del ticket (comentarios del técnico)';
 
 -- Tabla: ticket_attachments
 -- Adjuntos multimedia de tickets
-CREATE TABLE ticket_attachments (
+CREATE TABLE IF NOT EXISTS ticket_attachments (
     attachment_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     ticket_id UUID NOT NULL REFERENCES tickets(ticket_id) ON DELETE CASCADE,
     file_name VARCHAR(500) NOT NULL,
@@ -841,15 +841,15 @@ CREATE TABLE ticket_attachments (
     CONSTRAINT chk_ticket_attachment_type CHECK (attachment_type IN ('PHOTO', 'VIDEO', 'DOCUMENT'))
 );
 
-CREATE INDEX idx_ticket_attachments_ticket ON ticket_attachments(ticket_id);
-CREATE INDEX idx_ticket_attachments_uploaded_at ON ticket_attachments(uploaded_at);
+CREATE INDEX IF NOT EXISTS idx_ticket_attachments_ticket ON ticket_attachments(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_attachments_uploaded_at ON ticket_attachments(uploaded_at);
 
 COMMENT ON TABLE ticket_attachments IS 
 'Adjuntos multimedia de tickets';
 
 -- Tabla: ticket_inventory_requests
 -- Solicitudes de materiales desde un ticket
-CREATE TABLE ticket_inventory_requests (
+CREATE TABLE IF NOT EXISTS ticket_inventory_requests (
     request_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     ticket_id UUID NOT NULL REFERENCES tickets(ticket_id) ON DELETE CASCADE,
     request_status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
@@ -867,16 +867,16 @@ CREATE TABLE ticket_inventory_requests (
         CHECK (request_status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'))
 );
 
-CREATE INDEX idx_ticket_inventory_requests_ticket ON ticket_inventory_requests(ticket_id);
-CREATE INDEX idx_ticket_inventory_requests_status ON ticket_inventory_requests(request_status);
-CREATE INDEX idx_ticket_inventory_requests_requested_by ON ticket_inventory_requests(requested_by_crm_user_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_inventory_requests_ticket ON ticket_inventory_requests(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_inventory_requests_status ON ticket_inventory_requests(request_status);
+CREATE INDEX IF NOT EXISTS idx_ticket_inventory_requests_requested_by ON ticket_inventory_requests(requested_by_crm_user_id);
 
 COMMENT ON TABLE ticket_inventory_requests IS 
 'Solicitudes de materiales desde ticket (técnico solicita a depósito)';
 
 -- Tabla: ticket_inventory_request_items
 -- Items dentro de una solicitud de inventario
-CREATE TABLE ticket_inventory_request_items (
+CREATE TABLE IF NOT EXISTS ticket_inventory_request_items (
     request_item_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     request_id UUID NOT NULL REFERENCES ticket_inventory_requests(request_id) ON DELETE CASCADE,
     product_id UUID NOT NULL REFERENCES inventory_products(product_id) ON DELETE CASCADE,
@@ -887,15 +887,15 @@ CREATE TABLE ticket_inventory_request_items (
     CONSTRAINT chk_quantity_requested CHECK (quantity_requested > 0)
 );
 
-CREATE INDEX idx_ticket_inventory_request_items_request ON ticket_inventory_request_items(request_id);
-CREATE INDEX idx_ticket_inventory_request_items_product ON ticket_inventory_request_items(product_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_inventory_request_items_request ON ticket_inventory_request_items(request_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_inventory_request_items_product ON ticket_inventory_request_items(product_id);
 
 COMMENT ON TABLE ticket_inventory_request_items IS 
 'Productos solicitados en cada request';
 
 -- Tabla: ticket_dispatches
 -- Despachos de materiales desde depósito para un ticket
-CREATE TABLE ticket_dispatches (
+CREATE TABLE IF NOT EXISTS ticket_dispatches (
     dispatch_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     ticket_id UUID NOT NULL REFERENCES tickets(ticket_id) ON DELETE CASCADE,
     request_id UUID REFERENCES ticket_inventory_requests(request_id) ON DELETE SET NULL,
@@ -906,16 +906,16 @@ CREATE TABLE ticket_dispatches (
     dispatch_notes TEXT
 );
 
-CREATE INDEX idx_ticket_dispatches_ticket ON ticket_dispatches(ticket_id);
-CREATE INDEX idx_ticket_dispatches_request ON ticket_dispatches(request_id);
-CREATE INDEX idx_ticket_dispatches_dispatched_by ON ticket_dispatches(dispatched_by_crm_user_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_dispatches_ticket ON ticket_dispatches(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_dispatches_request ON ticket_dispatches(request_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_dispatches_dispatched_by ON ticket_dispatches(dispatched_by_crm_user_id);
 
 COMMENT ON TABLE ticket_dispatches IS 
 'Despachos de materiales desde depósito (puede o no estar relacionado con request)';
 
 -- Tabla: ticket_dispatch_items
 -- Items despachados en cada despacho
-CREATE TABLE ticket_dispatch_items (
+CREATE TABLE IF NOT EXISTS ticket_dispatch_items (
     dispatch_item_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     dispatch_id UUID NOT NULL REFERENCES ticket_dispatches(dispatch_id) ON DELETE CASCADE,
     product_id UUID NOT NULL REFERENCES inventory_products(product_id) ON DELETE CASCADE,
@@ -926,8 +926,8 @@ CREATE TABLE ticket_dispatch_items (
     CONSTRAINT chk_quantity_dispatched CHECK (quantity_dispatched > 0)
 );
 
-CREATE INDEX idx_ticket_dispatch_items_dispatch ON ticket_dispatch_items(dispatch_id);
-CREATE INDEX idx_ticket_dispatch_items_product ON ticket_dispatch_items(product_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_dispatch_items_dispatch ON ticket_dispatch_items(dispatch_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_dispatch_items_product ON ticket_dispatch_items(product_id);
 
 COMMENT ON TABLE ticket_dispatch_items IS 
 'Productos despachados en cada despacho';
@@ -946,62 +946,77 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Aplicar trigger a todas las tablas con updated_at
+DROP TRIGGER IF EXISTS update_crm_users_updated_at ON crm_users;
 CREATE TRIGGER update_crm_users_updated_at 
     BEFORE UPDATE ON crm_users FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_crm_roles_updated_at ON crm_roles;
 CREATE TRIGGER update_crm_roles_updated_at 
     BEFORE UPDATE ON crm_roles FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_clients_updated_at ON clients;
 CREATE TRIGGER update_clients_updated_at 
     BEFORE UPDATE ON clients FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_locations_updated_at ON locations;
 CREATE TRIGGER update_locations_updated_at 
     BEFORE UPDATE ON locations FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_warehouses_updated_at ON warehouses;
 CREATE TRIGGER update_warehouses_updated_at 
     BEFORE UPDATE ON warehouses FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_inventory_categories_updated_at ON inventory_categories;
 CREATE TRIGGER update_inventory_categories_updated_at 
     BEFORE UPDATE ON inventory_categories FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_inventory_products_updated_at ON inventory_products;
 CREATE TRIGGER update_inventory_products_updated_at 
     BEFORE UPDATE ON inventory_products FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_inventory_stock_updated_at ON inventory_stock;
 CREATE TRIGGER update_inventory_stock_updated_at 
     BEFORE UPDATE ON inventory_stock FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_stock_devices_updated_at ON stock_devices;
 CREATE TRIGGER update_stock_devices_updated_at 
     BEFORE UPDATE ON stock_devices FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_task_templates_updated_at ON task_templates;
 CREATE TRIGGER update_task_templates_updated_at 
     BEFORE UPDATE ON task_templates FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_tasks_updated_at ON tasks;
 CREATE TRIGGER update_tasks_updated_at 
     BEFORE UPDATE ON tasks FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_subtasks_updated_at ON subtasks;
 CREATE TRIGGER update_subtasks_updated_at 
     BEFORE UPDATE ON subtasks FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_ticket_categories_updated_at ON ticket_categories;
 CREATE TRIGGER update_ticket_categories_updated_at 
     BEFORE UPDATE ON ticket_categories FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_tickets_updated_at ON tickets;
 CREATE TRIGGER update_tickets_updated_at 
     BEFORE UPDATE ON tickets FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_ticket_resolution_notes_updated_at ON ticket_resolution_notes;
 CREATE TRIGGER update_ticket_resolution_notes_updated_at 
     BEFORE UPDATE ON ticket_resolution_notes FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
@@ -1012,21 +1027,25 @@ CREATE TRIGGER update_ticket_resolution_notes_updated_at
 
 -- Almacenes
 INSERT INTO warehouses (warehouse_name, address) VALUES
-('Depósito Principal', 'Buenos Aires, Argentina');
+('Depósito Principal', 'Buenos Aires, Argentina')
+ON CONFLICT (warehouse_name) DO NOTHING;
 
 -- Roles funcionales del CRM
 INSERT INTO crm_roles (role_key, role_label, description) VALUES
 ('admin_crm', 'Administrador del CRM', 'Acceso total al sistema CRM (NO implica platform_admin de auth)'),
+('ejecutivo', 'Ejecutivo', 'Visualiza todos los modulos del CRM para seguimiento operativo y de gestion'),
 ('tecnico_campo', 'Técnico de Campo', 'Ejecuta tareas y tickets en ubicaciones del cliente'),
 ('encargado_deposito', 'Encargado de Depósito', 'Gestiona inventario, despachos y recepciones'),
-('dispatcher', 'Despachador/Coordinador', 'Asigna tareas, coordina logística, aprueba solicitudes');
+('dispatcher', 'Despachador/Coordinador', 'Asigna tareas, coordina logística, aprueba solicitudes')
+ON CONFLICT (role_key) DO NOTHING;
 
 -- Prioridades de tickets
 INSERT INTO ticket_priorities (priority_key, priority_label, priority_level) VALUES
 ('BAJA', 'Baja', 1),
 ('MEDIA', 'Media', 2),
 ('ALTA', 'Alta', 3),
-('CRITICA', 'Crítica', 4);
+('CRITICA', 'Crítica', 4)
+ON CONFLICT (priority_key) DO NOTHING;
 
 -- Estados de tickets
 INSERT INTO ticket_statuses (status_key, status_label, status_order, is_final) VALUES
@@ -1035,7 +1054,8 @@ INSERT INTO ticket_statuses (status_key, status_label, status_order, is_final) V
 ('AWAITING_APPROVAL', 'Esperando Aprobación', 3, FALSE),
 ('RESOLVED', 'Resuelto', 4, FALSE),
 ('CLOSED', 'Cerrado', 5, TRUE),
-('CANCELLED', 'Cancelado', 6, TRUE);
+('CANCELLED', 'Cancelado', 6, TRUE)
+ON CONFLICT (status_key) DO NOTHING;
 
 -- =====================================================
 -- FIN DEL ESQUEMA

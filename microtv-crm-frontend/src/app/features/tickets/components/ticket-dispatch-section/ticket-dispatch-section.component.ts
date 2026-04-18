@@ -28,20 +28,34 @@ export class TicketDispatchSectionComponent {
   readonly dispatchCreated = output<TicketDispatchItem>();
 
   readonly dispatchForm = this.formBuilder.group({
+    requestId: this.formBuilder.control<string | null>(null),
     inventoryItemId: this.formBuilder.control<number | string | null>(null, Validators.required),
     quantity: this.formBuilder.control(1, {
       validators: [Validators.required, Validators.min(1)],
       nonNullable: true
-    })
+    }),
+    serialNumber: this.formBuilder.control<string | null>(null),
+    barcodeValue: this.formBuilder.control<string | null>(null),
+    notes: this.formBuilder.control<string | null>(null)
   });
 
   approvedRequestCount(): number {
     return this.requests().filter((request) => request.status === 'approved').length;
   }
 
+  approvedRequests(): readonly TicketInventoryRequest[] {
+    return this.requests().filter((request) => request.status === 'approved');
+  }
+
   createDispatch(): void {
     if (this.dispatchForm.invalid) {
       this.dispatchForm.markAllAsTouched();
+      return;
+    }
+
+    if (!this.dispatchForm.controls.requestId.getRawValue()) {
+      this.dispatchForm.controls.requestId.markAsTouched();
+      this.dispatchForm.controls.requestId.setErrors({ required: true });
       return;
     }
 
@@ -55,9 +69,13 @@ export class TicketDispatchSectionComponent {
     this.dispatchCreated.emit({
       inventoryItemId: selectedItem.id,
       inventoryItemName: selectedItem.name,
-      quantity: this.dispatchForm.controls.quantity.getRawValue()
+      quantity: this.dispatchForm.controls.quantity.getRawValue(),
+      requestId: this.dispatchForm.controls.requestId.getRawValue() ?? undefined,
+      serialNumber: this.dispatchForm.controls.serialNumber.getRawValue()?.trim() || undefined,
+      barcodeValue: this.dispatchForm.controls.barcodeValue.getRawValue()?.trim() || undefined,
+      notes: this.dispatchForm.controls.notes.getRawValue()?.trim() || undefined
     });
 
-    this.dispatchForm.reset({ inventoryItemId: null, quantity: 1 });
+    this.dispatchForm.reset({ requestId: null, inventoryItemId: null, quantity: 1, serialNumber: null, barcodeValue: null, notes: null });
   }
 }

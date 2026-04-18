@@ -5,7 +5,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import type { Map as LeafletMap } from 'leaflet';
 
 import { AppLocation } from '../../../core/models/location.model';
-import { LocationLinkService } from '../../services/location-link.service';
+import { LocationFacade } from '../../facades/location.facade';
 
 @Component({
   selector: 'app-location-map',
@@ -17,7 +17,7 @@ import { LocationLinkService } from '../../services/location-link.service';
 })
 export class LocationMapComponent implements AfterViewInit, OnDestroy {
   private readonly platformId = inject(PLATFORM_ID);
-  private readonly locationLinkService = inject(LocationLinkService);
+  private readonly locationFacade = inject(LocationFacade);
 
   @ViewChild('mapCanvas') private mapCanvas?: ElementRef<HTMLElement>;
 
@@ -27,7 +27,7 @@ export class LocationMapComponent implements AfterViewInit, OnDestroy {
 
   readonly state = signal<'idle' | 'loading' | 'ready' | 'error' | 'invalid'>('idle');
   readonly errorMessage = signal('');
-  readonly hasValidLocation = computed(() => this.locationLinkService.isValidLocation(this.location()));
+  readonly hasValidLocation = computed(() => this.locationFacade.isValid(this.location()));
 
   private mapInstance: LeafletMap | null = null;
 
@@ -48,7 +48,7 @@ export class LocationMapComponent implements AfterViewInit, OnDestroy {
     }
 
     const location = this.location();
-    if (!this.locationLinkService.isValidLocation(location)) {
+    if (!this.locationFacade.isValid(location)) {
       this.state.set('invalid');
       return;
     }
