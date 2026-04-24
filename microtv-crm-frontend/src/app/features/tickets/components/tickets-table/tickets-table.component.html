@@ -1,35 +1,50 @@
-<mat-card class="tickets-table">
+<mat-card class="tickets-table" [class.tickets-table--force-table]="viewMode() === 'table'" [class.tickets-table--force-cards]="viewMode() === 'cards'">
   <mat-card-header>
-    <mat-card-title>{{ block().title }}</mat-card-title>
+    <mat-card-title>{{ title() }}</mat-card-title>
   </mat-card-header>
 
   <mat-card-content>
     <div class="tickets-table__desktop-scroll">
-      <table mat-table [dataSource]="block().items" class="tickets-table__table">
-        <ng-container matColumnDef="id">
-          <th mat-header-cell *matHeaderCellDef>{{ labelFor('id') }}</th>
-          <td mat-cell *matCellDef="let ticket">{{ ticket.id }}</td>
+      <table mat-table [dataSource]="items()" class="tickets-table__table">
+        <ng-container matColumnDef="ticketNumber">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('ticketNumber') }}</th>
+          <td mat-cell *matCellDef="let ticket">{{ ticket.ticketNumber }}</td>
         </ng-container>
 
         <ng-container matColumnDef="title">
           <th mat-header-cell *matHeaderCellDef>{{ labelFor('title') }}</th>
           <td mat-cell *matCellDef="let ticket">
             <div class="tickets-table__title">{{ ticket.title }}</div>
-            <a mat-button class="tickets-table__open-link" [routerLink]="['/tickets', ticket.id]">
+            <a mat-button class="tickets-table__open-link" [routerLink]="['/tickets', ticket.ticketId]">
               <span>Ver ejecución</span>
               <mat-icon>arrow_forward</mat-icon>
             </a>
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="category">
-          <th mat-header-cell *matHeaderCellDef>{{ labelFor('category') }}</th>
-          <td mat-cell *matCellDef="let ticket">{{ ticket.category }}</td>
+        <ng-container matColumnDef="client">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('client') }}</th>
+          <td mat-cell *matCellDef="let ticket">{{ ticket.client }}</td>
         </ng-container>
 
-        <ng-container matColumnDef="affectedDevice">
-          <th mat-header-cell *matHeaderCellDef>{{ labelFor('affectedDevice') }}</th>
-          <td mat-cell *matCellDef="let ticket">{{ ticket.affectedDevice }}</td>
+        <ng-container matColumnDef="location">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('location') }}</th>
+          <td mat-cell *matCellDef="let ticket">
+            <div class="tickets-table__location-cell">
+              <span class="tickets-table__location-label">{{ ticket.location }}</span>
+              @if (ticket.mapsUrl) {
+                <a
+                  mat-stroked-button
+                  class="tickets-table__maps-link"
+                  [href]="ticket.mapsUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Abrir en Maps
+                </a>
+              }
+            </div>
+          </td>
         </ng-container>
 
         <ng-container matColumnDef="status">
@@ -46,21 +61,34 @@
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="createdAt">
-          <th mat-header-cell *matHeaderCellDef>{{ labelFor('createdAt') }}</th>
-          <td mat-cell *matCellDef="let ticket">{{ ticket.createdAt }}</td>
+        <ng-container matColumnDef="updatedAt">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('updatedAt') }}</th>
+          <td mat-cell *matCellDef="let ticket">{{ ticket.updatedAt }}</td>
         </ng-container>
 
-        <ng-container matColumnDef="assignee">
-          <th mat-header-cell *matHeaderCellDef>{{ labelFor('assignee') }}</th>
+        <ng-container matColumnDef="assignedTo">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('assignedTo') }}</th>
           <td mat-cell *matCellDef="let ticket">
-            @if (hasAssignee(ticket.assigneeName)) {
+            @if (ticket.assignedUserId) {
               <div class="tickets-table__assignee">
-                <app-user-avatar [initials]="ticket.assigneeInitials ?? '?'" [size]="32" />
-                <span>{{ ticket.assigneeName }}</span>
+                <app-user-avatar [initials]="initialsFor(ticket.assignedTo)" [size]="32" />
+                <span>{{ ticket.assignedTo }}</span>
               </div>
             } @else {
-              <span class="tickets-table__unassigned">Sin asignar</span>
+              <div class="tickets-table__unassigned-wrap">
+                <span class="tickets-table__unassigned">{{ ticket.assignedTo || 'Sin asignar' }}</span>
+                @if (canSelfAssign() && ticket.selfAssignable) {
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    class="tickets-table__assign-button"
+                    [disabled]="isAssigning()"
+                    (click)="requestSelfAssign(ticket.ticketId)"
+                  >
+                    {{ assigningTicketId() === ticket.ticketId ? 'Asignando...' : 'Asignarmelo' }}
+                  </button>
+                }
+              </div>
             }
           </td>
         </ng-container>
@@ -71,12 +99,12 @@
     </div>
 
     <div class="tickets-table__mobile-list" aria-label="Listado movil de tickets">
-      @for (ticket of block().items; track ticket.id) {
+      @for (ticket of items(); track ticket.ticketId) {
         <article class="tickets-table__mobile-card">
           <div class="tickets-table__mobile-top">
             <div>
-              <p class="tickets-table__mobile-label">{{ labelFor('id') }}</p>
-              <p class="tickets-table__mobile-id">{{ ticket.id }}</p>
+              <p class="tickets-table__mobile-label">{{ labelFor('ticketNumber') }}</p>
+              <p class="tickets-table__mobile-id">{{ ticket.ticketNumber }}</p>
             </div>
 
             <app-status-badge [label]="ticket.status" [tone]="ticket.statusTone" />
@@ -89,8 +117,8 @@
 
           <div class="tickets-table__mobile-grid">
             <div class="tickets-table__mobile-block">
-              <p class="tickets-table__mobile-label">{{ labelFor('category') }}</p>
-              <p class="tickets-table__mobile-value">{{ ticket.category }}</p>
+              <p class="tickets-table__mobile-label">{{ labelFor('client') }}</p>
+              <p class="tickets-table__mobile-value">{{ ticket.client }}</p>
             </div>
 
             <div class="tickets-table__mobile-block">
@@ -100,30 +128,52 @@
           </div>
 
           <div class="tickets-table__mobile-block">
-            <p class="tickets-table__mobile-label">{{ labelFor('affectedDevice') }}</p>
-            <p class="tickets-table__mobile-value">{{ ticket.affectedDevice }}</p>
+            <p class="tickets-table__mobile-label">{{ labelFor('location') }}</p>
+            <p class="tickets-table__mobile-value">{{ ticket.location }}</p>
+            @if (ticket.mapsUrl) {
+              <a
+                mat-stroked-button
+                class="tickets-table__maps-link tickets-table__maps-link--mobile"
+                [href]="ticket.mapsUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Abrir en Maps
+              </a>
+            }
           </div>
 
           <div class="tickets-table__mobile-grid">
             <div class="tickets-table__mobile-block">
-              <p class="tickets-table__mobile-label">{{ labelFor('createdAt') }}</p>
-              <p class="tickets-table__mobile-value">{{ ticket.createdAt }}</p>
+              <p class="tickets-table__mobile-label">{{ labelFor('updatedAt') }}</p>
+              <p class="tickets-table__mobile-value">{{ ticket.updatedAt }}</p>
             </div>
 
             <div class="tickets-table__mobile-block">
-              <p class="tickets-table__mobile-label">{{ labelFor('assignee') }}</p>
-              @if (hasAssignee(ticket.assigneeName)) {
+              <p class="tickets-table__mobile-label">{{ labelFor('assignedTo') }}</p>
+              @if (ticket.assignedUserId) {
                 <div class="tickets-table__assignee">
-                  <app-user-avatar [initials]="ticket.assigneeInitials ?? '?'" [size]="32" />
-                  <span>{{ ticket.assigneeName }}</span>
+                  <app-user-avatar [initials]="initialsFor(ticket.assignedTo)" [size]="32" />
+                  <span>{{ ticket.assignedTo }}</span>
                 </div>
               } @else {
-                <p class="tickets-table__mobile-value tickets-table__unassigned">Sin asignar</p>
+                <p class="tickets-table__mobile-value tickets-table__unassigned">{{ ticket.assignedTo || 'Sin asignar' }}</p>
+                @if (canSelfAssign() && ticket.selfAssignable) {
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    class="tickets-table__assign-button tickets-table__assign-button--mobile"
+                    [disabled]="isAssigning()"
+                    (click)="requestSelfAssign(ticket.ticketId)"
+                  >
+                    {{ assigningTicketId() === ticket.ticketId ? 'Asignando...' : 'Asignarmelo' }}
+                  </button>
+                }
               }
             </div>
           </div>
 
-          <a mat-stroked-button class="tickets-table__mobile-action" [routerLink]="['/tickets', ticket.id]">
+          <a mat-stroked-button class="tickets-table__mobile-action" [routerLink]="['/tickets', ticket.ticketId]">
             <span>Ver ejecución</span>
             <mat-icon>arrow_forward</mat-icon>
           </a>

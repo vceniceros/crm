@@ -30,3 +30,15 @@ class CrmRoleRepository:
 
         statement = select(CrmRole).where(CrmRole.role_key == role_key, CrmRole.is_active.is_(True))
         return self._session.scalar(statement)
+
+    def get_by_id(self, crm_role_id: str) -> CrmRole | None:
+        """Return an active CRM role by internal identifier."""
+
+        statement = select(CrmRole).where(CrmRole.crm_role_id == crm_role_id, CrmRole.is_active.is_(True))
+        return self._session.scalar(statement)
+
+    def list_active(self) -> list[CrmRole]:
+        """Return all active CRM roles ordered by label."""
+
+        statement = select(CrmRole).where(CrmRole.is_active.is_(True)).order_by(CrmRole.role_label.asc(), CrmRole.role_key.asc())
+        return list(self._session.scalars(statement).all())

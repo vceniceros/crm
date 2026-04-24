@@ -24,7 +24,10 @@ class InventoryRequestStatus(StrEnum):
     """Lifecycle states for additional inventory requests."""
 
     PENDING = "PENDING"
+    PENDING_DISPATCH = "PENDING_DISPATCH"
+    PENDING_RECEIPT = "PENDING_RECEIPT"
     APPROVED = "APPROVED"
+    COMPLETED = "COMPLETED"
     REJECTED = "REJECTED"
     CANCELLED = "CANCELLED"
 
@@ -195,11 +198,15 @@ class InventoryDispatch(Base):
     dispatched_by_crm_user_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id"), index=True)
     warehouse_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("warehouses.warehouse_id"), index=True)
     dispatch_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    received_by_crm_user_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id"), nullable=True)
+    received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reception_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     task: Mapped[Task | None] = relationship("Task", back_populates="dispatches")
     request: Mapped[InventoryRequest | None] = relationship("InventoryRequest", back_populates="dispatches")
     dispatched_by_user: Mapped["CrmUser"] = relationship("CrmUser", foreign_keys=[dispatched_by_crm_user_id], lazy="joined")
+    received_by_user: Mapped["CrmUser | None"] = relationship("CrmUser", foreign_keys=[received_by_crm_user_id], lazy="joined")
     items: Mapped[list[InventoryDispatchItem]] = relationship(
         "InventoryDispatchItem",
         back_populates="dispatch",
@@ -219,6 +226,10 @@ class InventoryDispatch(Base):
     @property
     def dispatched_by_display_name(self) -> str | None:
         return _user_display_label(self.dispatched_by_user)
+
+    @property
+    def received_by_display_name(self) -> str | None:
+        return _user_display_label(self.received_by_user)
 
 
 class InventoryDispatchItem(Base):

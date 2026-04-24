@@ -1,10 +1,12 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable, throwError } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { Observable, Subject, throwError } from 'rxjs';
+import { catchError, map, tap } from 'rxjs/operators';
 
 import { crmApiConfig } from '../config/crm-api.config';
 import {
+  ApproveTaskRequest,
+  AssignSubtaskRequest,
   ClientSummary,
   CreateLocationRequest,
   CrmUserOption,
@@ -12,6 +14,7 @@ import {
   PersistedLocation,
   CreateTaskTemplateRequest,
   ExecuteSubtaskActionRequest,
+  RejectTaskApprovalRequest,
   SetTaskTemplateActivationRequest,
   TaskDetail,
   TaskSummary,
@@ -35,6 +38,9 @@ interface ApiErrorEnvelope {
 export class TaskManagementService {
   private readonly http = inject(HttpClient);
   private readonly authSessionService = inject(AuthSessionService);
+  private readonly badgeRefreshSubject = new Subject<void>();
+
+  readonly badgeRefresh$ = this.badgeRefreshSubject.asObservable();
 
   listTemplates(): Observable<TaskTemplate[]> {
     return this.request<TaskTemplate[]>('get', '/tasks/templates');
@@ -65,7 +71,10 @@ export class TaskManagementService {
   }
 
   createTaskFromTemplate(payload: CreateTaskFromTemplateRequest): Observable<TaskDetail> {
-    return this.request<TaskDetail>('post', '/tasks', payload);
+    return this.request<TaskDetail>('post', '/tasks', payload).pipe(
+      map((task) => this.normalizeTaskDetail(task)),
+      tap(() => this.badgeRefreshSubject.next())
+    );
   }
 
   createLocation(location: AppLocation): Observable<PersistedLocation> {
@@ -93,24 +102,57 @@ export class TaskManagementService {
     return this.request<TaskSummary[]>('get', '/tasks/tracking/me');
   }
 
+  listTaskHistory(): Observable<TaskSummary[]> {
+    return this.request<TaskSummary[]>('get', '/tasks/history/me');
+  }
+
   listUnassignedSubtasks(): Observable<UnassignedSubtaskQueueItem[]> {
     return this.request<UnassignedSubtaskQueueItem[]>('get', '/tasks/unassigned/me');
   }
 
   getTaskDetail(taskId: string): Observable<TaskDetail> {
-    return this.request<TaskDetail>('get', `/tasks/${taskId}`);
+    return this.request<TaskDetail>('get', `/tasks/${taskId}`).pipe(map((task) => this.normalizeTaskDetail(task)));
   }
 
   claimSubtask(subtaskId: string): Observable<TaskDetail> {
-    return this.request<TaskDetail>('post', `/tasks/subtasks/${subtaskId}/claim`, {});
+    return this.request<TaskDetail>('post', `/tasks/subtasks/${subtaskId}/claim`, {}).pipe(
+      map((task) => this.normalizeTaskDetail(task)),
+      tap(() => this.badgeRefreshSubject.next())
+    );
   }
 
   saveSubtaskProgress(subtaskId: string, payload: UpdateSubtaskProgressRequest): Observable<TaskDetail> {
-    return this.request<TaskDetail>('put', `/tasks/subtasks/${subtaskId}/items`, payload);
+    return this.request<TaskDetail>('put', `/tasks/subtasks/${subtaskId}/items`, payload).pipe(
+      map((task) => this.normalizeTaskDetail(task))
+    );
   }
 
   executeSubtaskAction(subtaskId: string, payload: ExecuteSubtaskActionRequest): Observable<TaskDetail> {
-    return this.request<TaskDetail>('post', `/tasks/subtasks/${subtaskId}/actions`, payload);
+    return this.request<TaskDetail>('post', `/tasks/subtasks/${subtaskId}/actions`, payload).pipe(
+      map((task) => this.normalizeTaskDetail(task)),
+      tap(() => this.badgeRefreshSubject.next())
+    );
+  }
+
+  assignSubtask(subtaskId: string, payload: AssignSubtaskRequest): Observable<TaskDetail> {
+    return this.request<TaskDetail>('patch', `/tasks/subtasks/${subtaskId}/assignment`, payload).pipe(
+      map((task) => this.normalizeTaskDetail(task)),
+      tap(() => this.badgeRefreshSubject.next())
+    );
+  }
+
+  approveTask(taskId: string, payload: ApproveTaskRequest = {}): Observable<TaskDetail> {
+    return this.request<TaskDetail>('patch', `/tasks/${taskId}/approve`, payload).pipe(
+      map((task) => this.normalizeTaskDetail(task)),
+      tap(() => this.badgeRefreshSubject.next())
+    );
+  }
+
+  rejectTaskApproval(taskId: string, payload: RejectTaskApprovalRequest): Observable<TaskDetail> {
+    return this.request<TaskDetail>('patch', `/tasks/${taskId}/reject`, payload).pipe(
+      map((task) => this.normalizeTaskDetail(task)),
+      tap(() => this.badgeRefreshSubject.next())
+    );
   }
 
   uploadTaskAttachments(taskId: string, files: readonly File[], subtaskId?: string | null): Observable<TaskAttachment[]> {
@@ -127,7 +169,10 @@ export class TaskManagementService {
 
     return this.http
       .post<TaskAttachment[]>(`${crmApiConfig.baseUrl}/tasks/${taskId}/attachments`, formData, { headers })
-      .pipe(catchError((error) => this.handleRequestError(error)));
+      .pipe(
+        map((attachments) => attachments.map((attachment) => this.normalizeAttachment(attachment))),
+        catchError((error) => this.handleRequestError(error))
+      );
   }
 
   deleteTaskAttachment(attachmentId: string): Observable<void> {
@@ -196,5 +241,51 @@ export class TaskManagementService {
     }
 
     return throwError(() => new Error('No se pudo completar la operación de tareas.'));
+  }
+
+  private normalizeTaskDetail(task: TaskDetail): TaskDetail {
+    return {
+      ...task,
+      comments: (task.comments ?? []).map((comment) => ({
+        ...comment,
+        attachments: (comment.attachments ?? []).map((attachment) => this.normalizeAttachment(attachment))
+      }))
+    };
+  }
+
+  private normalizeAttachment(attachment: TaskAttachment): TaskAttachment {
+    const normalizedPreview = this.resolveAttachmentUrl(attachment.previewUrl);
+    const normalizedPublic = this.resolveAttachmentUrl(attachment.publicUrl);
+    const normalizedStorage = this.resolveAttachmentUrl(attachment.storagePath);
+
+    return {
+      ...attachment,
+      previewUrl: normalizedPreview ?? normalizedPublic ?? normalizedStorage ?? null,
+      publicUrl: normalizedPublic ?? normalizedPreview ?? normalizedStorage ?? null,
+      storagePath: attachment.storagePath ?? null
+    };
+  }
+
+  private resolveAttachmentUrl(rawUrl: string | null | undefined): string | null {
+    const normalized = rawUrl?.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    if (/^(https?:|blob:|data:)/i.test(normalized)) {
+      return normalized;
+    }
+
+    const backendOrigin = this.resolveBackendOrigin();
+    const normalizedPath = normalized.replace(/^\/?public\//i, '').replace(/^\/+/, '');
+    return `${backendOrigin}/${normalizedPath}`;
+  }
+
+  private resolveBackendOrigin(): string {
+    try {
+      return new URL(crmApiConfig.baseUrl).origin;
+    } catch {
+      return crmApiConfig.baseUrl.replace(/\/$/, '');
+    }
   }
 }

@@ -19,11 +19,13 @@ class CreateLocationCommand:
 class LocationApplicationService:
     """Persist reusable locations for clients and tasks."""
 
+    OPERATIONAL_ROLE_KEYS = {"admin", "ejecutivo", "tecnico", "deposito"}
+
     def __init__(self, repository: LocationRepository) -> None:
         self._repository = repository
 
     def create_location(self, actor: ResolvedCrmSession, command: CreateLocationCommand) -> Location:
-        if not {"admin", "ejecutivo"}.intersection(actor.role_keys):
+        if not self.OPERATIONAL_ROLE_KEYS.intersection(actor.role_keys):
             raise ClientAccessDeniedError("El usuario no puede crear ubicaciones operativas.")
 
         normalized_address = command.address_label.strip() if command.address_label else None

@@ -1,6 +1,7 @@
-import { Component, input } from '@angular/core';
+import { Component, inject, input } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatTableModule } from '@angular/material/table';
+import { Router } from '@angular/router';
 
 import { RecentTicketsBlock } from '../../../../core/models/dashboard.model';
 import { PriorityIndicatorComponent } from '../../../../shared/ui/priority-indicator/priority-indicator.component';
@@ -15,6 +16,8 @@ import { UserAvatarComponent } from '../../../../shared/ui/user-avatar/user-avat
   styleUrl: './recent-tickets-table.component.scss'
 })
 export class RecentTicketsTableComponent {
+  private readonly router = inject(Router);
+
   readonly block = input.required<RecentTicketsBlock>();
 
   readonly displayedColumns: Array<'id' | 'subject' | 'client' | 'priority' | 'status' | 'assignedTo'> = [
@@ -28,5 +31,12 @@ export class RecentTicketsTableComponent {
 
   labelFor(column: (typeof this.displayedColumns)[number]): string {
     return this.block().columns.find((item) => item.key === column)?.label ?? column;
+  }
+
+  navigateToTicket(targetRoute?: string): void {
+    if (!targetRoute) {
+      return;
+    }
+    void this.router.navigateByUrl(targetRoute);
   }
 }

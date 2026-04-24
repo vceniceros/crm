@@ -1,13 +1,11 @@
 import { Routes } from '@angular/router';
 
-import { guestOnlyGuard, authGuard } from './core/guards/auth.guard';
+import { guestOnlyGuard, authGuard, adminOnlyGuard, adminOrExecutiveGuard } from './core/guards/auth.guard';
 import { DashboardPageComponent } from './features/dashboard/components/dashboard-page/dashboard-page.component';
 import { LoginPageComponent } from './features/auth/components/login-page/login-page.component';
 import { ClientsPageComponent } from './features/clients/components/clients-page/clients-page.component';
 import { InventoryPageComponent } from './features/inventory/components/inventory-page/inventory-page.component';
 import { InventoryRequestsPageComponent } from './features/inventory/components/inventory-requests-page/inventory-requests-page.component';
-import { TicketExecutionPageComponent } from './features/tickets/components/ticket-execution-page/ticket-execution-page.component';
-import { TicketsPageComponent } from './features/tickets/components/tickets-page/tickets-page.component';
 import { AppShellComponent } from './layout/components/app-shell/app-shell.component';
 
 export const routes: Routes = [
@@ -45,12 +43,15 @@ export const routes: Routes = [
 			},
 			{
 				path: 'tickets',
-				component: TicketsPageComponent,
+				loadComponent: () => import('./features/tickets/components/tickets-page/tickets-page.component').then((module) => module.TicketsPageComponent),
 				data: { title: 'Tickets' }
 			},
 			{
 				path: 'tickets/:ticketId',
-				component: TicketExecutionPageComponent,
+				loadComponent: () =>
+					import('./features/tickets/components/ticket-execution-page/ticket-execution-page.component').then(
+						(module) => module.TicketExecutionPageComponent
+					),
 				data: { title: 'Ejecución de ticket' }
 			},
 			{
@@ -59,29 +60,56 @@ export const routes: Routes = [
 				data: { title: 'Tareas' }
 			},
 			{
+				path: 'tasks/history',
+				canActivate: [adminOrExecutiveGuard],
+				loadComponent: () => import('./features/tasks/components/tasks-page/tasks-page.component').then((module) => module.TasksPageComponent),
+				data: { title: 'Historial de tareas' }
+			},
+			{
 				path: 'tasks/templates',
+				canActivate: [adminOnlyGuard],
 				loadComponent: () => import('./features/task-templates/components/task-templates-page/task-templates-page.component').then((module) => module.TaskTemplatesPageComponent),
 				data: { title: 'Templates de tareas' }
 			},
 			{
 				path: 'tasks/templates/new',
+				canActivate: [adminOnlyGuard],
 				loadComponent: () => import('./features/task-templates/components/task-template-form-page/task-template-form-page.component').then((module) => module.TaskTemplateFormPageComponent),
 				data: { title: 'Nuevo template de tarea' }
 			},
 			{
 				path: 'tasks/templates/:templateId',
+				canActivate: [adminOnlyGuard],
 				loadComponent: () => import('./features/task-templates/components/task-template-detail-page/task-template-detail-page.component').then((module) => module.TaskTemplateDetailPageComponent),
 				data: { title: 'Detalle de template' }
 			},
 			{
 				path: 'tasks/templates/:templateId/edit',
+				canActivate: [adminOnlyGuard],
 				loadComponent: () => import('./features/task-templates/components/task-template-form-page/task-template-form-page.component').then((module) => module.TaskTemplateFormPageComponent),
 				data: { title: 'Editar template de tarea' }
+			},
+			{
+				path: 'tasks/subtask-success',
+				loadComponent: () => import('./features/tasks/components/subtask-success-page/subtask-success-page.component').then((module) => module.SubtaskSuccessPageComponent),
+				data: { title: 'Subtarea completada' }
 			},
 			{
 				path: 'tasks/:taskId',
 				loadComponent: () => import('./features/tasks/components/task-execution-page/task-execution-page.component').then((module) => module.TaskExecutionPageComponent),
 				data: { title: 'Ejecución de tarea' }
+			},
+			{
+				path: 'reports',
+				canActivate: [adminOrExecutiveGuard],
+				loadChildren: () => import('./features/reports/reports-routing.module').then((module) => module.REPORTS_ROUTES),
+				data: { title: 'Reportes' }
+			},
+			{
+				path: 'settings',
+				canActivate: [adminOrExecutiveGuard],
+				loadComponent: () => import('./features/settings/components/settings-page/settings-page.component').then((module) => module.SettingsPageComponent),
+				data: { title: 'Configuración' }
 			}
 		]
 	},

@@ -6,7 +6,11 @@
   <mat-card-content>
     <ol class="activity-timeline__list">
       @for (item of block().items; track item.timestamp + item.text) {
-        <li class="activity-timeline__item">
+        <li
+          class="activity-timeline__item"
+          [class.activity-timeline__item--clickable]="!!item.targetRoute"
+          (click)="navigateTo(item.targetRoute)"
+        >
           <span class="activity-timeline__marker" [class]="'activity-timeline__marker activity-timeline__marker--' + item.tone"></span>
 
           <div class="activity-timeline__content">

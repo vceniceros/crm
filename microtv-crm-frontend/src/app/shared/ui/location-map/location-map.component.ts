@@ -1,10 +1,10 @@
 import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, OnDestroy, PLATFORM_ID, ViewChild, computed, inject, input, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, OnChanges, OnDestroy, PLATFORM_ID, ViewChild, computed, inject, input, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import type { Map as LeafletMap } from 'leaflet';
 
-import { AppLocation } from '../../../core/models/location.model';
+import { AppLocation, LocationMapMarker } from '../../../core/models/location.model';
 import { LocationFacade } from '../../facades/location.facade';
 
 @Component({
@@ -22,18 +22,43 @@ export class LocationMapComponent implements AfterViewInit, OnDestroy {
   @ViewChild('mapCanvas') private mapCanvas?: ElementRef<HTMLElement>;
 
   readonly location = input<AppLocation | null>(null);
+  readonly markers = input<readonly LocationMapMarker[] | null>(null);
   readonly title = input('Ubicación');
   readonly zoom = input(15);
 
   readonly state = signal<'idle' | 'loading' | 'ready' | 'error' | 'invalid'>('idle');
   readonly errorMessage = signal('');
-  readonly hasValidLocation = computed(() => this.locationFacade.isValid(this.location()));
+  readonly validMarkers = computed<readonly LocationMapMarker[]>(() => {
+    const providedMarkers = (this.markers() ?? []).filter((marker) => this.locationFacade.isValid(marker));
+    if (providedMarkers.length) {
+      return providedMarkers;
+    }
+
+    const singleLocation = this.location();
+    if (!this.locationFacade.isValid(singleLocation)) {
+      return [];
+    }
+
+    return [{ ...singleLocation, title: this.title() }];
+  });
+  readonly hasValidLocation = computed(() => this.validMarkers().length > 0);
 
   private mapInstance: LeafletMap | null = null;
+  private lastRenderSignature = '';
 
   ngAfterViewInit(): void {
     queueMicrotask(() => {
-      void this.initializeMap();
+      void this.renderMap();
+    });
+  }
+
+  ngOnChanges(): void {
+    if (!this.mapCanvas?.nativeElement) {
+      return;
+    }
+
+    queueMicrotask(() => {
+      void this.renderMap();
     });
   }
 
@@ -42,16 +67,27 @@ export class LocationMapComponent implements AfterViewInit, OnDestroy {
     this.mapInstance = null;
   }
 
-  private async initializeMap(): Promise<void> {
+  private async renderMap(): Promise<void> {
     if (!isPlatformBrowser(this.platformId)) {
       return;
     }
 
-    const location = this.location();
-    if (!this.locationFacade.isValid(location)) {
+    const markers = this.validMarkers();
+    if (!markers.length) {
+      this.mapInstance?.remove();
+      this.mapInstance = null;
+      this.lastRenderSignature = '';
       this.state.set('invalid');
       return;
     }
+
+    const signature = [this.zoom(), this.title(), ...markers.map((marker, index) => `${index}:${marker.latitude}:${marker.longitude}:${marker.title ?? ''}`)].join('|');
+    if (signature === this.lastRenderSignature && this.mapInstance) {
+      return;
+    }
+
+    this.mapInstance?.remove();
+    this.mapInstance = null;
 
     const mapElement = this.mapCanvas?.nativeElement;
     if (!mapElement) {
@@ -64,7 +100,8 @@ export class LocationMapComponent implements AfterViewInit, OnDestroy {
 
     try {
       const leaflet = await import('leaflet');
-      const coordinates: [number, number] = [location.latitude, location.longitude];
+      const firstMarker = markers[0];
+      const coordinates: [number, number] = [firstMarker.latitude, firstMarker.longitude];
 
       this.mapInstance = leaflet.map(mapElement, {
         center: coordinates,
@@ -78,19 +115,34 @@ export class LocationMapComponent implements AfterViewInit, OnDestroy {
         })
         .addTo(this.mapInstance);
 
-      leaflet
-        .circleMarker(coordinates, {
-          radius: 10,
-          weight: 3,
-          color: '#b71c1c',
-          fillColor: '#ef5350',
-          fillOpacity: 0.92
-        })
-        .addTo(this.mapInstance)
-        .bindPopup(this.title())
-        .openPopup();
+      const bounds = leaflet.latLngBounds([]);
+      markers.forEach((marker, index) => {
+        const markerCoordinates: [number, number] = [marker.latitude, marker.longitude];
+        bounds.extend(markerCoordinates);
+
+        const circleMarker = leaflet
+          .circleMarker(markerCoordinates, {
+            radius: index === 0 ? 10 : 8,
+            weight: 3,
+            color: index === 0 ? '#b71c1c' : '#0d47a1',
+            fillColor: index === 0 ? '#ef5350' : '#42a5f5',
+            fillOpacity: 0.92
+          })
+          .addTo(this.mapInstance as LeafletMap);
+
+        const popupLabel = marker.title?.trim() || (index === 0 ? this.title() : `Visita ${index}`);
+        circleMarker.bindPopup(popupLabel);
+        if (index === 0) {
+          circleMarker.openPopup();
+        }
+      });
+
+      if (markers.length > 1) {
+        this.mapInstance.fitBounds(bounds.pad(0.18));
+      }
 
       this.mapInstance.invalidateSize();
+      this.lastRenderSignature = signature;
       this.state.set('ready');
     } catch (error) {
       this.state.set('error');

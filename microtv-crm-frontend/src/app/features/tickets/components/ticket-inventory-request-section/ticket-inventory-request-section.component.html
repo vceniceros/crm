@@ -93,7 +93,7 @@
               <p class="ticket-inventory-request-section__decision-note">{{ request.depositDecisionComment }}</p>
             }
 
-            @if (canReviewRequests() && request.status === 'pending') {
+            @if (canReviewRequests() && request.status === 'pending_deposit_review') {
               <div class="ticket-inventory-request-section__decision-box">
                 <label [attr.for]="request.id + '-decision'">Comentario de decisión</label>
                 <textarea
@@ -105,7 +105,7 @@
 
                 <div class="ticket-inventory-request-section__decision-actions">
                   <button mat-stroked-button type="button" (click)="decideRequest(request.id, 'rejected')">Rechazar</button>
-                  <button mat-flat-button color="primary" type="button" (click)="decideRequest(request.id, 'approved')">Autorizar</button>
+                  <button mat-flat-button color="primary" type="button" (click)="decideRequest(request.id, 'approved_for_dispatch')">Autorizar</button>
                 </div>
               </div>
             }

@@ -6,28 +6,28 @@
 
   <mat-card-content>
     <div class="task-attachments-section__actions">
-      <input
-        #fileInput
-        type="file"
-        [accept]="acceptAttribute"
-        multiple
-        hidden
-        [disabled]="disabled() || isUploading()"
-        (change)="onFileSelection($event)"
-      />
+      @if (!disabled()) {
+        <input
+          #fileInput
+          type="file"
+          [accept]="acceptAttribute"
+          multiple
+          hidden
+          [disabled]="isUploading()"
+          (change)="onFileSelection($event)"
+        />
 
-      <button mat-stroked-button type="button" [disabled]="disabled() || isUploading()" (click)="fileInput.click()">
-        <mat-icon>upload_file</mat-icon>
-        <span>{{ isUploading() ? 'Subiendo multimedia...' : 'Agregar fotos o videos' }}</span>
-      </button>
+        <button mat-stroked-button type="button" [disabled]="isUploading()" (click)="fileInput.click()">
+          <mat-icon>upload_file</mat-icon>
+          <span>{{ isUploading() ? 'Subiendo multimedia...' : 'Agregar fotos o videos' }}</span>
+        </button>
 
-      <p class="task-attachments-section__hint">
-        @if (disabled()) {
-          Tarea finalizada: los adjuntos quedan solo en lectura.
-        } @else {
-          La clasificación y validación se resuelven en la fachada, y el archivo queda persistido en el backend al subirlo.
-        }
-      </p>
+        <p class="task-attachments-section__hint">
+          La clasificacion y validacion se resuelven en la fachada, y el archivo queda persistido en el backend al subirlo.
+        </p>
+      } @else {
+        <p class="task-attachments-section__hint">Modo lectura: visualizando multimedia registrada para esta subtarea.</p>
+      }
     </div>
 
     @if (uploadError(); as uploadError) {
@@ -39,11 +39,11 @@
         @for (attachment of attachments(); track trackByAttachmentId($index, attachment)) {
           <article class="task-attachments-section__item">
             <div class="task-attachments-section__preview" [class.task-attachments-section__preview--placeholder]="!canPreview(attachment)">
-              @if (attachment.kind === 'image' && attachment.previewUrl) {
-                <img [src]="attachment.previewUrl" [alt]="attachment.fileName" />
-              } @else if (attachment.kind === 'video' && attachment.previewUrl) {
-                <video controls preload="metadata">
-                  <source [src]="attachment.previewUrl" [type]="attachment.fileType" />
+              @if (attachment.kind === 'image' && canPreview(attachment)) {
+                <img [src]="previewUrl(attachment)" [alt]="attachment.fileName" (error)="markPreviewAsFailed(attachment.id)" />
+              } @else if (attachment.kind === 'video' && canPreview(attachment)) {
+                <video controls preload="metadata" (error)="markPreviewAsFailed(attachment.id)">
+                  <source [src]="previewUrl(attachment)" [type]="attachment.fileType" />
                 </video>
               } @else {
                 <mat-icon>{{ iconFor(attachment) }}</mat-icon>
@@ -63,8 +63,13 @@
               }
             </div>
 
-            @if (!attachment.previewUrl && (attachment.kind === 'image' || attachment.kind === 'video')) {
-              <p class="task-attachments-section__preview-note">No se pudo generar una preview para este archivo.</p>
+            @if (!canPreview(attachment) && (attachment.kind === 'image' || attachment.kind === 'video')) {
+              <p class="task-attachments-section__preview-note">
+                No se pudo mostrar la previsualización.
+                @if (downloadUrl(attachment); as mediaUrl) {
+                  <a [href]="mediaUrl" target="_blank" rel="noopener">Abrir archivo</a>
+                }
+              </p>
             }
 
             @if (attachment.storagePath) {

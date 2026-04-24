@@ -319,3 +319,49 @@ class InventoryDispatchItemNotFoundError(ApplicationError):
             message="El item despachado indicado no existe.",
             status_code=404,
         )
+
+
+class TicketAccessDeniedError(ApplicationError):
+    """Señala que el usuario no puede operar el módulo de tickets."""
+
+    def __init__(self, message: str = "El usuario no tiene permisos para operar tickets.") -> None:
+        super().__init__(code="ticket_access_denied", message=message, status_code=403)
+
+
+class TicketNotFoundError(ApplicationError):
+    """Señala que no existe el ticket solicitado."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            code="ticket_not_found",
+            message="El ticket indicado no existe.",
+            status_code=404,
+        )
+
+
+class TicketValidationError(ApplicationError):
+    """Señala una violación de reglas del dominio de tickets."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(code="ticket_validation_error", message=message, status_code=422)
+
+
+class TicketConflictError(ApplicationError):
+    """Señala un conflicto de estado dentro del flujo de tickets."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(code="ticket_conflict", message=message, status_code=409)
+
+
+class NotificationNotFoundError(ApplicationError):
+    """Señala que la notificación indicada no existe."""
+
+    def __init__(self) -> None:
+        super().__init__(code="notification_not_found", message="La notificación indicada no existe.", status_code=404)
+
+
+class NotificationAccessDeniedError(ApplicationError):
+    """Señala que el usuario no puede acceder a la notificación indicada."""
+
+    def __init__(self) -> None:
+        super().__init__(code="notification_access_denied", message="No tenés acceso a esa notificación.", status_code=403)

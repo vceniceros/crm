@@ -45,11 +45,17 @@ class AdvanceTaskFlowService:
         task = context.task
         next_subtask = next((item for item in task.subtasks if item.order_index == current.order_index + 1), None)
         if next_subtask is None:
-            task.status = TaskStatus.COMPLETED.value
-            task.current_assigned_crm_user_id = None
-            task.is_finalized = True
-            task.finalized_at = datetime.now(UTC)
-            task.finalized_by_crm_user_id = context.actor.crm_user.crm_user_id
+            executive_candidates = self._user_repository.list_active_by_role_key("ejecutivo")
+            if not executive_candidates:
+                executive_candidates = self._user_repository.list_active_by_role_key("admin")
+            if not executive_candidates:
+                raise TaskValidationError("No hay usuarios ejecutivos activos para aprobar el cierre final de la tarea.")
+
+            task.status = TaskStatus.BLOCKED.value
+            task.current_assigned_crm_user_id = executive_candidates[0].crm_user_id
+            task.is_finalized = False
+            task.finalized_at = None
+            task.finalized_by_crm_user_id = None
             return
 
         strategy = self._assignment_registry.get(next_subtask.next_assignment_policy)

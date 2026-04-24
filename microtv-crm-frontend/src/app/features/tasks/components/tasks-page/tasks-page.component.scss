@@ -45,6 +45,11 @@
   box-shadow: var(--shadow-panel);
 }
 
+.tasks-page__task-card--highlighted {
+  border-color: rgba(46, 125, 50, 0.45);
+  box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2), var(--shadow-panel);
+}
+
 .tasks-page__message mat-card-content,
 .tasks-page__task-top,
 .tasks-page__create-actions {
@@ -90,7 +95,15 @@
 .tasks-page__task-grid {
   display: grid;
   gap: 1rem;
+  min-width: 0;
+}
+
+.tasks-page__tab-content {
   margin-top: 1rem;
+}
+
+.tasks-page__tabs {
+  min-width: 0;
 }
 
 .tasks-page__task-grid {
@@ -102,6 +115,10 @@
   gap: 0.45rem;
   margin-top: 1rem;
   color: var(--text-secondary);
+}
+
+.tasks-page__task-meta span {
+  overflow-wrap: anywhere;
 }
 
 .tasks-page__template-materials {
@@ -194,6 +211,10 @@
     gap: 1rem;
   }
 
+  .tasks-page__header {
+    gap: 0.75rem;
+  }
+
   .tasks-page__actions {
     display: grid;
     grid-template-columns: 1fr;
@@ -207,5 +228,18 @@
   .tasks-page__task-top {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .tasks-page__task-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tasks-page__task-card mat-card-actions {
+    justify-content: stretch;
+  }
+
+  .tasks-page__task-card mat-card-actions a,
+  .tasks-page__task-card mat-card-actions button {
+    width: 100%;
   }
 }

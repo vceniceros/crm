@@ -1,0 +1,38 @@
+.subtask-success-page {
+  display: grid;
+  place-items: center;
+  min-height: min(70vh, 38rem);
+  padding: 1.25rem;
+}
+
+.subtask-success-page__card {
+  width: min(34rem, 100%);
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  border-radius: 1.25rem;
+  box-shadow: var(--shadow-panel);
+}
+
+.subtask-success-page__card mat-card-content {
+  display: grid;
+  gap: 0.9rem;
+  text-align: center;
+  justify-items: center;
+  padding: 1.5rem;
+}
+
+.subtask-success-page__icon {
+  color: #2e7d32;
+  font-size: 2.25rem;
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.subtask-success-page__card h1 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.subtask-success-page__card p {
+  margin: 0;
+  color: var(--text-secondary);
+}

@@ -5,6 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 
+import { crmApiConfig } from '../../../../core/config/crm-api.config';
 import { TaskAttachment } from '../../../../core/models/task-attachment.model';
 import { MediaUploadFacade } from '../../../../shared/facades/media-upload.facade';
 
@@ -17,6 +18,8 @@ import { MediaUploadFacade } from '../../../../shared/facades/media-upload.facad
 })
 export class TaskAttachmentsSectionComponent {
   private readonly mediaUploadFacade = inject(MediaUploadFacade);
+  private readonly backendOrigin = this.resolveBackendOrigin();
+  readonly failedPreviewAttachmentIds = signal<Set<string>>(new Set());
 
   readonly taskId = input.required<string>();
   readonly subtaskId = input<string | null>(null);
@@ -63,6 +66,14 @@ export class TaskAttachmentsSectionComponent {
     this.attachmentRemoved.emit(attachmentId);
   }
 
+  markPreviewAsFailed(attachmentId: string): void {
+    this.failedPreviewAttachmentIds.update((current) => {
+      const next = new Set(current);
+      next.add(attachmentId);
+      return next;
+    });
+  }
+
   trackByAttachmentId(_: number, attachment: TaskAttachment): string {
     return attachment.id;
   }
@@ -96,6 +107,40 @@ export class TaskAttachmentsSectionComponent {
   }
 
   canPreview(attachment: TaskAttachment): boolean {
-    return Boolean(attachment.previewUrl && (attachment.kind === 'image' || attachment.kind === 'video'));
+    if (this.failedPreviewAttachmentIds().has(attachment.id)) {
+      return false;
+    }
+
+    return Boolean(this.previewUrl(attachment) && (attachment.kind === 'image' || attachment.kind === 'video'));
+  }
+
+  previewUrl(attachment: TaskAttachment): string | null {
+    return this.toAbsoluteUrl(attachment.previewUrl) ?? this.toAbsoluteUrl(attachment.publicUrl) ?? this.toAbsoluteUrl(attachment.storagePath);
+  }
+
+  downloadUrl(attachment: TaskAttachment): string | null {
+    return this.toAbsoluteUrl(attachment.publicUrl) ?? this.previewUrl(attachment);
+  }
+
+  private toAbsoluteUrl(rawUrl: string | null | undefined): string | null {
+    const normalized = rawUrl?.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    if (/^(https?:|blob:|data:)/i.test(normalized)) {
+      return normalized;
+    }
+
+    const normalizedPath = normalized.replace(/^\/?public\//i, '').replace(/^\/+/, '');
+    return `${this.backendOrigin}/${normalizedPath}`;
+  }
+
+  private resolveBackendOrigin(): string {
+    try {
+      return new URL(crmApiConfig.baseUrl).origin;
+    } catch {
+      return crmApiConfig.baseUrl.replace(/\/$/, '');
+    }
   }
 }

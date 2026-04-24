@@ -13,15 +13,16 @@
         <p>Cargando tarea real...</p>
       </mat-card-content>
     </mat-card>
-  } @else if (errorMessage(); as errorMessage) {
-    <mat-card class="task-execution-page__empty-card">
-      <mat-card-content>
-        <mat-icon>error</mat-icon>
-        <h2>Tarea no disponible</h2>
-        <p>{{ errorMessage }}</p>
-      </mat-card-content>
-    </mat-card>
   } @else if (task(); as task) {
+    @if (pageError(); as pageError) {
+      <mat-card class="task-execution-page__flash task-execution-page__flash--error">
+        <mat-card-content>
+          <mat-icon>error</mat-icon>
+          <p>{{ pageError }}</p>
+        </mat-card-content>
+      </mat-card>
+    }
+
     <div class="task-execution-page__header">
       <app-page-title
         eyebrow="Ejecución de tarea"
@@ -30,15 +31,58 @@
       />
 
       <div class="task-execution-page__header-side">
-        <app-status-badge [label]="formatTaskStatus(task.status)" [tone]="toTaskTone(task.status)" />
+        <app-status-badge [label]="taskExecutionStatusLabel(task)" [tone]="toTaskTone(task.status)" />
 
-        <div class="task-execution-page__assignee">
+        <div
+          class="task-execution-page__assignee"
+          [class.task-execution-page__assignee--action]="canOpenHeaderAssigneeMenu()"
+          [matMenuTriggerFor]="canOpenHeaderAssigneeMenu() ? assigneeMenu : null"
+          #assigneeMenuTrigger="matMenuTrigger"
+          (menuOpened)="prepareHeaderAssigneeMenu()"
+        >
           <app-user-avatar [initials]="buildInitials(task.current_assigned_user_display_name, 'NA')" [size]="40" />
           <div>
             <p class="task-execution-page__meta-label">Asignado a</p>
             <p class="task-execution-page__meta-value">{{ task.current_assigned_user_display_name || 'Sin usuario asignado' }}</p>
           </div>
+          @if (canOpenHeaderAssigneeMenu()) {
+            <mat-icon class="task-execution-page__assignee-caret">arrow_drop_down</mat-icon>
+          }
         </div>
+
+        <mat-menu #assigneeMenu="matMenu" xPosition="before">
+          <div class="task-execution-page__assignee-menu" [formGroup]="adminAssignmentForm" (click)="$event.stopPropagation()">
+            <p class="task-execution-page__summary-caption">Reasignar subtarea actual del rol {{ formatRoleKey(currentAssignableSubtask()?.responsible_role_key) }}.</p>
+
+            <mat-form-field appearance="outline" class="task-execution-page__comment-field">
+              <mat-label>Usuario destino</mat-label>
+              <mat-select formControlName="assigned_crm_user_id" [disabled]="isSaving()">
+                <mat-option [value]="null">Seleccionar usuario</mat-option>
+                @for (option of subtaskAssigneeOptions(); track option.crm_user_id) {
+                  <mat-option [value]="option.crm_user_id">{{ nextAssigneeLabel(option) }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="task-execution-page__comment-field">
+              <mat-label>Nota de asignación (opcional)</mat-label>
+              <input matInput formControlName="notes" [disabled]="isSaving()" />
+            </mat-form-field>
+
+            <div class="task-execution-page__assignee-menu-actions">
+              <button
+                mat-flat-button
+                color="primary"
+                type="button"
+                (click)="assignFromHeaderAssigneeMenu(assigneeMenuTrigger)"
+                [disabled]="isSaving() || adminAssignmentForm.invalid || !subtaskAssigneeOptions().length || !currentAssignableSubtask()"
+              >
+                <mat-icon>manage_accounts</mat-icon>
+                <span>{{ currentAssignableSubtask() ? adminAssignActionLabel(currentAssignableSubtask()!) : 'Reasignar subtarea' }}</span>
+              </button>
+            </div>
+          </div>
+        </mat-menu>
       </div>
     </div>
 
@@ -51,53 +95,59 @@
       </mat-card>
     }
 
-    <div class="task-execution-page__summary-grid">
-      <mat-card class="task-execution-page__summary-card">
-        <mat-card-content>
-          <p class="task-execution-page__summary-label">Cliente</p>
-          <p class="task-execution-page__summary-value">{{ task.client_name }}</p>
-        </mat-card-content>
-      </mat-card>
+    <details class="task-execution-page__mobile-collapse" [class.task-execution-page__mobile-collapse--interactive]="shouldCollapseNonSubtaskSections()" [open]="nonSubtaskSectionsExpanded()" (toggle)="onNonSubtaskSectionsToggled($any($event.target).open)">
+      <summary class="task-execution-page__mobile-collapse-summary">Resumen, materiales y logística</summary>
 
-      <mat-card class="task-execution-page__summary-card">
-        <mat-card-content>
-          <p class="task-execution-page__summary-label">Template origen</p>
-          <p class="task-execution-page__summary-value">{{ task.template_name }}</p>
-          <p class="task-execution-page__summary-caption">Ubicación: {{ taskLocationLabel() }}</p>
-        </mat-card-content>
-      </mat-card>
+      @if (!isFieldTechnician()) {
+      <div class="task-execution-page__summary-grid">
+        <mat-card class="task-execution-page__summary-card">
+          <mat-card-content>
+            <p class="task-execution-page__summary-label">Cliente</p>
+            <p class="task-execution-page__summary-value">{{ task.client_name }}</p>
+          </mat-card-content>
+        </mat-card>
 
-      <mat-card class="task-execution-page__summary-card">
-        <mat-card-content>
-          <p class="task-execution-page__summary-label">Finalización</p>
-          <p class="task-execution-page__summary-value">{{ task.finalized_at ? (task.finalized_at | date: 'dd/MM/yyyy HH:mm') : 'Aún no finalizada' }}</p>
-          <p class="task-execution-page__summary-caption">Actor final: {{ task.finalized_by_display_name || 'N/D' }}</p>
-        </mat-card-content>
-      </mat-card>
-    </div>
+        <mat-card class="task-execution-page__summary-card">
+          <mat-card-content>
+            <p class="task-execution-page__summary-label">Template origen</p>
+            <p class="task-execution-page__summary-value">{{ task.template_name }}</p>
+            <p class="task-execution-page__summary-caption">Ubicación: {{ taskLocationLabel() }}</p>
+          </mat-card-content>
+        </mat-card>
 
-    @if (hasTaskLocation()) {
-      <mat-card class="task-execution-page__location-card">
-        <mat-card-content>
-          <div class="task-execution-page__location-header">
-            <div>
-              <p class="task-execution-page__summary-label">Ubicación operativa</p>
-              <p class="task-execution-page__summary-value">{{ taskLocationLabel() }}</p>
-              <p class="task-execution-page__summary-caption">La tarea usa la ubicación real persistida para navegación y contexto operativo.</p>
+        <mat-card class="task-execution-page__summary-card">
+          <mat-card-content>
+            <p class="task-execution-page__summary-label">Finalización</p>
+            <p class="task-execution-page__summary-value">{{ task.finalized_at ? (task.finalized_at | date: 'dd/MM/yyyy HH:mm') : 'Aún no finalizada' }}</p>
+            <p class="task-execution-page__summary-caption">Actor final: {{ task.finalized_by_display_name || 'N/D' }}</p>
+          </mat-card-content>
+        </mat-card>
+      </div>
+      }
+
+      @if (hasTaskLocation()) {
+        <mat-card class="task-execution-page__location-card">
+          <mat-card-content>
+            <div class="task-execution-page__location-header">
+              <div>
+                <p class="task-execution-page__summary-label">Ubicación operativa</p>
+                <p class="task-execution-page__summary-value">{{ taskLocationLabel() }}</p>
+                <p class="task-execution-page__summary-caption">La tarea usa la ubicación real persistida para navegación y contexto operativo.</p>
+              </div>
+
+              <button mat-stroked-button type="button" (click)="openTaskLocationInMaps()">
+                <mat-icon>map</mat-icon>
+                <span>Abrir en Maps</span>
+              </button>
             </div>
 
-            <button mat-stroked-button type="button" (click)="openTaskLocationInMaps()">
-              <mat-icon>map</mat-icon>
-              <span>Abrir en Maps</span>
-            </button>
-          </div>
+            <app-location-map [location]="taskLocation()" title="Ubicación de la tarea"></app-location-map>
+          </mat-card-content>
+        </mat-card>
+      }
 
-          <app-location-map [location]="taskLocation()" title="Ubicación de la tarea"></app-location-map>
-        </mat-card-content>
-      </mat-card>
-    }
-
-    <div class="task-execution-page__materials-grid">
+      <div class="task-execution-page__materials-grid">
+      @if (!isFieldTechnician()) {
       <mat-card class="task-execution-page__execution-card">
         <mat-card-header>
           <mat-card-title>Materiales requeridos</mat-card-title>
@@ -125,7 +175,9 @@
           }
         </mat-card-content>
       </mat-card>
+      }
 
+      @if (canViewDispatchSection()) {
       <mat-card class="task-execution-page__execution-card">
         <mat-card-header>
           <mat-card-title>Despachos reales</mat-card-title>
@@ -137,7 +189,7 @@
             <section class="task-execution-page__composer" [formGroup]="dispatchComposerForm">
               <div class="task-execution-page__composer-grid">
                 <mat-form-field appearance="outline">
-                  <mat-label>Solicitud aprobada asociada</mat-label>
+                  <mat-label>Solicitud pendiente de despacho asociada</mat-label>
                   <mat-select formControlName="request_id">
                     <mat-option [value]="null">Sin solicitud asociada</mat-option>
                     @for (request of approvedRequests; track request.inventory_request_id) {
@@ -148,7 +200,7 @@
 
                 <mat-form-field appearance="outline">
                   <mat-label>Producto</mat-label>
-                  <mat-select formControlName="product_id">
+                  <mat-select formControlName="product_id" (selectionChange)="onDispatchProductChanged()">
                     @for (product of inventoryProducts(); track product.productId) {
                       <mat-option [value]="product.productId">{{ product.productName }} · {{ product.productCode }}{{ product.requiresTracking ? ' · tracking unitario' : '' }}</mat-option>
                     }
@@ -156,19 +208,23 @@
                 </mat-form-field>
 
                 <mat-form-field appearance="outline">
-                  <mat-label>Cantidad</mat-label>
-                  <input matInput type="number" min="1" formControlName="quantity_dispatched" />
+                  <mat-label>Identificador</mat-label>
+                  <mat-select formControlName="identifier_type">
+                    <mat-option value="none">Sin identificador</mat-option>
+                    <mat-option value="serial">Serial</mat-option>
+                    <mat-option value="barcode">Código de barras</mat-option>
+                  </mat-select>
                 </mat-form-field>
 
-                <mat-form-field appearance="outline">
-                  <mat-label>Serial</mat-label>
-                  <input matInput formControlName="serial_number" />
-                </mat-form-field>
-
-                <mat-form-field appearance="outline">
-                  <mat-label>Código de barras</mat-label>
-                  <input matInput formControlName="barcode_value" />
-                </mat-form-field>
+                @if (dispatchComposerForm.controls.identifier_type.getRawValue() !== 'none') {
+                  <mat-form-field appearance="outline">
+                    <mat-label>Valor del identificador</mat-label>
+                    <input matInput formControlName="identifier_value" />
+                    <mat-hint>
+                      {{ dispatchComposerForm.controls.identifier_type.getRawValue() === 'serial' ? 'Ejemplo: VACRON-001' : 'Ejemplo: 7791234567890' }}
+                    </mat-hint>
+                  </mat-form-field>
+                }
 
                 <mat-form-field appearance="outline" class="task-execution-page__full-width-field">
                   <mat-label>Observación del item</mat-label>
@@ -178,7 +234,7 @@
 
               @if (selectedDispatchProduct(); as selectedDispatchProduct) {
                 <p class="task-execution-page__summary-caption">
-                  {{ selectedDispatchProduct.requiresTracking ? 'Este producto exige serial o barcode por unidad en backend.' : 'Este producto no exige tracking unitario.' }}
+                  {{ selectedDispatchProduct.requiresTracking ? 'Producto con tracking unitario: cada alta del listado representa 1 unidad e incluye serial o código de barras.' : 'Cada alta del listado representa 1 unidad de despacho.' }}
                 </p>
               }
 
@@ -189,14 +245,14 @@
 
               @if (dispatchDraftItems().length) {
                 <div class="task-execution-page__draft-list">
-                  @for (item of dispatchDraftItems(); track item.product_id) {
+                  @for (item of dispatchDraftItems(); track item.draft_id) {
                     <article class="task-execution-page__material-row">
                       <div>
                         <strong>{{ item.product_name }}</strong>
-                        <span>x{{ item.quantity_dispatched }}{{ item.requires_tracking ? ' · tracking unitario' : '' }}</span>
-                        <span>{{ item.serial_number || item.barcode_value || 'Sin serial/barcode' }}</span>
+                        <span>x1{{ item.requires_tracking ? ' · tracking unitario' : '' }}</span>
+                        <span>{{ dispatchDraftTrackingLabel(item) }}</span>
                       </div>
-                      <button mat-icon-button type="button" (click)="removeDispatchDraftItem(item.product_id)">
+                      <button mat-icon-button type="button" (click)="removeDispatchDraftItem(item.draft_id)">
                         <mat-icon>delete</mat-icon>
                       </button>
                     </article>
@@ -256,11 +312,13 @@
           }
         </mat-card-content>
       </mat-card>
+      }
 
+      @if (canViewRequestsSection()) {
       <mat-card class="task-execution-page__execution-card">
         <mat-card-header>
           <mat-card-title>Solicitudes adicionales</mat-card-title>
-          <mat-card-subtitle>El técnico puede pedir faltantes y depósito puede aprobar o rechazar desde la tarea.</mat-card-subtitle>
+          <mat-card-subtitle>{{ isFieldTechnician() ? 'Generá solicitudes de faltantes para depósito.' : 'El técnico puede pedir faltantes y depósito puede aprobar o rechazar desde la tarea.' }}</mat-card-subtitle>
         </mat-card-header>
 
         <mat-card-content>
@@ -327,14 +385,14 @@
             <p class="task-execution-page__readonly-banner">Solo lectura. Solo el técnico asignado puede pedir materiales adicionales desde esta tarea.</p>
           }
 
-          @if (task.inventory_requests.length) {
+          @if (!isFieldTechnician() && task.inventory_requests.length) {
             <div class="task-execution-page__dispatch-list">
               @for (request of task.inventory_requests; track request.inventory_request_id) {
                 <article class="task-execution-page__dispatch-card">
                   <div class="task-execution-page__material-row">
                     <div>
                       <strong>{{ requestCardTitle(request) }}</strong>
-                      <span>{{ request.request_status }} · {{ request.requested_at | date: 'dd/MM/yyyy HH:mm' }}</span>
+                      <span>{{ formatInventoryRequestStatus(request.request_status) }} · {{ request.requested_at | date: 'dd/MM/yyyy HH:mm' }}</span>
                     </div>
                     <span>{{ request.requested_by_display_name || 'Solicitante CRM' }}</span>
                   </div>
@@ -355,15 +413,33 @@
                       <button mat-flat-button color="primary" type="button" (click)="reviewInventoryRequest(request.inventory_request_id, 'APPROVED')" [disabled]="isSaving()">Aprobar</button>
                     </div>
                   }
+
+                  @if (canDispatchRequestedMaterial(request)) {
+                    <div class="task-execution-page__confirmations">
+                      <button mat-flat-button color="primary" type="button" (click)="prepareDispatchForRequest(request)" [disabled]="isSaving()">
+                        Confirmar despacho
+                      </button>
+                    </div>
+                  }
+
+                  @if (canConfirmRequestReceipt(request)) {
+                    <div class="task-execution-page__confirmations">
+                      <button mat-flat-button color="primary" type="button" (click)="confirmRequestReceipt(request)" [disabled]="isSaving()">
+                        Confirmar recibimiento
+                      </button>
+                    </div>
+                  }
                 </article>
               }
             </div>
-          } @else {
+          } @else if (!isFieldTechnician()) {
             <p class="task-execution-page__summary-caption">No hay solicitudes adicionales para esta tarea.</p>
           }
         </mat-card-content>
       </mat-card>
-    </div>
+      }
+      </div>
+    </details>
 
     <div class="task-execution-page__content">
       <mat-card class="task-execution-page__timeline-card">
@@ -409,6 +485,10 @@
               <p class="task-execution-page__readonly-banner">{{ readOnlyMessage(selectedSubtask) }}</p>
             }
 
+            @if (hasBlockingInventoryRequests()) {
+              <p class="task-execution-page__readonly-banner">{{ blockingInventoryRequestMessage() }}</p>
+            }
+
             @if (selectedSubtask.status === 'pending_assignment') {
               <div class="task-execution-page__claim-box">
                 <p>Esta subtarea está sin asignar para el rol {{ formatRoleKey(selectedSubtask.responsible_role_key) }}.</p>
@@ -430,13 +510,13 @@
 
                     @if (item.get('item_type')?.value === 'checkbox') {
                       <label class="task-execution-page__checkbox-label">
-                        <input type="checkbox" formControlName="checkbox_value" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()" />
+                        <input type="checkbox" formControlName="checkbox_value" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()" (change)="onChecklistCheckboxChanged(itemIndex, $event)" />
                         <span>Completado</span>
                       </label>
                     } @else {
                       <mat-form-field appearance="outline" class="task-execution-page__item-input">
                         <mat-label>Valor de texto</mat-label>
-                        <textarea matInput rows="2" formControlName="text_value" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()"></textarea>
+                        <textarea matInput rows="2" formControlName="text_value" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()" (input)="onChecklistTextChanged(itemIndex, $event)"></textarea>
                       </mat-form-field>
                     }
                   </div>
@@ -462,14 +542,23 @@
                 }
               </div>
 
-              <app-task-attachments-section
-                [taskId]="task.task_id"
-                [subtaskId]="selectedSubtask.subtask_id"
-                [attachments]="pendingAttachments()"
-                [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()"
-                (attachmentsSelected)="addAttachments($event)"
-                (attachmentRemoved)="removeAttachment($event)"
-              />
+              @if (subtaskCanBeOperated(selectedSubtask)) {
+                <app-task-attachments-section
+                  [taskId]="task.task_id"
+                  [subtaskId]="selectedSubtask.subtask_id"
+                  [attachments]="pendingAttachments()"
+                  [disabled]="isSaving()"
+                  (attachmentsSelected)="addAttachments($event)"
+                  (attachmentRemoved)="removeAttachment($event)"
+                />
+              } @else {
+                <app-task-attachments-section
+                  [taskId]="task.task_id"
+                  [subtaskId]="selectedSubtask.subtask_id"
+                  [attachments]="selectedSubtaskAttachments()"
+                  [disabled]="true"
+                />
+              }
 
               @if (errorMessage(); as operationError) {
                 <p class="task-execution-page__operation-error">{{ operationError }}</p>
@@ -481,19 +570,20 @@
                   <span>Guardar progreso</span>
                 </button>
 
-                <button mat-flat-button color="primary" type="button" [matMenuTriggerFor]="actionsMenu" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()">
+                <button mat-flat-button color="primary" type="button" [matMenuTriggerFor]="actionsMenu" [disabled]="!canExecuteFinalAction(selectedSubtask)">
                   <mat-icon>play_circle</mat-icon>
                   <span>Ejecutar acción final</span>
                 </button>
                 <mat-menu #actionsMenu="matMenu">
                   @for (action of actionOptions; track action.value) {
-                    <button mat-menu-item type="button" (click)="executeAction(action.value)">
+                    <button mat-menu-item type="button" (click)="executeAction(action.value)" [disabled]="!canExecuteFinalAction(selectedSubtask)">
                       <mat-icon>{{ action.icon }}</mat-icon>
                       <span>{{ action.label }}</span>
                     </button>
                   }
                 </mat-menu>
               </div>
+
             </form>
 
             @if (selectedSubtask.transitions.length) {
@@ -514,15 +604,7 @@
                 @for (comment of selectedSubtaskComments(); track comment.task_comment_id) {
                   <article>
                     <strong>{{ comment.author_display_name || 'Usuario CRM' }} · {{ comment.comment_type }} · {{ comment.created_at | date: 'dd/MM/yyyy HH:mm' }}</strong>
-                    <p>{{ comment.body }}</p>
-                    @if (comment.attachments.length) {
-                      <p>
-                        Adjuntos:
-                        @for (attachment of comment.attachments; track attachment.id; let last = $last) {
-                          <a [href]="attachment.publicUrl || attachment.previewUrl || '#'" target="_blank" rel="noreferrer">{{ attachment.fileName }}</a>{{ last ? '' : ' · ' }}
-                        }
-                      </p>
-                    }
+                    <span>{{ comment.body }}</span>
                   </article>
                 }
               </div>
@@ -531,5 +613,30 @@
         </mat-card>
       }
     </div>
+
+    @if (canApproveCurrentTask()) {
+      <div class="task-execution-page__task-close-actions">
+        <mat-form-field appearance="outline">
+          <mat-label>Motivo del rechazo</mat-label>
+          <textarea matInput rows="2" [formControl]="rejectTaskApprovalForm.controls.comment"></textarea>
+        </mat-form-field>
+        <button mat-stroked-button type="button" (click)="rejectCurrentTaskApproval()" [disabled]="isSaving()">
+          <mat-icon>cancel</mat-icon>
+          <span>Rechazar cierre</span>
+        </button>
+        <button mat-flat-button color="primary" type="button" (click)="approveCurrentTask()" [disabled]="isSaving()">
+          <mat-icon>task_alt</mat-icon>
+          <span>Cerrar tarea</span>
+        </button>
+      </div>
+    }
+  } @else if (pageError(); as pageError) {
+    <mat-card class="task-execution-page__empty-card">
+      <mat-card-content>
+        <mat-icon>error</mat-icon>
+        <h2>Tarea no disponible</h2>
+        <p>{{ pageError }}</p>
+      </mat-card-content>
+    </mat-card>
   }
 </section>

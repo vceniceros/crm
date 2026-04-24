@@ -15,22 +15,29 @@ from crm_backend.repositories import (
     CrmUserRepository,
     InventoryFlowRepository,
     LocationRepository,
+    NotificationRepository,
     StockCategoryRepository,
     StockProductRepository,
     TaskRepository,
     TaskTemplateRepository,
+    TicketRepository,
 )
 from crm_backend.services import (
     AuthApplicationService,
     ClientApplicationService,
     InventoryRequestFacade,
     LocationApplicationService,
+    NotificationService,
     RoleResolutionService,
     StockApplicationService,
     TaskApplicationService,
     TaskMaterialFlowFacade,
+    TicketApplicationService,
 )
 from crm_backend.services.auth_service import ResolvedCrmSession
+from crm_backend.services.dashboard_service import DashboardService
+from crm_backend.services.reports_service import ReportsService
+from crm_backend.services.settings_service import SettingsService
 
 
 def get_auth_service_adapter(settings: Settings = Depends(get_settings)) -> AuthServiceAdapter:
@@ -194,6 +201,27 @@ def get_task_repository(session: Session = Depends(get_db_session)) -> TaskRepos
     return TaskRepository(session)
 
 
+def get_ticket_repository(session: Session = Depends(get_db_session)) -> TicketRepository:
+    """Provide the ticket repository."""
+
+    return TicketRepository(session)
+
+
+def get_notification_repository(session: Session = Depends(get_db_session)) -> NotificationRepository:
+    """Provide the notification repository."""
+
+    return NotificationRepository(session)
+
+
+def get_notification_service(
+    notification_repository: NotificationRepository = Depends(get_notification_repository),
+    user_repository: CrmUserRepository = Depends(get_crm_user_repository),
+) -> NotificationService:
+    """Provide the in-app notification service."""
+
+    return NotificationService(notification_repository, user_repository)
+
+
 def extract_bearer_token(authorization: str | None = Header(default=None)) -> str:
     """Extract the bearer token from the Authorization header.
 
@@ -252,10 +280,12 @@ def get_task_material_flow_facade(
     task_repository: TaskRepository = Depends(get_task_repository),
     product_repository: StockProductRepository = Depends(get_stock_product_repository),
     inventory_flow_repository: InventoryFlowRepository = Depends(get_inventory_flow_repository),
+    ticket_repository: TicketRepository = Depends(get_ticket_repository),
+    notification_service: NotificationService = Depends(get_notification_service),
 ) -> TaskMaterialFlowFacade:
     """Provide the task material flow facade."""
 
-    return TaskMaterialFlowFacade(task_repository, product_repository, inventory_flow_repository)
+    return TaskMaterialFlowFacade(task_repository, product_repository, inventory_flow_repository, ticket_repository, notification_service)
 
 
 def get_inventory_request_facade(
@@ -263,10 +293,23 @@ def get_inventory_request_facade(
     product_repository: StockProductRepository = Depends(get_stock_product_repository),
     inventory_flow_repository: InventoryFlowRepository = Depends(get_inventory_flow_repository),
     task_material_flow: TaskMaterialFlowFacade = Depends(get_task_material_flow_facade),
+    ticket_repository: TicketRepository = Depends(get_ticket_repository),
+    role_repository: CrmRoleRepository = Depends(get_crm_role_repository),
+    user_repository: CrmUserRepository = Depends(get_crm_user_repository),
+    notification_service: NotificationService = Depends(get_notification_service),
 ) -> InventoryRequestFacade:
     """Provide the inventory request facade."""
 
-    return InventoryRequestFacade(task_repository, product_repository, inventory_flow_repository, task_material_flow)
+    return InventoryRequestFacade(
+        task_repository,
+        product_repository,
+        inventory_flow_repository,
+        task_material_flow,
+        ticket_repository,
+        role_repository,
+        user_repository,
+        notification_service,
+    )
 
 
 def get_task_application_service(
@@ -275,7 +318,55 @@ def get_task_application_service(
     user_repository: CrmUserRepository = Depends(get_crm_user_repository),
     task_media_storage: TaskMediaStorageFacade = Depends(get_task_media_storage),
     task_material_flow: TaskMaterialFlowFacade = Depends(get_task_material_flow_facade),
+    notification_service: NotificationService = Depends(get_notification_service),
 ) -> TaskApplicationService:
     """Provide the task application service."""
 
-    return TaskApplicationService(template_repository, task_repository, user_repository, task_media_storage, task_material_flow)
+    return TaskApplicationService(
+        template_repository=template_repository,
+        task_repository=task_repository,
+        user_repository=user_repository,
+        task_media_storage=task_media_storage,
+        task_material_flow=task_material_flow,
+        notification_service=notification_service,
+    )
+
+
+def get_ticket_application_service(
+    ticket_repository: TicketRepository = Depends(get_ticket_repository),
+    client_repository: ClientRepository = Depends(get_client_repository),
+    location_repository: LocationRepository = Depends(get_location_repository),
+    user_repository: CrmUserRepository = Depends(get_crm_user_repository),
+    role_repository: CrmRoleRepository = Depends(get_crm_role_repository),
+    task_media_storage: TaskMediaStorageFacade = Depends(get_task_media_storage),
+    notification_service: NotificationService = Depends(get_notification_service),
+) -> TicketApplicationService:
+    """Provide the ticket application service."""
+
+    return TicketApplicationService(
+        ticket_repository=ticket_repository,
+        client_repository=client_repository,
+        location_repository=location_repository,
+        user_repository=user_repository,
+        role_repository=role_repository,
+        media_storage=task_media_storage,
+        notification_service=notification_service,
+    )
+
+
+def get_dashboard_service(session: Session = Depends(get_db_session)) -> DashboardService:
+    """Provide the dashboard service."""
+
+    return DashboardService(session)
+
+
+def get_reports_service(session: Session = Depends(get_db_session)) -> ReportsService:
+    """Provide the reports service."""
+
+    return ReportsService(session)
+
+
+def get_settings_service(session: Session = Depends(get_db_session)) -> SettingsService:
+    """Provide the settings service."""
+
+    return SettingsService(session)

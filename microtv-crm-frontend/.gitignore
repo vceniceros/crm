@@ -44,3 +44,10 @@ public/runtime-config.js
 # System files
 .DS_Store
 Thumbs.db
+
+
+# Images
+
+microtv-crm-backend\public\images\*.png
+microtv-crm-backend\public\images\*.jpg
+microtv-crm-backend\public\images\*.mp4

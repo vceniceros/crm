@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from crm_backend.adapters.auth_service_adapter import ActiveMembershipContext, AuthenticatedAuthResult
 from crm_backend.api.dependencies import get_auth_service_adapter
-from crm_backend.models import Client, CrmRole, CrmUser, CrmUserRole, Location, Task, TaskAttachment
+from crm_backend.models import Client, CrmRole, CrmUser, CrmUserRole, Location, StockProduct, Task, TaskAttachment
 
 
 class FakeTaskAuthAdapter:
@@ -310,6 +310,121 @@ def test_close_advances_flow_and_exposes_unassigned_next_subtask(client, db_sess
     assert any(item["subtask_id"] == next_subtask["subtask_id"] for item in unassigned_response.json())
 
 
+def test_cannot_close_subtask_until_request_is_approved_dispatched_and_received(client, db_session) -> None:
+    """Requester cannot close the active subtask while material flow is pending approval, dispatch, or receipt."""
+
+    tech_user = _seed_local_role_user(
+        db_session,
+        role_key="tecnico_campo",
+        auth_user_id="auth-tech",
+        email="tecnico.crm@yccbrothers.com",
+        display_name="Tecnico Campo",
+    )
+    _seed_local_role_user(
+        db_session,
+        role_key="encargado_deposito",
+        auth_user_id="auth-deposito",
+        email="deposito.crm@yccbrothers.com",
+        display_name="Encargado Deposito",
+    )
+    seeded_client = _seed_client(db_session)
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeTaskAuthAdapter()
+
+    template = _create_template(client, headers=_auth_header("admin-token"), default_tech_user_id=tech_user.crm_user_id)
+    task = _create_task(client, template["template_id"], seeded_client.client_id, _auth_header("admin-token"))
+    first_subtask = task["subtasks"][0]
+    checklist_items = first_subtask["items"]
+
+    progress_response = client.put(
+        f"/tasks/subtasks/{first_subtask['subtask_id']}/items",
+        headers=_auth_header("tech-token"),
+        json={
+            "items": [
+                {"item_id": checklist_items[0]["subtask_item_value_id"], "checkbox_value": True},
+                {"item_id": checklist_items[1]["subtask_item_value_id"], "text_value": "Checklist completo"},
+            ]
+        },
+    )
+    assert progress_response.status_code == 200, progress_response.text
+
+    dispatchable_product = db_session.scalar(
+        select(StockProduct).where(StockProduct.is_active.is_(True), StockProduct.requires_tracking.is_(False))
+    )
+    assert dispatchable_product is not None
+
+    request_response = client.post(
+        "/inventory-flow/requests",
+        headers=_auth_header("tech-token"),
+        json={
+            "source_type": "TASK",
+            "task_id": task["task_id"],
+            "request_reason": "Falta material critico",
+            "items": [{"product_id": dispatchable_product.product_id, "quantity_requested": 1, "notes": "Urgente"}],
+        },
+    )
+    assert request_response.status_code == 200, request_response.text
+    request_body = request_response.json()
+    request_id = request_body["inventory_request_id"]
+
+    blocked_by_pending = client.post(
+        f"/tasks/subtasks/{first_subtask['subtask_id']}/actions",
+        headers=_auth_header("tech-token"),
+        json={"action": "close_subtask", "comment": "Intento de cierre"},
+    )
+    assert blocked_by_pending.status_code == 422
+
+    review_response = client.post(
+        f"/inventory-flow/requests/{request_id}/review",
+        headers=_auth_header("deposito-token"),
+        json={"status": "APPROVED", "review_notes": "Aprobado para despacho"},
+    )
+    assert review_response.status_code == 200, review_response.text
+    assert review_response.json()["request_status"] == "PENDING_DISPATCH"
+
+    blocked_by_pending_dispatch = client.post(
+        f"/tasks/subtasks/{first_subtask['subtask_id']}/actions",
+        headers=_auth_header("tech-token"),
+        json={"action": "close_subtask", "comment": "Intento de cierre"},
+    )
+    assert blocked_by_pending_dispatch.status_code == 422
+
+    dispatch_response = client.post(
+        f"/inventory-flow/tasks/{task['task_id']}/dispatches",
+        headers=_auth_header("deposito-token"),
+        json={
+            "request_id": request_id,
+            "dispatch_notes": "Despacho parcial",
+            "items": [{"product_id": dispatchable_product.product_id, "quantity_dispatched": 1}],
+        },
+    )
+    assert dispatch_response.status_code == 200, dispatch_response.text
+    dispatch_body = dispatch_response.json()
+    linked_request = next(item for item in dispatch_body["inventory_requests"] if item["inventory_request_id"] == request_id)
+    assert linked_request["request_status"] == "PENDING_RECEIPT"
+
+    blocked_by_pending_receipt = client.post(
+        f"/tasks/subtasks/{first_subtask['subtask_id']}/actions",
+        headers=_auth_header("tech-token"),
+        json={"action": "close_subtask", "comment": "Intento de cierre"},
+    )
+    assert blocked_by_pending_receipt.status_code == 422
+
+    dispatch_item_id = dispatch_body["dispatches"][0]["items"][0]["inventory_dispatch_item_id"]
+    confirm_received_response = client.post(
+        f"/inventory-flow/dispatch-items/{dispatch_item_id}/confirmations",
+        headers=_auth_header("tech-token"),
+        json={"confirmation_type": "received"},
+    )
+    assert confirm_received_response.status_code == 200, confirm_received_response.text
+
+    close_response = client.post(
+        f"/tasks/subtasks/{first_subtask['subtask_id']}/actions",
+        headers=_auth_header("tech-token"),
+        json={"action": "close_subtask", "comment": "Material recibido y checklist completo"},
+    )
+    assert close_response.status_code == 200, close_response.text
+
+
 def test_upload_task_media_and_associate_it_with_close_comment(client, db_session) -> None:
     """Uploaded task media must persist on disk metadata and become attached to the closing comment."""
 
@@ -489,6 +604,282 @@ def test_only_matching_role_can_claim_unassigned_subtask(client, db_session) -> 
     assert invalid_claim.json()["error"]["code"] == "task_access_denied"
     assert valid_claim.status_code == 200, valid_claim.text
     assert valid_claim.json()["subtasks"][1]["assigned_crm_user_id"] is not None
+
+
+def test_deposito_can_reassign_subtask_to_another_deposito_user(client, db_session) -> None:
+    """A deposito user must be able to reassign active deposito subtask to another deposito peer."""
+
+    tech_user = _seed_local_role_user(
+        db_session,
+        role_key="tecnico_campo",
+        auth_user_id="auth-tech",
+        email="tecnico.crm@yccbrothers.com",
+        display_name="Tecnico Campo",
+    )
+    _seed_local_role_user(
+        db_session,
+        role_key="encargado_deposito",
+        auth_user_id="auth-deposito",
+        email="deposito.crm@yccbrothers.com",
+        display_name="Encargado Deposito",
+    )
+    peer_deposito = _seed_local_role_user(
+        db_session,
+        role_key="encargado_deposito",
+        auth_user_id="auth-deposito-peer",
+        email="deposito.peer@yccbrothers.com",
+        display_name="Depósito Peer",
+    )
+    seeded_client = _seed_client(db_session)
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeTaskAuthAdapter()
+
+    template = _create_template(client, headers=_auth_header("admin-token"), default_tech_user_id=tech_user.crm_user_id)
+    task = _create_task(client, template["template_id"], seeded_client.client_id, _auth_header("admin-token"))
+    first_subtask = task["subtasks"][0]
+    items = first_subtask["items"]
+
+    client.put(
+        f"/tasks/subtasks/{first_subtask['subtask_id']}/items",
+        headers=_auth_header("tech-token"),
+        json={
+            "items": [
+                {"item_id": items[0]["subtask_item_value_id"], "checkbox_value": True},
+                {"item_id": items[1]["subtask_item_value_id"], "text_value": "Checklist completo"},
+            ]
+        },
+    )
+    client.post(
+        f"/tasks/subtasks/{first_subtask['subtask_id']}/actions",
+        headers=_auth_header("tech-token"),
+        json={"action": "close_subtask", "comment": "Pasa a deposito"},
+    )
+
+    unassigned_response = client.get("/tasks/unassigned/me", headers=_auth_header("deposito-token"))
+    deposito_subtask_id = unassigned_response.json()[0]["subtask_id"]
+    claim_response = client.post(f"/tasks/subtasks/{deposito_subtask_id}/claim", headers=_auth_header("deposito-token"))
+    assert claim_response.status_code == 200, claim_response.text
+
+    reassign_response = client.patch(
+        f"/tasks/subtasks/{deposito_subtask_id}/assignment",
+        headers=_auth_header("deposito-token"),
+        json={"assigned_crm_user_id": peer_deposito.crm_user_id, "notes": "Cobertura de turno"},
+    )
+
+    assert reassign_response.status_code == 200, reassign_response.text
+    body = reassign_response.json()
+    assert body["subtasks"][1]["assigned_crm_user_id"] == peer_deposito.crm_user_id
+
+
+def test_ejecutivo_can_reassign_active_subtask(client, db_session) -> None:
+    """Executive users must be able to reassign active subtasks."""
+
+    tech_user = _seed_local_role_user(
+        db_session,
+        role_key="tecnico_campo",
+        auth_user_id="auth-tech",
+        email="tecnico.crm@yccbrothers.com",
+        display_name="Tecnico Campo",
+    )
+    peer_tech = _seed_local_role_user(
+        db_session,
+        role_key="tecnico_campo",
+        auth_user_id="auth-tech-peer",
+        email="tecnico.peer@yccbrothers.com",
+        display_name="Tecnico Peer",
+    )
+    seeded_client = _seed_client(db_session)
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeTaskAuthAdapter()
+
+    template = _create_template(client, headers=_auth_header("admin-token"), default_tech_user_id=tech_user.crm_user_id)
+    task = _create_task(client, template["template_id"], seeded_client.client_id, _auth_header("admin-token"))
+    first_subtask = task["subtasks"][0]
+
+    reassign_response = client.patch(
+        f"/tasks/subtasks/{first_subtask['subtask_id']}/assignment",
+        headers=_auth_header("ejecutivo-token"),
+        json={"assigned_crm_user_id": peer_tech.crm_user_id, "notes": "Redistribución de carga"},
+    )
+
+    assert reassign_response.status_code == 200, reassign_response.text
+    body = reassign_response.json()
+    assert body["subtasks"][0]["assigned_crm_user_id"] == peer_tech.crm_user_id
+
+
+def test_completed_task_requires_executive_approval_and_moves_to_history(client, db_session) -> None:
+    """Finalized flow must remain pending approval until executive approval, then move from tracking to history."""
+
+    tech_user = _seed_local_role_user(
+        db_session,
+        role_key="tecnico_campo",
+        auth_user_id="auth-tech",
+        email="tecnico.crm@yccbrothers.com",
+        display_name="Tecnico Campo",
+    )
+    _seed_local_role_user(
+        db_session,
+        role_key="encargado_deposito",
+        auth_user_id="auth-deposito",
+        email="deposito.crm@yccbrothers.com",
+        display_name="Encargado Deposito",
+    )
+    executive_user = _seed_local_role_user(
+        db_session,
+        role_key="ejecutivo",
+        auth_user_id="auth-ejecutivo",
+        email="ejecutivo.crm@yccbrothers.com",
+        display_name="Ejecutivo CRM",
+    )
+    seeded_client = _seed_client(db_session)
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeTaskAuthAdapter()
+
+    template = _create_template(client, headers=_auth_header("admin-token"), default_tech_user_id=tech_user.crm_user_id)
+    task = _create_task(client, template["template_id"], seeded_client.client_id, _auth_header("admin-token"))
+    first_subtask = task["subtasks"][0]
+    first_items = first_subtask["items"]
+
+    client.put(
+        f"/tasks/subtasks/{first_subtask['subtask_id']}/items",
+        headers=_auth_header("tech-token"),
+        json={
+            "items": [
+                {"item_id": first_items[0]["subtask_item_value_id"], "checkbox_value": True},
+                {"item_id": first_items[1]["subtask_item_value_id"], "text_value": "Checklist completo"},
+            ]
+        },
+    )
+    client.post(
+        f"/tasks/subtasks/{first_subtask['subtask_id']}/actions",
+        headers=_auth_header("tech-token"),
+        json={"action": "close_subtask", "comment": "Pasa a deposito"},
+    )
+
+    unassigned_response = client.get("/tasks/unassigned/me", headers=_auth_header("deposito-token"))
+    deposito_subtask_id = unassigned_response.json()[0]["subtask_id"]
+    claimed_task = client.post(f"/tasks/subtasks/{deposito_subtask_id}/claim", headers=_auth_header("deposito-token")).json()
+    second_items = claimed_task["subtasks"][1]["items"]
+
+    client.put(
+        f"/tasks/subtasks/{deposito_subtask_id}/items",
+        headers=_auth_header("deposito-token"),
+        json={"items": [{"item_id": second_items[0]["subtask_item_value_id"], "checkbox_value": True}]},
+    )
+    close_final_response = client.post(
+        f"/tasks/subtasks/{deposito_subtask_id}/actions",
+        headers=_auth_header("deposito-token"),
+        json={"action": "close_subtask", "comment": "Despacho completado"},
+    )
+    assert close_final_response.status_code == 200, close_final_response.text
+    pending_approval_body = close_final_response.json()
+    assert pending_approval_body["status"] == "BLOCKED"
+    assert pending_approval_body["current_assigned_crm_user_id"] == executive_user.crm_user_id
+
+    admin_tracking_before = client.get("/tasks/tracking/me", headers=_auth_header("admin-token"))
+    assert any(item["task_id"] == task["task_id"] for item in admin_tracking_before.json())
+
+    approval_response = client.patch(
+        f"/tasks/{task['task_id']}/approve",
+        headers=_auth_header("ejecutivo-token"),
+        json={"comment": "Aprobación ejecutiva final"},
+    )
+    assert approval_response.status_code == 200, approval_response.text
+    approved_body = approval_response.json()
+    assert approved_body["status"] == "COMPLETED"
+    assert approved_body["finalized_by_display_name"] == "Ejecutivo CRM"
+    assert approved_body["current_assigned_crm_user_id"] is None
+    assert approved_body["current_subtask_id"] is None
+
+    admin_tracking_after = client.get("/tasks/tracking/me", headers=_auth_header("admin-token"))
+    assert not any(item["task_id"] == task["task_id"] for item in admin_tracking_after.json())
+
+    executive_history = client.get("/tasks/history/me", headers=_auth_header("ejecutivo-token"))
+    assert executive_history.status_code == 200, executive_history.text
+    assert any(item["task_id"] == task["task_id"] for item in executive_history.json())
+
+
+def test_completed_task_can_be_rejected_by_executive_with_comment(client, db_session) -> None:
+    tech_user = _seed_local_role_user(
+        db_session,
+        role_key="tecnico_campo",
+        auth_user_id="auth-tech",
+        email="tecnico.crm@yccbrothers.com",
+        display_name="Tecnico Campo",
+    )
+    _seed_local_role_user(
+        db_session,
+        role_key="encargado_deposito",
+        auth_user_id="auth-deposito",
+        email="deposito.crm@yccbrothers.com",
+        display_name="Encargado Deposito",
+    )
+    executive_user = _seed_local_role_user(
+        db_session,
+        role_key="ejecutivo",
+        auth_user_id="auth-ejecutivo",
+        email="ejecutivo.crm@yccbrothers.com",
+        display_name="Ejecutivo CRM",
+    )
+    seeded_client = _seed_client(db_session)
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeTaskAuthAdapter()
+
+    template = _create_template(client, headers=_auth_header("admin-token"), default_tech_user_id=tech_user.crm_user_id)
+    task = _create_task(client, template["template_id"], seeded_client.client_id, _auth_header("admin-token"))
+    first_subtask = task["subtasks"][0]
+    first_items = first_subtask["items"]
+
+    client.put(
+        f"/tasks/subtasks/{first_subtask['subtask_id']}/items",
+        headers=_auth_header("tech-token"),
+        json={
+            "items": [
+                {"item_id": first_items[0]["subtask_item_value_id"], "checkbox_value": True},
+                {"item_id": first_items[1]["subtask_item_value_id"], "text_value": "Checklist completo"},
+            ]
+        },
+    )
+    client.post(
+        f"/tasks/subtasks/{first_subtask['subtask_id']}/actions",
+        headers=_auth_header("tech-token"),
+        json={"action": "close_subtask", "comment": "Pasa a deposito"},
+    )
+
+    unassigned_response = client.get("/tasks/unassigned/me", headers=_auth_header("deposito-token"))
+    deposito_subtask_id = unassigned_response.json()[0]["subtask_id"]
+    claimed_task = client.post(f"/tasks/subtasks/{deposito_subtask_id}/claim", headers=_auth_header("deposito-token")).json()
+    second_items = claimed_task["subtasks"][1]["items"]
+
+    client.put(
+        f"/tasks/subtasks/{deposito_subtask_id}/items",
+        headers=_auth_header("deposito-token"),
+        json={"items": [{"item_id": second_items[0]["subtask_item_value_id"], "checkbox_value": True}]},
+    )
+    close_final_response = client.post(
+        f"/tasks/subtasks/{deposito_subtask_id}/actions",
+        headers=_auth_header("deposito-token"),
+        json={"action": "close_subtask", "comment": "Despacho completado"},
+    )
+    assert close_final_response.status_code == 200, close_final_response.text
+    pending_approval_body = close_final_response.json()
+    assert pending_approval_body["status"] == "BLOCKED"
+    assert pending_approval_body["current_assigned_crm_user_id"] == executive_user.crm_user_id
+
+    reject_without_comment = client.patch(
+        f"/tasks/{task['task_id']}/reject",
+        headers=_auth_header("ejecutivo-token"),
+        json={"comment": ""},
+    )
+    assert reject_without_comment.status_code == 422, reject_without_comment.text
+
+    reject_response = client.patch(
+        f"/tasks/{task['task_id']}/reject",
+        headers=_auth_header("ejecutivo-token"),
+        json={"comment": "Falta validación final del despacho y evidencia de cierre."},
+    )
+    assert reject_response.status_code == 200, reject_response.text
+    rejected_body = reject_response.json()
+    assert rejected_body["status"] == "IN_PROGRESS"
+    assert rejected_body["current_assigned_crm_user_id"] != executive_user.crm_user_id
+    assert rejected_body["subtasks"][-1]["status"] == "in_progress"
+    assert any(comment["body"] == "Falta validación final del despacho y evidencia de cierre." for comment in rejected_body["comments"])
 
 
 def test_admin_can_create_task_with_persisted_real_location(client, db_session) -> None:

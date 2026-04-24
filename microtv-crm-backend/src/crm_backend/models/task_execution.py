@@ -26,6 +26,7 @@ class TaskStatus(StrEnum):
     PENDING = "PENDING"
     IN_PROGRESS = "IN_PROGRESS"
     BLOCKED = "BLOCKED"
+    PENDING_APPROVAL = "PENDING_APPROVAL"
     COMPLETED = "COMPLETED"
 
 
@@ -61,6 +62,7 @@ class TransitionAction(StrEnum):
     """Supported subtask actions."""
 
     CLAIM_SUBTASK = "claim_subtask"
+    ASSIGN_SUBTASK = "assign_subtask"
     START_SUBTASK = "start_subtask"
     CLOSE_SUBTASK = "close_subtask"
     REJECT_SUBTASK = "reject_subtask"

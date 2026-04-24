@@ -15,6 +15,7 @@ export interface DashboardStat {
 
 export interface RecentTicket {
   id: string;
+  ticketId?: string;
   subject: string;
   client: string;
   priority: string;
@@ -23,6 +24,7 @@ export interface RecentTicket {
   statusTone: TicketStatusTone;
   assignedTo: string;
   assignedInitials: string;
+  targetRoute?: string;
 }
 
 export interface RecentTicketsColumn {
@@ -42,6 +44,7 @@ export interface RecentActivityItem {
   text: string;
   timestamp: string;
   actor: string;
+  targetRoute?: string;
 }
 
 export interface RecentActivityBlock {
@@ -55,4 +58,43 @@ export interface DashboardData {
   stats: DashboardStat[];
   recentTickets: RecentTicketsBlock;
   recentActivity: RecentActivityBlock;
+}
+
+export interface DashboardKpiApiResponse {
+  key: string;
+  label: string;
+  value: number;
+  secondary: string;
+  variant: DashboardStatVariant;
+}
+
+export interface DashboardRecentTicketApiResponse {
+  ticket_id: string;
+  ticket_public_id: string;
+  subject: string;
+  client: string;
+  priority: string;
+  priority_tone: TicketPriorityTone;
+  status: string;
+  status_tone: TicketStatusTone;
+  assigned_to: string;
+  assigned_initials: string;
+  target_route: string;
+}
+
+export interface DashboardRecentActivityApiResponse {
+  type: string;
+  tone: ActivityTone;
+  text: string;
+  timestamp: string;
+  actor: string;
+  target_route: string | null;
+}
+
+export interface DashboardSummaryApiResponse {
+  page_title: string;
+  page_subtitle: string;
+  kpis: DashboardKpiApiResponse[];
+  recent_tickets: DashboardRecentTicketApiResponse[];
+  recent_activity: DashboardRecentActivityApiResponse[];
 }

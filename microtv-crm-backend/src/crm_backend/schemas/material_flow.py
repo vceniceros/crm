@@ -61,6 +61,7 @@ class CreateTaskDispatchRequest(BaseModel):
 
 class ConfirmDispatchItemRequest(BaseModel):
     confirmation_type: Literal["received", "delivered", "installed"]
+    reception_comment: str | None = None
 
 
 class InventoryRequestItemResponse(BaseModel):
@@ -107,6 +108,10 @@ class InventoryDispatchResponse(BaseModel):
     request_id: str | None
     dispatched_by_crm_user_id: str
     dispatched_by_display_name: str | None = None
+    received_by_crm_user_id: str | None = None
+    received_by_display_name: str | None = None
+    received_at: datetime | None = None
+    reception_comment: str | None = None
     warehouse_id: str
     dispatch_notes: str | None
     created_at: datetime

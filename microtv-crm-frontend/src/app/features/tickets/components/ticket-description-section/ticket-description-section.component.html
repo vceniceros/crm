@@ -1,47 +1,70 @@
 <mat-card class="ticket-description-section">
-  <mat-card-header>
-    <mat-card-title>Descripción del ticket</mat-card-title>
-    <mat-card-subtitle>Información base del problema reportado y del contexto operativo asociado.</mat-card-subtitle>
-  </mat-card-header>
-
   <mat-card-content>
-    <p class="ticket-description-section__body">{{ ticket().description }}</p>
+    <section class="ticket-description-section__ticket-number">
+      <p class="ticket-description-section__label">Ticket</p>
+      <p class="ticket-description-section__ticket-value">{{ ticket().ticket_number }}</p>
+    </section>
+
+    <section class="ticket-description-section__description-highlight">
+      <p class="ticket-description-section__label">Descripción</p>
+      <p class="ticket-description-section__body">{{ ticket().description }}</p>
+    </section>
 
     <div class="ticket-description-section__grid">
       <div class="ticket-description-section__item">
-        <p class="ticket-description-section__label">Categoría</p>
-        <p class="ticket-description-section__value">{{ ticket().category }}</p>
+        <p class="ticket-description-section__label">Cliente</p>
+        <p class="ticket-description-section__value">{{ ticket().client_name }}</p>
       </div>
 
-      <div class="ticket-description-section__item">
-        <p class="ticket-description-section__label">Dispositivo afectado</p>
-        <p class="ticket-description-section__value">{{ ticket().affectedDevice }}</p>
-      </div>
-
-      <div class="ticket-description-section__item">
+      <div class="ticket-description-section__item ticket-description-section__item--priority">
         <p class="ticket-description-section__label">Prioridad</p>
-        <app-priority-indicator [label]="ticket().priority" [tone]="ticket().priorityTone" />
+        <app-priority-indicator [label]="formatTicketPriority(ticket().priority)" [tone]="ticket().priority === 'CRITICAL' ? 'critical' : ticket().priority === 'HIGH' ? 'high' : ticket().priority === 'LOW' ? 'low' : 'medium'" />
       </div>
 
       <div class="ticket-description-section__item">
         <p class="ticket-description-section__label">Estado</p>
-        <app-status-badge [label]="ticket().status" [tone]="ticket().statusTone" />
+        <app-status-badge [label]="formatTicketStatus(ticket().status)" [tone]="ticket().status === 'IN_PROGRESS' ? 'progress' : ticket().status === 'ON_HOLD' || ticket().status === 'PENDING_APPROVAL' ? 'warning' : ticket().status === 'RESOLVED' || ticket().status === 'CLOSED' ? 'success' : 'neutral'" />
+      </div>
+
+      <div class="ticket-description-section__item">
+        <p class="ticket-description-section__label">Asignado a</p>
+        <p class="ticket-description-section__value">{{ ticket().assigned_user_display_name || ticket().assigned_role_label || 'Sin asignar' }}</p>
       </div>
 
       <div class="ticket-description-section__item">
         <p class="ticket-description-section__label">Creado</p>
-        <p class="ticket-description-section__value">{{ ticket().createdAt | date: 'dd/MM/yyyy HH:mm' }}</p>
-      </div>
-
-      <div class="ticket-description-section__item">
-        <p class="ticket-description-section__label">Técnico asignado</p>
-        <p class="ticket-description-section__value">{{ ticket().assigneeName || 'Sin asignar' }}</p>
-      </div>
-
-      <div class="ticket-description-section__item ticket-description-section__item--wide">
-        <p class="ticket-description-section__label">Depósito asignado</p>
-        <p class="ticket-description-section__value">{{ ticket().depositAssigneeName || 'Sin asignar' }}</p>
+        <p class="ticket-description-section__value">{{ ticket().created_at | date: 'dd/MM/yyyy HH:mm' }}</p>
       </div>
     </div>
+
+    @if (hasTicketLocation()) {
+      <section class="ticket-description-section__location-block">
+        <div class="ticket-description-section__location-title-row">
+          <p class="ticket-description-section__label">Ubicación operativa</p>
+        </div>
+
+        <div class="ticket-description-section__location-map-wrap">
+          <app-location-map [location]="ticketLocation()" [markers]="locationMarkers()" title="Ubicación del ticket"></app-location-map>
+        </div>
+
+        @if (additionalVisitLocations().length) {
+          <div class="ticket-description-section__location-actions">
+            <p class="ticket-description-section__label">Ubicaciones adicionales</p>
+            <div>
+              @for (location of additionalVisitLocations(); track location.latitude + '-' + location.longitude + '-' + $index) {
+                <p class="ticket-description-section__value">{{ location.title || ('Visita ' + ($index + 1)) }}</p>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="ticket-description-section__location-actions">
+          <button mat-stroked-button type="button" class="ticket-description-section__map-button" (click)="openTicketLocationInMaps()">
+            <mat-icon>map</mat-icon>
+            <span>Abrir en Google Maps</span>
+          </button>
+        </div>
+      </section>
+    }
   </mat-card-content>
 </mat-card>

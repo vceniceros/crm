@@ -15,6 +15,7 @@ class ClientLocationPayload(BaseModel):
 class ClientLocationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    location_id: str
     latitude: float
     longitude: float
     address_label: str | None

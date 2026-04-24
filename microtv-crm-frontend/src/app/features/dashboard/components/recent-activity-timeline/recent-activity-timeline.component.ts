@@ -1,5 +1,6 @@
-import { Component, input } from '@angular/core';
+import { Component, inject, input } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
+import { Router } from '@angular/router';
 
 import { RecentActivityBlock } from '../../../../core/models/dashboard.model';
 
@@ -11,5 +12,14 @@ import { RecentActivityBlock } from '../../../../core/models/dashboard.model';
   styleUrl: './recent-activity-timeline.component.scss'
 })
 export class RecentActivityTimelineComponent {
+  private readonly router = inject(Router);
+
   readonly block = input.required<RecentActivityBlock>();
+
+  navigateTo(targetRoute?: string): void {
+    if (!targetRoute) {
+      return;
+    }
+    void this.router.navigateByUrl(targetRoute);
+  }
 }

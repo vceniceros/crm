@@ -17,8 +17,8 @@
       "section": "Principal",
       "items": [
         { "id": "dashboard", "moduleKey": "dashboard", "label": "Dashboard", "icon": "dashboard", "route": "/", "active": true },
-        { "id": "tickets", "moduleKey": "tickets", "label": "Tickets", "icon": "confirmation_number", "route": "/tickets", "badge": 12 },
-        { "id": "tasks", "moduleKey": "tasks", "label": "Tareas", "icon": "task_alt", "route": "/tasks", "badge": 5 },
+        { "id": "tickets", "moduleKey": "tickets", "label": "Tickets", "icon": "confirmation_number", "route": "/tickets" },
+        { "id": "tasks", "moduleKey": "tasks", "label": "Tareas", "icon": "task_alt", "route": "/tasks" },
         { "id": "task-templates", "moduleKey": "tasks", "label": "Templates de tareas", "icon": "schema", "route": "/tasks/templates" }
       ]
     },
@@ -26,22 +26,20 @@
       "section": "Operaciones",
       "items": [
         { "id": "stock", "moduleKey": "inventory", "label": "Depósito / Pañol", "icon": "inventory_2", "route": "/inventory" },
-        { "id": "stock-requests", "moduleKey": "inventory", "label": "Solicitudes de depósito", "icon": "inbox", "route": "/inventory/requests" },
-        { "id": "installations", "moduleKey": "installations", "label": "Instalaciones", "icon": "engineering" }
+        { "id": "stock-requests", "moduleKey": "inventory", "label": "Solicitudes de depósito", "icon": "inbox", "route": "/inventory/requests" }
       ]
     },
     {
       "section": "CRM",
       "items": [
-        { "id": "clients", "moduleKey": "clients", "label": "Clientes", "icon": "people", "route": "/clients" },
-        { "id": "billing", "moduleKey": "billing", "label": "Facturación", "icon": "receipt_long" }
+        { "id": "clients", "moduleKey": "clients", "label": "Clientes", "icon": "people", "route": "/clients" }
       ]
     },
     {
       "section": "Sistema",
       "items": [
-        { "id": "reports", "moduleKey": "reports", "label": "Reportes", "icon": "bar_chart" },
-        { "id": "settings", "moduleKey": "settings", "label": "Configuración", "icon": "settings" }
+        { "id": "reports", "moduleKey": "reports", "label": "Reportes", "icon": "bar_chart", "route": "/reports" },
+        { "id": "settings", "moduleKey": "settings", "label": "Configuración", "icon": "settings", "route": "/settings" }
       ]
     }
   ],

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from crm_backend.core.exceptions import TaskAccessDeniedError, TaskConflictError, TaskValidationError
+from crm_backend.models import InventoryRequestStatus
 from crm_backend.models.task_execution import Subtask, Task
 from crm_backend.repositories import CrmUserRepository
 from crm_backend.services.auth_service import ResolvedCrmSession
@@ -74,6 +75,24 @@ class RequiredItemsCompletedValidator(ValidationHandler):
             if not strategy.is_completed(item):
                 raise TaskValidationError(
                     f"No se puede cerrar la subtarea porque falta completar el item obligatorio '{item.item_label}'."
+                )
+
+
+class PendingInventoryRequestsResolvedValidator(ValidationHandler):
+    def _validate(self, context: ActionValidationContext) -> None:
+        blocking_statuses = {
+            InventoryRequestStatus.PENDING.value,
+            InventoryRequestStatus.PENDING_DISPATCH.value,
+            InventoryRequestStatus.PENDING_RECEIPT.value,
+            InventoryRequestStatus.APPROVED.value,
+        }
+        actor_id = context.actor.crm_user.crm_user_id
+        for request in context.task.inventory_requests:
+            if request.requested_by_crm_user_id != actor_id:
+                continue
+            if request.request_status in blocking_statuses:
+                raise TaskValidationError(
+                    "No se puede cerrar la subtarea porque tenés una solicitud de materiales pendiente de aprobar, despachar o confirmar recibimiento."
                 )
 
 

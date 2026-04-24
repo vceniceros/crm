@@ -26,3 +26,27 @@ export const guestOnlyGuard: CanActivateFn = () => {
 
   return true;
 };
+
+export const adminOnlyGuard: CanActivateFn = () => {
+  const authSessionService = inject(AuthSessionService);
+  const router = inject(Router);
+
+  const session = authSessionService.sessionSnapshot();
+  if (session?.user.role_keys.includes('admin')) {
+    return true;
+  }
+
+  return router.createUrlTree(['/tasks']);
+};
+
+export const adminOrExecutiveGuard: CanActivateFn = () => {
+  const authSessionService = inject(AuthSessionService);
+  const router = inject(Router);
+
+  const roles = authSessionService.sessionSnapshot()?.user.role_keys ?? [];
+  if (roles.includes('admin') || roles.includes('ejecutivo')) {
+    return true;
+  }
+
+  return router.createUrlTree(['/tasks']);
+};

@@ -3,7 +3,7 @@
     <mat-card-title>Adjuntos del ticket</mat-card-title>
     <mat-card-subtitle>
       @if (canEdit()) {
-        Fotos y videos del diagnóstico técnico. El binario real no se persiste; la metadata sí.
+        Fotos y videos del diagnóstico técnico persistidos en backend.
       } @else {
         Evidencia visual cargada en el ticket. Visible para seguimiento cruzado entre técnico, depósito y admin.
       }
@@ -13,14 +13,14 @@
   <mat-card-content>
     @if (canEdit()) {
       <div class="ticket-attachments-section__actions">
-        <input #fileInput type="file" accept="image/*,video/*" multiple hidden (change)="onFileSelection($event)" />
+        <input #fileInput type="file" accept="image/*,video/*" capture="environment" multiple hidden (change)="onFileSelection($event)" />
 
         <button mat-stroked-button type="button" (click)="fileInput.click()">
           <mat-icon>upload_file</mat-icon>
           <span>Agregar fotos o videos</span>
         </button>
 
-        <p class="ticket-attachments-section__hint">La preview completa dura durante la sesión activa del navegador.</p>
+        <p class="ticket-attachments-section__hint">Los archivos quedan disponibles para comentarios, transiciones y cierre del ticket.</p>
       </div>
     }
 
@@ -52,10 +52,6 @@
                 </button>
               }
             </div>
-
-            @if (!attachment.previewUrl && (attachment.kind === 'image' || attachment.kind === 'video')) {
-              <p class="ticket-attachments-section__preview-note">La preview no se conserva luego de recargar. La metadata del archivo sí.</p>
-            }
           </article>
         }
       </div>

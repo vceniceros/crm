@@ -1,81 +1,139 @@
 <h2 mat-dialog-title>Crear ticket</h2>
 
 <mat-dialog-content>
-  @if (viewModel$ | async; as viewModel) {
+  @if (isLoading()) {
+    <div class="create-ticket-dialog__loading">
+      <mat-spinner diameter="36" />
+      <p>Cargando datos para crear ticket...</p>
+    </div>
+  } @else {
     <form class="create-ticket-dialog__form" [formGroup]="form" (ngSubmit)="submit()">
       <section class="create-ticket-dialog__intro">
         <p class="create-ticket-dialog__intro-title">Registro inicial de incidencia</p>
         <p class="create-ticket-dialog__intro-copy">
-          Documenta el problema reportado, el equipo afectado y los insumos previstos para resolverlo.
+          Define cliente, ubicación real, prioridad y asignación para iniciar el flujo operativo.
         </p>
       </section>
 
+      @if (errorMessage(); as errorMessage) {
+        <p class="create-ticket-dialog__error">{{ errorMessage }}</p>
+      }
+
       <div class="create-ticket-dialog__fields">
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Titulo</mat-label>
-          <input matInput formControlName="title" placeholder="Ej. Sin imagen en monitor de recepcion" />
+          <mat-label>Título</mat-label>
+          <input matInput formControlName="title" placeholder="Ej. Sin imagen en monitor de recepción" />
           @if (form.controls.title.hasError('required') && form.controls.title.touched) {
-            <mat-error>El titulo es obligatorio.</mat-error>
+            <mat-error>El título es obligatorio.</mat-error>
           }
         </mat-form-field>
 
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Categoria</mat-label>
-          <mat-select formControlName="categoryId">
-            @for (category of viewModel.categories; track category.id) {
-              <mat-option [value]="category.id">{{ category.name }}</mat-option>
+          <mat-label>Cliente</mat-label>
+          <mat-select formControlName="client_id">
+            @for (client of clients(); track client.client_id) {
+              <mat-option [value]="client.client_id">{{ client.business_name }}</mat-option>
             }
           </mat-select>
-          @if (form.controls.categoryId.hasError('required') && form.controls.categoryId.touched) {
-            <mat-error>Selecciona una categoria.</mat-error>
+          @if (form.controls.client_id.hasError('required') && form.controls.client_id.touched) {
+            <mat-error>Selecciona un cliente.</mat-error>
           }
         </mat-form-field>
 
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Prioridad</mat-label>
           <mat-select formControlName="priority">
-            @for (priority of viewModel.priorities; track priority.id) {
+            @for (priority of priorities; track priority.id) {
               <mat-option [value]="priority.id">{{ priority.label }}</mat-option>
             }
           </mat-select>
-          @if (form.controls.priority.hasError('required') && form.controls.priority.touched) {
-            <mat-error>Selecciona una prioridad.</mat-error>
-          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Rol asignado</mat-label>
+          <mat-select formControlName="assigned_role_id">
+            <mat-option [value]="null">Sin rol asignado</mat-option>
+            @for (role of roles(); track role.crm_role_id) {
+              <mat-option [value]="role.crm_role_id">{{ role.role_label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Usuario asignado</mat-label>
+          <mat-select formControlName="assigned_user_id">
+            <mat-option [value]="null">Sin usuario asignado</mat-option>
+            @for (assignee of assignees(); track assignee.crm_user_id) {
+              <mat-option [value]="assignee.crm_user_id">{{ assignee.display_name || assignee.email || assignee.crm_user_id }}</mat-option>
+            }
+          </mat-select>
         </mat-form-field>
 
         <mat-form-field appearance="outline" subscriptSizing="dynamic" class="create-ticket-dialog__description-field">
-          <mat-label>Descripcion</mat-label>
+          <mat-label>Descripción</mat-label>
           <textarea matInput rows="4" formControlName="description" placeholder="Describe el problema reportado y el contexto operativo"></textarea>
           @if (form.controls.description.hasError('required') && form.controls.description.touched) {
-            <mat-error>La descripcion es obligatoria.</mat-error>
-          }
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="create-ticket-dialog__device-field">
-          <mat-label>Dispositivo afectado</mat-label>
-          <mat-select formControlName="affectedDeviceId">
-            @for (device of viewModel.stockDevices; track device.id) {
-              <mat-option [value]="device.id">
-                <div class="create-ticket-dialog__device-option">
-                  <span>{{ device.name }}</span>
-                  <small>{{ device.code }} @if (device.serial) { · {{ device.serial }} }</small>
-                </div>
-              </mat-option>
-            }
-          </mat-select>
-          @if (form.controls.affectedDeviceId.hasError('required') && form.controls.affectedDeviceId.touched) {
-            <mat-error>Selecciona un dispositivo afectado.</mat-error>
+            <mat-error>La descripción es obligatoria.</mat-error>
           }
         </mat-form-field>
       </div>
 
       <section class="create-ticket-dialog__section">
-        <app-required-items-editor [requiredItems]="requiredItems" [items]="viewModel.inventoryItems" />
+        <p class="create-ticket-dialog__section-title">Ubicación</p>
+        <div class="create-ticket-dialog__location-modes">
+          <button
+            mat-stroked-button
+            type="button"
+            [class.create-ticket-dialog__mode--active]="form.controls.location_mode.getRawValue() === 'client'"
+            [disabled]="!selectedClientLocation()"
+            (click)="form.controls.location_mode.setValue('client')"
+          >
+            Usar ubicación del cliente
+          </button>
+
+          <button
+            mat-stroked-button
+            type="button"
+            [class.create-ticket-dialog__mode--active]="form.controls.location_mode.getRawValue() === 'custom'"
+            (click)="form.controls.location_mode.setValue('custom')"
+          >
+            Definir ubicación manual
+          </button>
+
+          <button
+            mat-stroked-button
+            type="button"
+            [class.create-ticket-dialog__mode--active]="form.controls.location_mode.getRawValue() === 'none'"
+            (click)="form.controls.location_mode.setValue('none')"
+          >
+            Sin ubicación
+          </button>
+        </div>
+
+        @if (form.controls.location_mode.getRawValue() === 'custom') {
+          <div class="create-ticket-dialog__location-actions">
+            <button mat-stroked-button type="button" (click)="openLocationPicker()">
+              <mat-icon>place</mat-icon>
+              <span>Seleccionar ubicación</span>
+            </button>
+
+            <button mat-button type="button" (click)="clearCustomLocation()" [disabled]="!customLocation()">Limpiar</button>
+            <button mat-button type="button" (click)="openInMaps()" [disabled]="!canOpenInMaps()">Abrir en Maps</button>
+          </div>
+        }
+
+        <p class="create-ticket-dialog__location-label">{{ selectedLocationLabel() }}</p>
       </section>
 
       <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">Crear ticket</button>
+        <button mat-button type="button" mat-dialog-close [disabled]="isSubmitting()">Cancelar</button>
+        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || isSubmitting()">
+          @if (isSubmitting()) {
+            Creando...
+          } @else {
+            Crear ticket
+          }
+        </button>
       </mat-dialog-actions>
     </form>
   }

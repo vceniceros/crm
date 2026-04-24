@@ -26,6 +26,14 @@
   padding: 0.95rem 0;
 }
 
+.activity-timeline__item--clickable {
+  cursor: pointer;
+}
+
+.activity-timeline__item--clickable:hover {
+  background: rgba(37, 99, 235, 0.04);
+}
+
 .activity-timeline__item + .activity-timeline__item {
   border-top: 1px solid rgba(23, 24, 26, 0.08);
 }

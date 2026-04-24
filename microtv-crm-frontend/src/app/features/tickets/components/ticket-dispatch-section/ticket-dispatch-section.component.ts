@@ -40,11 +40,11 @@ export class TicketDispatchSectionComponent {
   });
 
   approvedRequestCount(): number {
-    return this.requests().filter((request) => request.status === 'approved').length;
+    return this.requests().filter((request) => request.status === 'approved_for_dispatch').length;
   }
 
   approvedRequests(): readonly TicketInventoryRequest[] {
-    return this.requests().filter((request) => request.status === 'approved');
+    return this.requests().filter((request) => request.status === 'approved_for_dispatch');
   }
 
   createDispatch(): void {

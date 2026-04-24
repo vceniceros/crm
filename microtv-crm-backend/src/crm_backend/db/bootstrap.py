@@ -209,6 +209,13 @@ def _ensure_extension_tables(session: Session) -> None:
         "inventory_request_items",
         "inventory_dispatches",
         "inventory_dispatch_items",
+        "tickets",
+        "ticket_comments",
+        "ticket_attachments",
+        "ticket_status_transitions",
+        "ticket_assignment_history",
+        "ticket_audit_events",
+        "crm_notifications",
     ]
     bind = session.get_bind()
     inspector = inspect(bind)
@@ -218,7 +225,10 @@ def _ensure_extension_tables(session: Session) -> None:
         Base.metadata.create_all(bind=bind, tables=missing_tables)
 
     _ensure_inventory_product_columns(session, inspector)
+    _ensure_inventory_dispatch_columns(session, inspector)
     _ensure_task_attachment_columns(session, inspector)
+    _ensure_ticket_attachment_columns(session, inspector)
+    _ensure_ticket_columns(session, inspector)
 
 
 def _ensure_inventory_product_columns(session: Session, inspector=None) -> None:
@@ -255,4 +265,212 @@ def _ensure_task_attachment_columns(session: Session, inspector=None) -> None:
         session.commit()
 
     session.execute(text("CREATE INDEX IF NOT EXISTS idx_task_attachments_comment ON task_attachments(task_comment_id)"))
+    session.commit()
+
+
+def _ensure_inventory_dispatch_columns(session: Session, inspector=None) -> None:
+    bind = session.get_bind()
+    active_inspector = inspector or inspect(bind)
+    table_names = set(active_inspector.get_table_names())
+    if "inventory_dispatches" not in table_names:
+        return
+
+    dispatch_columns = {column["name"] for column in active_inspector.get_columns("inventory_dispatches")}
+    if "received_by_crm_user_id" not in dispatch_columns:
+        if bind.dialect.name == "postgresql" and "crm_users" in table_names:
+            session.execute(
+                text(
+                    "ALTER TABLE inventory_dispatches "
+                    "ADD COLUMN received_by_crm_user_id UUID REFERENCES crm_users(crm_user_id)"
+                )
+            )
+        else:
+            session.execute(text("ALTER TABLE inventory_dispatches ADD COLUMN received_by_crm_user_id VARCHAR(36)"))
+        session.commit()
+
+    if "received_at" not in dispatch_columns:
+        if bind.dialect.name == "postgresql":
+            session.execute(text("ALTER TABLE inventory_dispatches ADD COLUMN received_at TIMESTAMPTZ"))
+        else:
+            session.execute(text("ALTER TABLE inventory_dispatches ADD COLUMN received_at DATETIME"))
+        session.commit()
+
+    if "reception_comment" not in dispatch_columns:
+        session.execute(text("ALTER TABLE inventory_dispatches ADD COLUMN reception_comment TEXT"))
+        session.commit()
+
+    session.execute(text("CREATE INDEX IF NOT EXISTS idx_inventory_dispatches_received_by ON inventory_dispatches(received_by_crm_user_id)"))
+    session.commit()
+
+
+def _ensure_ticket_attachment_columns(session: Session, inspector=None) -> None:
+    bind = session.get_bind()
+    active_inspector = inspector or inspect(bind)
+    table_names = set(active_inspector.get_table_names())
+    if "ticket_attachments" not in table_names:
+        return
+
+    attachment_columns = {column["name"] for column in active_inspector.get_columns("ticket_attachments")}
+    if "ticket_comment_id" not in attachment_columns:
+        if bind.dialect.name == "postgresql" and "ticket_comments" in table_names:
+            session.execute(
+                text(
+                    "ALTER TABLE ticket_attachments "
+                    "ADD COLUMN ticket_comment_id UUID REFERENCES ticket_comments(ticket_comment_id) ON DELETE SET NULL"
+                )
+            )
+        else:
+            session.execute(text("ALTER TABLE ticket_attachments ADD COLUMN ticket_comment_id VARCHAR(36)"))
+        session.commit()
+
+    session.execute(text("CREATE INDEX IF NOT EXISTS idx_ticket_attachments_comment ON ticket_attachments(ticket_comment_id)"))
+    session.commit()
+
+
+def _ensure_ticket_columns(session: Session, inspector=None) -> None:
+    bind = session.get_bind()
+    active_inspector = inspector or inspect(bind)
+    table_names = set(active_inspector.get_table_names())
+    if "tickets" not in table_names:
+        return
+
+    ticket_columns = {column["name"] for column in active_inspector.get_columns("tickets")}
+    original_ticket_columns = set(ticket_columns)
+    column_statements = [
+        ("title", "ALTER TABLE tickets ADD COLUMN title VARCHAR(255) NOT NULL DEFAULT ''"),
+        ("description", "ALTER TABLE tickets ADD COLUMN description TEXT NOT NULL DEFAULT ''"),
+        ("status", "ALTER TABLE tickets ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'OPEN'"),
+        ("client_id", "ALTER TABLE tickets ADD COLUMN client_id UUID REFERENCES clients(client_id)"),
+        ("location_id", "ALTER TABLE tickets ADD COLUMN location_id UUID REFERENCES locations(location_id)"),
+        ("created_at", "ALTER TABLE tickets ADD COLUMN created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"),
+        ("ticket_number", "ALTER TABLE tickets ADD COLUMN ticket_number VARCHAR(30)"),
+        ("priority", "ALTER TABLE tickets ADD COLUMN priority VARCHAR(30) NOT NULL DEFAULT 'MEDIUM'"),
+        ("assigned_role_id", "ALTER TABLE tickets ADD COLUMN assigned_role_id UUID REFERENCES crm_roles(crm_role_id)"),
+        ("assigned_user_id", "ALTER TABLE tickets ADD COLUMN assigned_user_id UUID REFERENCES crm_users(crm_user_id)"),
+        (
+            "created_by_crm_user_id",
+            "ALTER TABLE tickets ADD COLUMN created_by_crm_user_id UUID REFERENCES crm_users(crm_user_id)",
+        ),
+        (
+            "resolved_by_crm_user_id",
+            "ALTER TABLE tickets ADD COLUMN resolved_by_crm_user_id UUID REFERENCES crm_users(crm_user_id)",
+        ),
+        ("resolved_at", "ALTER TABLE tickets ADD COLUMN resolved_at TIMESTAMPTZ"),
+        (
+            "closed_by_crm_user_id",
+            "ALTER TABLE tickets ADD COLUMN closed_by_crm_user_id UUID REFERENCES crm_users(crm_user_id)",
+        ),
+        ("closed_at", "ALTER TABLE tickets ADD COLUMN closed_at TIMESTAMPTZ"),
+        ("updated_at", "ALTER TABLE tickets ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"),
+        ("deleted_at", "ALTER TABLE tickets ADD COLUMN deleted_at TIMESTAMPTZ"),
+    ]
+
+    schema_changed = False
+    for column_name, ddl in column_statements:
+        if column_name in ticket_columns:
+            continue
+        session.execute(text(ddl))
+        ticket_columns.add(column_name)
+        schema_changed = True
+
+    if schema_changed:
+        session.commit()
+
+    # Migrate legacy title/description columns if this DB comes from an older ticket schema.
+    if "ticket_title" in original_ticket_columns and "title" in ticket_columns:
+        session.execute(
+            text(
+                "UPDATE tickets "
+                "SET title = COALESCE(NULLIF(ticket_title, ''), title) "
+                "WHERE title IS NULL OR title = ''"
+            )
+        )
+
+    if "ticket_description" in original_ticket_columns and "description" in ticket_columns:
+        session.execute(
+            text(
+                "UPDATE tickets "
+                "SET description = COALESCE(NULLIF(ticket_description, ''), description) "
+                "WHERE description IS NULL OR description = ''"
+            )
+        )
+
+    # Map legacy status catalog (status_id -> status_key) into the new enum-like status column.
+    status_mapping = {
+        "OPEN": "OPEN",
+        "IN_PROGRESS": "IN_PROGRESS",
+        "AWAITING_APPROVAL": "ON_HOLD",
+        "RESOLVED": "RESOLVED",
+        "CLOSED": "CLOSED",
+        "CANCELLED": "CLOSED",
+    }
+    if "status_id" in original_ticket_columns and "ticket_statuses" in table_names and "status" in ticket_columns:
+        legacy_status_rows = session.execute(
+            text(
+                "SELECT t.ticket_id, ts.status_key "
+                "FROM tickets t "
+                "LEFT JOIN ticket_statuses ts ON ts.status_id = t.status_id "
+                "WHERE t.status IS NULL OR t.status = ''"
+            )
+        ).fetchall()
+        for ticket_id, legacy_status_key in legacy_status_rows:
+            mapped_status = status_mapping.get((legacy_status_key or "").upper(), "OPEN")
+            session.execute(
+                text("UPDATE tickets SET status = :status WHERE ticket_id = :ticket_id"),
+                {"status": mapped_status, "ticket_id": ticket_id},
+            )
+
+    # Map legacy priority catalog (priority_id -> priority_key) into the new enum-like priority column.
+    priority_mapping = {
+        "BAJA": "LOW",
+        "MEDIA": "MEDIUM",
+        "ALTA": "HIGH",
+        "CRITICA": "CRITICAL",
+    }
+    if "priority_id" in original_ticket_columns and "ticket_priorities" in table_names and "priority" in ticket_columns:
+        legacy_priority_rows = session.execute(
+            text(
+                "SELECT t.ticket_id, tp.priority_key "
+                "FROM tickets t "
+                "LEFT JOIN ticket_priorities tp ON tp.priority_id = t.priority_id "
+                "WHERE t.priority IS NULL OR t.priority = '' OR t.priority = 'MEDIUM'"
+            )
+        ).fetchall()
+        for ticket_id, legacy_priority_key in legacy_priority_rows:
+            mapped_priority = priority_mapping.get((legacy_priority_key or "").upper())
+            if not mapped_priority:
+                continue
+            session.execute(
+                text("UPDATE tickets SET priority = :priority WHERE ticket_id = :ticket_id"),
+                {"priority": mapped_priority, "ticket_id": ticket_id},
+            )
+
+    # Backfill ticket_number in legacy rows when the column is newly introduced.
+    # Use a portable query/update flow so this works on SQLite tests and PostgreSQL.
+    missing_rows = session.execute(
+        text(
+            "SELECT ticket_id "
+            "FROM tickets "
+            "WHERE ticket_number IS NULL OR ticket_number = '' "
+            "ORDER BY created_at, ticket_id"
+        )
+    ).fetchall()
+    for sequence, row in enumerate(missing_rows, start=1):
+        session.execute(
+            text("UPDATE tickets SET ticket_number = :ticket_number WHERE ticket_id = :ticket_id"),
+            {
+                "ticket_number": f"TCK-{sequence:06d}",
+                "ticket_id": row[0],
+            },
+        )
+
+    session.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_tickets_ticket_number ON tickets(ticket_number)"))
+    session.execute(text("CREATE INDEX IF NOT EXISTS idx_tickets_assigned_role ON tickets(assigned_role_id)"))
+    session.execute(text("CREATE INDEX IF NOT EXISTS idx_tickets_assigned_user ON tickets(assigned_user_id)"))
+    session.execute(text("CREATE INDEX IF NOT EXISTS idx_tickets_updated_at ON tickets(updated_at)"))
+
+    if "ticket_comments" in table_names:
+        comment_columns = {column["name"] for column in active_inspector.get_columns("ticket_comments")}
+        if "location_id" not in comment_columns:
+            session.execute(text("ALTER TABLE ticket_comments ADD COLUMN location_id UUID REFERENCES locations(location_id)"))
     session.commit()

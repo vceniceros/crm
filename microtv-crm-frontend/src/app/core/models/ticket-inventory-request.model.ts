@@ -6,7 +6,13 @@ export interface TicketInventoryRequestItem {
   requiresTracking?: boolean;
 }
 
-export type TicketInventoryRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+export type TicketInventoryRequestStatus =
+  | 'pending_deposit_review'
+  | 'approved_for_dispatch'
+  | 'pending_receipt'
+  | 'dispatched'
+  | 'rejected'
+  | 'cancelled';
 
 export interface TicketInventoryRequest {
   id: string;

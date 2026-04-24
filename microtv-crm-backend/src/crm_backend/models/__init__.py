@@ -34,8 +34,23 @@ from crm_backend.models.task_execution import (
 	TaskStatus,
 	TransitionAction,
 )
+from crm_backend.models.ticket import (
+	Ticket,
+	TicketAssignmentHistory,
+	TicketAttachment,
+	TicketAttachmentType,
+	TicketAuditEvent,
+	TicketComment,
+	TicketCommentType,
+	TicketPriority,
+	TicketStatus,
+	TicketStatusTransition,
+	TicketTransitionAction,
+)
 from crm_backend.models.task_template import NextAssignmentPolicy, TaskTemplate, TaskTemplateItem, TaskTemplateSubtask, TemplateItemType
 from crm_backend.models.warehouse import Warehouse
+from crm_backend.models.notification import Notification, NotificationEntityType, NotificationType
+from crm_backend.models.settings import CrmCategory, CrmPriority, CrmStatus, NotificationRule, SlaRule
 
 __all__ = [
 	"CrmRole",
@@ -76,5 +91,24 @@ __all__ = [
 	"TemplateItemType",
 	"NextAssignmentPolicy",
 	"TransitionAction",
+	"Ticket",
+	"TicketAssignmentHistory",
+	"TicketAttachment",
+	"TicketAttachmentType",
+	"TicketAuditEvent",
+	"TicketComment",
+	"TicketCommentType",
+	"TicketPriority",
+	"TicketStatus",
+	"TicketStatusTransition",
+	"TicketTransitionAction",
 	"Warehouse",
+	"Notification",
+	"NotificationEntityType",
+	"NotificationType",
+	"CrmCategory",
+	"CrmPriority",
+	"CrmStatus",
+	"SlaRule",
+	"NotificationRule",
 ]

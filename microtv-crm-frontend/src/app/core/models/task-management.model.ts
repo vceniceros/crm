@@ -6,7 +6,7 @@ import { TaskAttachment } from './task-attachment.model';
 export type TaskAssignmentPolicy = 'role_queue_auto' | 'default_user_auto' | 'manual_required';
 export type TaskItemType = 'checkbox' | 'text';
 export type TaskAction = 'close_subtask' | 'reject_subtask' | 'put_on_hold';
-export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'BLOCKED' | 'COMPLETED';
+export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'BLOCKED' | 'PENDING_APPROVAL' | 'COMPLETED';
 export type SubtaskStatus = 'locked' | 'pending_assignment' | 'assigned' | 'in_progress' | 'completed' | 'rejected' | 'on_hold';
 export type TaskCommentType = 'general' | 'transition' | 'progress';
 
@@ -98,6 +98,19 @@ export interface ExecuteSubtaskActionRequest {
   comment: string;
   next_assigned_crm_user_id?: string | null;
   attachment_ids?: string[];
+}
+
+export interface AssignSubtaskRequest {
+  assigned_crm_user_id: string;
+  notes?: string | null;
+}
+
+export interface ApproveTaskRequest {
+  comment?: string | null;
+}
+
+export interface RejectTaskApprovalRequest {
+  comment: string;
 }
 
 export interface TaskTemplateItem {
@@ -293,6 +306,8 @@ export function formatTaskStatus(status: string): string {
       return 'En progreso';
     case 'BLOCKED':
       return 'Bloqueada';
+    case 'PENDING_APPROVAL':
+      return 'Pendiente aprobación ejecutiva';
     case 'COMPLETED':
       return 'Completada';
     case 'locked':
@@ -335,6 +350,8 @@ export function formatAssignmentPolicy(policy: TaskAssignmentPolicy): string {
 
 export function toTaskTone(status: string): TicketStatusTone {
   switch (status) {
+    case 'PENDING_APPROVAL':
+      return 'warning';
     case 'COMPLETED':
     case 'completed':
       return 'success';

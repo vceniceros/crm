@@ -20,12 +20,14 @@
 .app-shell__content {
   min-height: 100dvh;
   min-width: 0;
+  overflow-x: clip;
 }
 
 .app-shell__main {
   width: 100%;
   min-width: 0;
   padding: 1.5rem;
+  overflow-x: clip;
 }
 
 @media (max-width: 959px) {

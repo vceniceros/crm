@@ -4,6 +4,38 @@
   min-width: 0;
 }
 
+.task-execution-page__mobile-collapse {
+  display: grid;
+  gap: 1rem;
+}
+
+.task-execution-page__mobile-collapse-summary {
+  display: none;
+}
+
+.task-execution-page__mobile-collapse--interactive {
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  border-radius: 1rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.task-execution-page__mobile-collapse--interactive .task-execution-page__mobile-collapse-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  list-style: none;
+  cursor: pointer;
+  padding: 0.65rem 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.task-execution-page__mobile-collapse--interactive .task-execution-page__mobile-collapse-summary::-webkit-details-marker {
+  display: none;
+}
+
 .task-execution-page__topbar,
 .task-execution-page__header,
 .task-execution-page__assignee,
@@ -47,6 +79,34 @@
 
 .task-execution-page__assignee {
   gap: 0.8rem;
+}
+
+.task-execution-page__assignee--action {
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.task-execution-page__assignee--action:hover {
+  background: rgba(23, 24, 26, 0.04);
+}
+
+.task-execution-page__assignee-caret {
+  color: var(--text-secondary);
+}
+
+.task-execution-page__assignee-menu {
+  display: grid;
+  gap: 0.75rem;
+  width: min(24rem, 82vw);
+  padding: 0.35rem 0.25rem 0.2rem;
+}
+
+.task-execution-page__assignee-menu-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .task-execution-page__meta-label,
@@ -270,6 +330,12 @@
   font-weight: 700;
 }
 
+.task-execution-page__task-close-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: 0.2rem;
+}
+
 .task-execution-page__history {
   margin-top: 1.5rem;
   padding-top: 1rem;
@@ -326,6 +392,14 @@
   .task-execution-page__topbar button,
   .task-execution-page__back-link {
     justify-content: center;
+    width: 100%;
+  }
+
+  .task-execution-page__task-close-actions {
+    justify-content: stretch;
+  }
+
+  .task-execution-page__task-close-actions button {
     width: 100%;
   }
 }

@@ -18,8 +18,11 @@ const moduleRules: MockModuleAccessRule[] = [
   { moduleKey: 'clients', allowedRoles: ['admin', 'ejecutivo', 'deposito', 'tecnico'] },
   { moduleKey: 'billing', allowedRoles: ['admin', 'ejecutivo'] },
   { moduleKey: 'reports', allowedRoles: ['admin', 'ejecutivo'] },
-  { moduleKey: 'settings', allowedRoles: ['admin', 'ejecutivo'] }
+  { moduleKey: 'settings', allowedRoles: ['admin', 'ejecutivo', 'deposito', 'tecnico'] }
 ];
+
+const adminOnlyNavigationItemIds = new Set(['task-templates']);
+const adminOrExecutiveNavigationItemIds = new Set(['tasks-history']);
 
 @Injectable({ providedIn: 'root' })
 export class MockAccessControlService {
@@ -110,7 +113,12 @@ export class MockAccessControlService {
     return sections
       .map((section) => ({
         ...section,
-        items: section.items.filter((item) => this.canRoleViewModule(role, item.moduleKey ?? item.id as MockModuleKey))
+        items: section.items.filter(
+          (item) =>
+            this.canRoleViewModule(role, item.moduleKey ?? item.id as MockModuleKey)
+            && (!adminOnlyNavigationItemIds.has(item.id) || role === 'admin')
+            && (!adminOrExecutiveNavigationItemIds.has(item.id) || role === 'admin' || role === 'ejecutivo')
+        )
       }))
       .filter((section) => section.items.length > 0);
   }

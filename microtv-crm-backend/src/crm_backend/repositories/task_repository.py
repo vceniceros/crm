@@ -1,6 +1,6 @@
 """Repository for task execution aggregates."""
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from crm_backend.models import (
@@ -18,6 +18,7 @@ from crm_backend.models import (
     TaskAuditEvent,
     TaskComment,
     TaskRequiredMaterial,
+    TaskStatus,
 )
 
 
@@ -76,14 +77,7 @@ class TaskRepository:
         statement = (
             select(Task)
             .options(*self._summary_options())
-            .where(
-                or_(
-                    Task.current_assigned_crm_user_id == crm_user_id,
-                    Task.task_id.in_(
-                        select(Subtask.task_id).where(Subtask.current_assigned_crm_user_id == crm_user_id)
-                    ),
-                )
-            )
+            .where(Task.current_assigned_crm_user_id == crm_user_id)
             .order_by(Task.updated_at.desc())
         )
         return list(self._session.scalars(statement).all())
@@ -93,13 +87,31 @@ class TaskRepository:
             select(Task)
             .options(*self._summary_options())
             .join(Subtask, Subtask.task_id == Task.task_id)
-            .where(Subtask.responsible_role_key.in_(role_keys))
+            .where(Subtask.responsible_role_key.in_(role_keys), Task.status != TaskStatus.COMPLETED.value)
             .order_by(Task.updated_at.desc())
         )
         return list(self._session.scalars(statement).unique().all())
 
+    def list_tracking_tasks_for_all_roles(self) -> list[Task]:
+        statement = (
+            select(Task)
+            .options(*self._summary_options())
+            .where(Task.status != TaskStatus.COMPLETED.value)
+            .order_by(Task.updated_at.desc())
+        )
+        return list(self._session.scalars(statement).all())
+
     def list_all_tasks(self) -> list[Task]:
         statement = select(Task).options(*self._summary_options()).order_by(Task.updated_at.desc())
+        return list(self._session.scalars(statement).all())
+
+    def list_completed_tasks(self) -> list[Task]:
+        statement = (
+            select(Task)
+            .options(*self._summary_options())
+            .where(Task.status == TaskStatus.COMPLETED.value)
+            .order_by(Task.updated_at.desc())
+        )
         return list(self._session.scalars(statement).all())
 
     def list_unassigned_subtasks_for_roles(self, role_keys: list[str]) -> list[Subtask]:

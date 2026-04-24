@@ -1,4 +1,4 @@
-<mat-card class="tasks-table">
+<mat-card class="tasks-table" [class.tasks-table--force-table]="viewMode() === 'table'" [class.tasks-table--force-cards]="viewMode() === 'cards'">
   <mat-card-header>
     <mat-card-title>{{ block().title }}</mat-card-title>
   </mat-card-header>
@@ -15,10 +15,24 @@
           <th mat-header-cell *matHeaderCellDef>{{ labelFor('title') }}</th>
           <td mat-cell *matCellDef="let task">
             <div class="tasks-table__title">{{ task.title }}</div>
-            <a mat-button class="tasks-table__open-link" [routerLink]="['/tasks', task.id]">
-              <span>Ver ejecución</span>
-              <mat-icon>arrow_forward</mat-icon>
-            </a>
+            <div class="tasks-table__row-actions">
+              @if (task.rowActionLabel && task.rowActionId) {
+                <button
+                  mat-button
+                  class="tasks-table__open-link"
+                  type="button"
+                  [disabled]="task.rowActionDisabled"
+                  (click)="triggerRowAction(task.rowActionId)"
+                >
+                  <span>{{ task.rowActionLabel }}</span>
+                  <mat-icon>arrow_forward</mat-icon>
+                </button>
+              }
+              <a mat-button class="tasks-table__open-link" [routerLink]="openTaskRoute(task.routeTaskId || task.id)">
+                <span>Ver ejecución</span>
+                <mat-icon>arrow_forward</mat-icon>
+              </a>
+            </div>
           </td>
         </ng-container>
 
@@ -99,7 +113,19 @@
             </div>
           </div>
 
-          <a mat-stroked-button class="tasks-table__mobile-action" [routerLink]="['/tasks', task.id]">
+          @if (task.rowActionLabel && task.rowActionId) {
+            <button
+              mat-stroked-button
+              class="tasks-table__mobile-action"
+              type="button"
+              [disabled]="task.rowActionDisabled"
+              (click)="triggerRowAction(task.rowActionId)"
+            >
+              <span>{{ task.rowActionLabel }}</span>
+              <mat-icon>arrow_forward</mat-icon>
+            </button>
+          }
+          <a mat-stroked-button class="tasks-table__mobile-action" [routerLink]="openTaskRoute(task.routeTaskId || task.id)">
             <span>Ver ejecución</span>
             <mat-icon>arrow_forward</mat-icon>
           </a>

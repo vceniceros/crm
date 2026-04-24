@@ -6,10 +6,13 @@ from fastapi import APIRouter, Depends, File, Form, Response, UploadFile, status
 
 from crm_backend.api.dependencies import get_authenticated_crm_session, get_task_application_service
 from crm_backend.schemas import (
+    ApproveTaskRequest,
+    AssignSubtaskRequest,
     CreateTaskFromTemplateRequest,
     CreateTaskTemplateRequest,
     ErrorResponse,
     ExecuteSubtaskActionRequest,
+    RejectTaskApprovalRequest,
     SetTaskTemplateActivationRequest,
     TaskAttachmentResponse,
     TaskDetailResponse,
@@ -178,6 +181,18 @@ def list_tracking_tasks_for_me(
 
 
 @router.get(
+    "/history/me",
+    response_model=list[TaskSummaryResponse],
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
+)
+def list_task_history_for_me(
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    task_service: TaskApplicationService = Depends(get_task_application_service),
+) -> list[TaskSummaryResponse]:
+    return [TaskSummaryResponse.model_validate(item) for item in task_service.list_task_history_for_actor(actor)]
+
+
+@router.get(
     "/unassigned/me",
     response_model=list[UnassignedSubtaskQueueResponse],
     responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
@@ -200,6 +215,50 @@ def claim_subtask(
     task_service: TaskApplicationService = Depends(get_task_application_service),
 ) -> TaskDetailResponse:
     return TaskDetailResponse.model_validate(task_service.claim_unassigned_subtask(actor, subtask_id))
+
+
+@router.patch(
+    "/subtasks/{subtask_id}/assignment",
+    response_model=TaskDetailResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+)
+def assign_subtask(
+    subtask_id: str,
+    payload: AssignSubtaskRequest,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    task_service: TaskApplicationService = Depends(get_task_application_service),
+) -> TaskDetailResponse:
+    return TaskDetailResponse.model_validate(
+        task_service.assign_subtask(actor, subtask_id, payload.assigned_crm_user_id, payload.notes)
+    )
+
+
+@router.patch(
+    "/{task_id}/approve",
+    response_model=TaskDetailResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
+)
+def approve_task(
+    task_id: str,
+    payload: ApproveTaskRequest,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    task_service: TaskApplicationService = Depends(get_task_application_service),
+) -> TaskDetailResponse:
+    return TaskDetailResponse.model_validate(task_service.approve_task(actor, task_id, payload))
+
+
+@router.patch(
+    "/{task_id}/reject",
+    response_model=TaskDetailResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+)
+def reject_task_approval(
+    task_id: str,
+    payload: RejectTaskApprovalRequest,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    task_service: TaskApplicationService = Depends(get_task_application_service),
+) -> TaskDetailResponse:
+    return TaskDetailResponse.model_validate(task_service.reject_task_approval(actor, task_id, payload))
 
 
 @router.get(

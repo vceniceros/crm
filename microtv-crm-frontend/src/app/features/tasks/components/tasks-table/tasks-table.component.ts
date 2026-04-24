@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
 
 import { TasksTableData } from '../../../../core/models/task.model';
+import { ListingViewMode } from '../../../../shared/services/listing-view-preference.service';
 import { StatusBadgeComponent } from '../../../../shared/ui/status-badge/status-badge.component';
 import { UserAvatarComponent } from '../../../../shared/ui/user-avatar/user-avatar.component';
 
@@ -18,6 +19,8 @@ import { UserAvatarComponent } from '../../../../shared/ui/user-avatar/user-avat
 })
 export class TasksTableComponent {
   readonly block = input.required<TasksTableData>();
+  readonly viewMode = input<ListingViewMode>('table');
+  readonly rowActionRequested = input<((rowActionId: string) => void) | null>(null);
 
   readonly displayedColumns: Array<'id' | 'title' | 'client' | 'subtasks' | 'status' | 'assignedTo'> = [
     'id',
@@ -38,5 +41,17 @@ export class TasksTableComponent {
     }
 
     return Math.round((completed / total) * 100);
+  }
+
+  openTaskRoute(taskId: string | undefined): any[] {
+    return ['/tasks', taskId ?? ''];
+  }
+
+  triggerRowAction(rowActionId: string | undefined): void {
+    if (!rowActionId || !this.rowActionRequested()) {
+      return;
+    }
+
+    this.rowActionRequested()?.(rowActionId);
   }
 }

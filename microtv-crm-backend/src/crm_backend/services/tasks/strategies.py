@@ -40,9 +40,10 @@ class SubtaskItemValueStrategy:
 
 class CheckboxItemValueStrategy(SubtaskItemValueStrategy):
     def apply(self, item: SubtaskItemValue, payload: dict[str, object], actor_crm_user_id: str) -> None:
-        if payload.get("checkbox_value") is None:
-            raise TaskValidationError(f"El item '{item.item_label}' requiere un valor checkbox.")
-        checkbox_value = bool(payload["checkbox_value"])
+        if "checkbox_value" not in payload:
+            return
+
+        checkbox_value = bool(payload.get("checkbox_value"))
         item.checkbox_value = checkbox_value
         item.completed_at = datetime.now(UTC) if checkbox_value else None
         item.last_updated_by_crm_user_id = actor_crm_user_id
@@ -53,9 +54,12 @@ class CheckboxItemValueStrategy(SubtaskItemValueStrategy):
 
 class TextItemValueStrategy(SubtaskItemValueStrategy):
     def apply(self, item: SubtaskItemValue, payload: dict[str, object], actor_crm_user_id: str) -> None:
-        if payload.get("text_value") is None:
-            raise TaskValidationError(f"El item '{item.item_label}' requiere un valor textual.")
-        text_value = str(payload["text_value"]).strip()
+        if "text_value" not in payload:
+            return
+
+        # Saving progress must allow empty text values; strict completion is validated on close action.
+        raw_value = payload.get("text_value")
+        text_value = str(raw_value).strip() if raw_value is not None else ""
         item.text_value = text_value or None
         item.completed_at = datetime.now(UTC) if text_value else None
         item.last_updated_by_crm_user_id = actor_crm_user_id

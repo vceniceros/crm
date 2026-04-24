@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -31,14 +32,18 @@ from crm_backend.models import (
 )
 from crm_backend.repositories import CrmUserRepository, TaskRepository, TaskTemplateRepository
 from crm_backend.schemas.tasks import (
+    ApproveTaskRequest,
     CreateTaskFromTemplateRequest,
     CreateTaskTemplateRequest,
     ExecuteSubtaskActionRequest,
+    RejectTaskApprovalRequest,
     SetTaskTemplateActivationRequest,
     UpdateTaskTemplateRequest,
     UpdateSubtaskProgressRequest,
 )
 from crm_backend.services.auth_service import ResolvedCrmSession
+from crm_backend.services.notification_service import NotificationService
+from crm_backend.models.notification import NotificationEntityType, NotificationType
 from crm_backend.services.tasks.action_execution import (
     ActionExecutionContext,
     AdvanceTaskFlowService,
@@ -51,6 +56,7 @@ from crm_backend.services.tasks.strategies import NextAssignmentStrategyRegistry
 from crm_backend.services.tasks.validators import (
     ActorPermissionValidator,
     NextAssignmentValidator,
+    PendingInventoryRequestsResolvedValidator,
     RequiredCommentValidator,
     RequiredItemsCompletedValidator,
     StateActionValidator,
@@ -115,6 +121,9 @@ class TaskBuilder:
         return task
 
 
+_logger = logging.getLogger(__name__)
+
+
 class TaskApplicationService:
     """Orchestrate the task template and execution flows."""
 
@@ -125,12 +134,14 @@ class TaskApplicationService:
         user_repository: CrmUserRepository,
         task_media_storage: TaskMediaStorageFacade,
         task_material_flow: TaskMaterialFlowFacade,
+        notification_service: NotificationService | None = None,
     ) -> None:
         self._template_repository = template_repository
         self._task_repository = task_repository
         self._user_repository = user_repository
         self._task_media_storage = task_media_storage
         self._task_material_flow = task_material_flow
+        self._notification_service = notification_service
         self._task_builder = TaskBuilder()
         self._item_strategy_registry = SubtaskItemValueStrategyRegistry()
         self._assignment_strategy_registry = NextAssignmentStrategyRegistry()
@@ -243,12 +254,16 @@ class TaskApplicationService:
     def list_tracking_tasks_for_actor(self, actor: ResolvedCrmSession) -> list[Task]:
         self._ensure_read_access(actor)
         if {"admin", "ejecutivo"}.intersection(actor.role_keys):
-            return self._task_repository.list_all_tasks()
+            return self._task_repository.list_tracking_tasks_for_all_roles()
 
         visible_roles = [role for role in actor.role_keys if role in {"deposito", "tecnico"}]
         if not visible_roles:
             return []
         return self._task_repository.list_tracking_tasks_for_roles(visible_roles)
+
+    def list_task_history_for_actor(self, actor: ResolvedCrmSession) -> list[Task]:
+        self._ensure_admin_or_executive(actor)
+        return self._task_repository.list_completed_tasks()
 
     def list_unassigned_subtasks_for_actor(self, actor: ResolvedCrmSession) -> list[Subtask]:
         self._ensure_read_access(actor)
@@ -265,10 +280,9 @@ class TaskApplicationService:
         if "admin" in actor.role_keys or "ejecutivo" in actor.role_keys:
             return task
         actor_id = actor.crm_user.crm_user_id
-        if any(
-            subtask.assigned_crm_user_id == actor_id or subtask.responsible_role_key in actor.role_keys
-            for subtask in task.subtasks
-        ):
+        if task.current_assigned_crm_user_id == actor_id:
+            return task
+        if any(subtask.responsible_role_key in actor.role_keys for subtask in task.subtasks):
             return task
         raise TaskAccessDeniedError("El usuario no puede consultar esta tarea.")
 
@@ -312,6 +326,230 @@ class TaskApplicationService:
         )
         return self._task_repository.save(subtask.task)
 
+    def assign_subtask(
+        self,
+        actor: ResolvedCrmSession,
+        subtask_id: str,
+        assigned_crm_user_id: str,
+        notes: str | None,
+    ) -> Task:
+        subtask = self._task_repository.get_subtask_detail(subtask_id)
+        if subtask is None:
+            raise SubtaskNotFoundError()
+        self._ensure_assignment_access(actor, subtask)
+
+        if subtask.status not in {
+            SubtaskStatus.PENDING_ASSIGNMENT.value,
+            SubtaskStatus.ASSIGNED.value,
+            SubtaskStatus.IN_PROGRESS.value,
+        }:
+            raise TaskConflictError("Solo se pueden asignar o reasignar subtareas activas.")
+
+        target_user = self._user_repository.get_by_id(assigned_crm_user_id)
+        if target_user is None:
+            raise TaskValidationError("El usuario indicado no existe.")
+
+        valid_role_keys = {
+            subtask.responsible_role_key,
+            {"admin": "admin_crm", "deposito": "encargado_deposito", "tecnico": "tecnico_campo"}.get(
+                subtask.responsible_role_key,
+                subtask.responsible_role_key,
+            ),
+        }
+        if not any(
+            assignment.role is not None and assignment.role.role_key in valid_role_keys
+            for assignment in target_user.assigned_roles
+        ):
+            raise TaskValidationError("El usuario indicado no tiene el rol requerido para esta subtarea.")
+
+        previous_assigned_crm_user_id = subtask.assigned_crm_user_id
+        if previous_assigned_crm_user_id == assigned_crm_user_id:
+            raise TaskValidationError("La subtarea ya está asignada al usuario seleccionado.")
+
+        previous_status = subtask.status
+        subtask.assigned_crm_user_id = assigned_crm_user_id
+        if subtask.status == SubtaskStatus.PENDING_ASSIGNMENT.value:
+            subtask.status = SubtaskStatus.ASSIGNED.value
+
+        subtask.assignments.append(
+            SubtaskAssignment(
+                assigned_crm_user_id=assigned_crm_user_id,
+                assigned_by_crm_user_id=actor.crm_user.crm_user_id,
+                notes=(notes or "Asignación manual de subtarea.").strip() or None,
+            )
+        )
+
+        if previous_status != subtask.status:
+            subtask.transitions.append(
+                SubtaskTransition(
+                    task_id=subtask.task_id,
+                    from_status=previous_status,
+                    to_status=subtask.status,
+                    action=TransitionAction.ASSIGN_SUBTASK.value,
+                    performed_by_crm_user_id=actor.crm_user.crm_user_id,
+                )
+            )
+
+        if subtask.task.current_subtask_id == subtask.subtask_id:
+            subtask.task.current_assigned_crm_user_id = assigned_crm_user_id
+
+        subtask.task.audit_events.append(
+            TaskAuditEvent(
+                subtask_id=subtask.subtask_id,
+                event_type="subtask.assigned_manually",
+                actor_crm_user_id=actor.crm_user.crm_user_id,
+                payload_json={
+                    "subtask_id": subtask.subtask_id,
+                    "previous_assigned_crm_user_id": previous_assigned_crm_user_id,
+                    "assigned_crm_user_id": assigned_crm_user_id,
+                    "previous_status": previous_status,
+                    "current_status": subtask.status,
+                },
+            )
+        )
+
+        saved_task = self._task_repository.save(subtask.task)
+        try:
+            if self._notification_service is not None:
+                is_reassignment = previous_assigned_crm_user_id is not None
+                notif_type = NotificationType.TASK_SUBTASK_REASSIGNED if is_reassignment else NotificationType.TASK_SUBTASK_ASSIGNED
+                self._notification_service.notify(
+                    recipient_crm_user_id=assigned_crm_user_id,
+                    notification_type=notif_type,
+                    title="Subtarea asignada a vos",
+                    body=f"La subtarea '{subtask.title}' de la tarea '{subtask.task.title}' está asignada a vos.",
+                    entity_type=NotificationEntityType.TASK,
+                    entity_id=subtask.task_id,
+                )
+        except Exception:
+            _logger.exception("Error sending assign_subtask notification")
+        return saved_task
+
+    def approve_task(self, actor: ResolvedCrmSession, task_id: str, payload: ApproveTaskRequest) -> Task:
+        self._ensure_admin_or_executive(actor)
+        task = self._task_repository.get_task_detail(task_id)
+        if task is None:
+            raise TaskNotFoundError()
+        if not self._is_task_pending_executive_approval(task):
+            raise TaskConflictError("La tarea no está pendiente de aprobación ejecutiva.")
+
+        previous_assigned_crm_user_id = task.current_assigned_crm_user_id
+        previous_subtask_id = task.current_subtask_id
+        task.status = TaskStatus.COMPLETED.value
+        task.current_assigned_crm_user_id = None
+        task.is_finalized = True
+        task.finalized_at = datetime.now(UTC)
+        task.finalized_by_crm_user_id = actor.crm_user.crm_user_id
+        task.audit_events.append(
+            TaskAuditEvent(
+                event_type="task.approved_by_executive",
+                actor_crm_user_id=actor.crm_user.crm_user_id,
+                payload_json={
+                    "task_id": task.task_id,
+                    "previous_assigned_crm_user_id": previous_assigned_crm_user_id,
+                    "previous_subtask_id": previous_subtask_id,
+                },
+            )
+        )
+        comment = (payload.comment or "").strip()
+        if comment:
+            task.comments.append(
+                TaskComment(
+                    task_id=task.task_id,
+                    subtask_id=None,
+                    author_crm_user_id=actor.crm_user.crm_user_id,
+                    comment_type=TaskCommentType.GENERAL.value,
+                    body=comment,
+                )
+            )
+        saved_task = self._task_repository.save(task)
+        try:
+            if self._notification_service is not None and previous_assigned_crm_user_id is not None:
+                self._notification_service.notify(
+                    recipient_crm_user_id=previous_assigned_crm_user_id,
+                    notification_type=NotificationType.TASK_APPROVED,
+                    title=f"Tarea '{saved_task.title}' aprobada",
+                    body=f"La tarea '{saved_task.title}' fue aprobada y marcada como completada por un ejecutivo.",
+                    entity_type=NotificationEntityType.TASK,
+                    entity_id=saved_task.task_id,
+                )
+        except Exception:
+            _logger.exception("Error sending approve_task notification for task %s", saved_task.task_id)
+        return saved_task
+
+    def reject_task_approval(self, actor: ResolvedCrmSession, task_id: str, payload: RejectTaskApprovalRequest) -> Task:
+        self._ensure_admin_or_executive(actor)
+        task = self._task_repository.get_task_detail(task_id)
+        if task is None:
+            raise TaskNotFoundError()
+        if not self._is_task_pending_executive_approval(task):
+            raise TaskConflictError("La tarea no está pendiente de aprobación ejecutiva.")
+
+        comment = payload.comment.strip()
+        if not comment:
+            raise TaskValidationError("El rechazo del cierre requiere un comentario obligatorio.")
+
+        current_subtask = next((subtask for subtask in task.subtasks if subtask.subtask_id == task.current_subtask_id), None)
+        if current_subtask is None or current_subtask.assigned_crm_user_id is None:
+            current_subtask = next(
+                (
+                    subtask
+                    for subtask in sorted(task.subtasks, key=lambda item: item.order_index, reverse=True)
+                    if subtask.assigned_crm_user_id is not None
+                ),
+                None,
+            )
+        if current_subtask is None or current_subtask.assigned_crm_user_id is None:
+            raise TaskConflictError("No se pudo determinar la subtarea operativa a devolver tras el rechazo.")
+
+        previous_assigned_crm_user_id = task.current_assigned_crm_user_id
+        task.status = TaskStatus.IN_PROGRESS.value
+        task.current_assigned_crm_user_id = current_subtask.assigned_crm_user_id
+        task.is_finalized = False
+        task.finalized_at = None
+        task.finalized_by_crm_user_id = None
+        current_subtask.status_before_transition = current_subtask.status
+        current_subtask.status = SubtaskStatus.IN_PROGRESS.value
+        current_subtask.is_completed = False
+        current_subtask.completed_at = None
+        current_subtask.closed_by_crm_user_id = None
+        current_subtask.completion_notes = None
+        task.audit_events.append(
+            TaskAuditEvent(
+                event_type="task.rejected_by_executive",
+                actor_crm_user_id=actor.crm_user.crm_user_id,
+                payload_json={
+                    "task_id": task.task_id,
+                    "previous_assigned_crm_user_id": previous_assigned_crm_user_id,
+                    "returned_to_crm_user_id": current_subtask.assigned_crm_user_id,
+                    "subtask_id": current_subtask.subtask_id,
+                },
+            )
+        )
+        task.comments.append(
+            TaskComment(
+                task_id=task.task_id,
+                subtask_id=current_subtask.subtask_id,
+                author_crm_user_id=actor.crm_user.crm_user_id,
+                comment_type=TaskCommentType.TRANSITION.value,
+                body=comment,
+            )
+        )
+        saved_task = self._task_repository.save(task)
+        try:
+            if self._notification_service is not None:
+                self._notification_service.notify(
+                    recipient_crm_user_id=current_subtask.assigned_crm_user_id,
+                    notification_type=NotificationType.TASK_REJECTED,
+                    title=f"Tarea '{saved_task.title}' rechazada por ejecutivo",
+                    body="El cierre final de la tarea fue rechazado. Revisá el comentario del ejecutivo y retomá la subtarea.",
+                    entity_type=NotificationEntityType.TASK,
+                    entity_id=saved_task.task_id,
+                )
+        except Exception:
+            _logger.exception("Error sending reject_task_approval notification for task %s", saved_task.task_id)
+        return saved_task
+
     def update_subtask_progress(
         self,
         actor: ResolvedCrmSession,
@@ -332,7 +570,7 @@ class TaskApplicationService:
             if item is None:
                 raise TaskValidationError("El item indicado no pertenece a la subtarea.")
             strategy = self._item_strategy_registry.get(item.item_type)
-            strategy.apply(item, item_payload.model_dump(), actor.crm_user.crm_user_id)
+            strategy.apply(item, item_payload.model_dump(exclude_unset=True), actor.crm_user.crm_user_id)
             any_updated = True
 
         if any_updated and subtask.status == SubtaskStatus.ASSIGNED.value:
@@ -355,7 +593,10 @@ class TaskApplicationService:
                 subtask_id=subtask.subtask_id,
                 event_type="subtask.progress_saved",
                 actor_crm_user_id=actor.crm_user.crm_user_id,
-                payload_json={"updated_items": [item.item_id for item in payload.items]},
+                payload_json={
+                    "updated_items": [item.item_id for item in payload.items],
+                    "updated_item_payloads": [item.model_dump(exclude_unset=True) for item in payload.items],
+                },
             )
         )
         return self._task_repository.save(task)
@@ -483,6 +724,8 @@ class TaskApplicationService:
         actor_validator.set_next(StateActionValidator()).set_next(RequiredCommentValidator()).set_next(
             RequiredItemsCompletedValidator(self._item_strategy_registry)
         ).set_next(
+            PendingInventoryRequestsResolvedValidator()
+        ).set_next(
             NextAssignmentValidator(self._assignment_strategy_registry, self._user_repository)
         ).set_next(
             TransitionIntegrityValidator()
@@ -492,6 +735,38 @@ class TaskApplicationService:
     def _ensure_admin_or_executive(self, actor: ResolvedCrmSession) -> None:
         if not {"admin", "ejecutivo"}.intersection(actor.role_keys):
             raise TaskAccessDeniedError("La operación requiere rol administrador o ejecutivo.")
+
+    def _ensure_admin(self, actor: ResolvedCrmSession) -> None:
+        if "admin" not in actor.role_keys:
+            raise TaskAccessDeniedError("La operación requiere rol administrador.")
+
+    def _ensure_assignment_access(self, actor: ResolvedCrmSession, subtask: Subtask) -> None:
+        if {"admin", "ejecutivo"}.intersection(actor.role_keys):
+            return
+        if subtask.responsible_role_key in actor.role_keys:
+            return
+        raise TaskAccessDeniedError(
+            "Solo usuarios del mismo rol responsable, o perfiles ejecutivo/admin, pueden reasignar esta subtarea."
+        )
+
+    def _is_task_pending_executive_approval(self, task: Task) -> bool:
+        if task.status != TaskStatus.BLOCKED.value or task.is_finalized:
+            return False
+        if task.current_assigned_crm_user_id is None:
+            return False
+        if any(subtask.status != SubtaskStatus.COMPLETED.value for subtask in task.subtasks):
+            return False
+
+        approver = self._user_repository.get_by_id(task.current_assigned_crm_user_id)
+        if approver is None:
+            return False
+
+        approver_role_keys = {
+            assignment.role.role_key
+            for assignment in approver.assigned_roles
+            if assignment.role is not None
+        }
+        return bool({"ejecutivo", "admin_crm"}.intersection(approver_role_keys))
 
     def _ensure_read_access(self, actor: ResolvedCrmSession) -> None:
         if not {"admin", "ejecutivo", "deposito", "tecnico"}.intersection(actor.role_keys):

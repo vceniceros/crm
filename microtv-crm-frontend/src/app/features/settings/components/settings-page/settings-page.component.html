@@ -1,0 +1,269 @@
+<section class="settings-page">
+  <app-page-title
+    eyebrow="Configuración"
+    title="Configuración CRM"
+    subtitle="Administrá usuarios y roles, categorías, prioridades y estados, templates, SLA y notificaciones con persistencia real."
+  />
+
+  @if (errorMessage(); as errorMessage) {
+    <mat-card class="settings-page__message settings-page__message--error">
+      <mat-card-content>
+        <mat-icon>error</mat-icon>
+        <p>{{ errorMessage }}</p>
+        <button mat-stroked-button type="button" (click)="reload()">Reintentar</button>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  @if (loading()) {
+    <mat-card class="settings-page__message">
+      <mat-card-content>
+        <mat-spinner diameter="32"></mat-spinner>
+        <p>Cargando configuración...</p>
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    <mat-card class="settings-page__tabs-card">
+      <mat-tab-group>
+        <mat-tab label="Usuarios y roles">
+          <section class="settings-page__tab-content">
+            <div class="settings-page__section-header">
+              <h3>Roles funcionales</h3>
+            </div>
+
+            <table class="settings-page__table">
+              <thead>
+                <tr>
+                  <th>Rol</th>
+                  <th>Código</th>
+                  <th>Estado</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (role of roles(); track role.crm_role_id) {
+                  <tr>
+                    <td>{{ role.role_label }}</td>
+                    <td>{{ role.role_key }}</td>
+                    <td>{{ role.is_active ? 'Activo' : 'Inactivo' }}</td>
+                    <td class="settings-page__actions-cell">
+                      <button mat-button type="button" (click)="openRoleDialog(role)">Editar</button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+
+            <div class="settings-page__section-header settings-page__section-header--spaced">
+              <h3>Asignación de roles por usuario</h3>
+            </div>
+
+            <table class="settings-page__table">
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th>Email</th>
+                  <th>Roles</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of userRoles(); track item.crm_user_id) {
+                  <tr>
+                    <td>{{ item.display_name || 'Sin nombre' }}</td>
+                    <td>{{ item.email || 'Sin email' }}</td>
+                    <td>{{ prettyRoles(item.role_keys) }}</td>
+                    <td class="settings-page__actions-cell">
+                      <button mat-button type="button" (click)="openUserRolesDialog(item)">Editar</button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        </mat-tab>
+
+        <mat-tab label="Categorías">
+          <section class="settings-page__tab-content">
+            <div class="settings-page__section-header">
+              <h3>Categorías</h3>
+              <button mat-flat-button color="primary" type="button" (click)="openCategoryDialog()">Nueva categoría</button>
+            </div>
+
+            <table class="settings-page__table">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Tipo</th>
+                  <th>Estado</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of categories(); track item.category_id) {
+                  <tr>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.category_type }}</td>
+                    <td>{{ item.is_active ? 'Activo' : 'Inactivo' }}</td>
+                    <td class="settings-page__actions-cell"><button mat-button type="button" (click)="openCategoryDialog(item)">Editar</button></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        </mat-tab>
+
+        <mat-tab label="Prioridades y estados">
+          <section class="settings-page__tab-content">
+            <div class="settings-page__split-header">
+              <div class="settings-page__section-header">
+                <h3>Prioridades</h3>
+                <button mat-flat-button color="primary" type="button" (click)="openPriorityDialog()">Nueva prioridad</button>
+              </div>
+
+              <div class="settings-page__section-header">
+                <h3>Estados</h3>
+                <button mat-flat-button color="primary" type="button" (click)="openStatusDialog()">Nuevo estado</button>
+              </div>
+            </div>
+
+            <div class="settings-page__split-grid">
+              <table class="settings-page__table">
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Nombre</th>
+                    <th>Orden</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of priorities(); track item.priority_id) {
+                    <tr>
+                      <td>{{ item.code }}</td>
+                      <td>{{ item.name }}</td>
+                      <td>{{ item.order_index }}</td>
+                      <td class="settings-page__actions-cell"><button mat-button type="button" (click)="openPriorityDialog(item)">Editar</button></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+
+              <table class="settings-page__table">
+                <thead>
+                  <tr>
+                    <th>Entidad</th>
+                    <th>Código</th>
+                    <th>Nombre</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of statuses(); track item.status_id) {
+                    <tr>
+                      <td>{{ item.entity_type }}</td>
+                      <td>{{ item.code }}</td>
+                      <td>{{ item.name }}</td>
+                      <td class="settings-page__actions-cell"><button mat-button type="button" (click)="openStatusDialog(item)">Editar</button></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </mat-tab>
+
+        <mat-tab label="Templates de tareas">
+          <section class="settings-page__tab-content">
+            <div class="settings-page__section-header">
+              <h3>Templates existentes</h3>
+            </div>
+
+            <table class="settings-page__table">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Estado</th>
+                  <th>Actualizado</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of templates(); track item.template_id) {
+                  <tr>
+                    <td>{{ item.template_name }}</td>
+                    <td>{{ item.is_active ? 'Activo' : 'Inactivo' }}</td>
+                    <td>{{ (item.updated_at || item.created_at) | date: 'dd/MM/yyyy HH:mm' }}</td>
+                    <td class="settings-page__actions-cell"><button mat-button type="button" (click)="openTemplateDialog(item)">Editar</button></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        </mat-tab>
+
+        <mat-tab label="SLA">
+          <section class="settings-page__tab-content">
+            <div class="settings-page__section-header">
+              <h3>Reglas SLA</h3>
+              <button mat-flat-button color="primary" type="button" (click)="openSlaDialog()">Nueva regla SLA</button>
+            </div>
+
+            <table class="settings-page__table">
+              <thead>
+                <tr>
+                  <th>Entidad</th>
+                  <th>Prioridad</th>
+                  <th>Respuesta (min)</th>
+                  <th>Resolución (min)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of slaRules(); track item.sla_rule_id) {
+                  <tr>
+                    <td>{{ item.entity_type }}</td>
+                    <td>{{ item.priority_code }}</td>
+                    <td>{{ item.response_time_minutes }}</td>
+                    <td>{{ item.resolution_time_minutes }}</td>
+                    <td class="settings-page__actions-cell"><button mat-button type="button" (click)="openSlaDialog(item)">Editar</button></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        </mat-tab>
+
+        <mat-tab label="Notificaciones">
+          <section class="settings-page__tab-content">
+            <div class="settings-page__section-header">
+              <h3>Reglas de notificación</h3>
+              <button mat-flat-button color="primary" type="button" (click)="openNotificationDialog()">Nueva regla</button>
+            </div>
+
+            <table class="settings-page__table">
+              <thead>
+                <tr>
+                  <th>Evento</th>
+                  <th>Etiqueta</th>
+                  <th>Roles</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of notificationRules(); track item.notification_rule_id) {
+                  <tr>
+                    <td>{{ item.event_code }}</td>
+                    <td>{{ item.label }}</td>
+                    <td>{{ prettyRoles(item.notify_roles_json) }}</td>
+                    <td class="settings-page__actions-cell"><button mat-button type="button" (click)="openNotificationDialog(item)">Editar</button></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card>
+  }
+</section>

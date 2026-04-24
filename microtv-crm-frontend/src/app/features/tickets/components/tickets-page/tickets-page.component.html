@@ -1,25 +1,125 @@
-@if (ticketsPage$ | async; as ticketsPage) {
-  <section class="tickets-page">
-    <div class="tickets-page__header">
-      <app-page-title
-        eyebrow="Mesa operativa"
-        [title]="ticketsPage.pageTitle"
-        [subtitle]="ticketsPage.pageSubtitle"
-      />
+<section class="tickets-page">
+  <div class="tickets-page__header">
+    <app-page-title
+      eyebrow="Mesa operativa"
+      title="Tickets"
+      subtitle="Operación real de tickets integrada con backend, inventario y permisos por rol."
+    />
 
-      <div class="tickets-page__actions">
-        <button mat-stroked-button type="button" class="tickets-page__action tickets-page__action--secondary">
-          <mat-icon>{{ ticketsPage.secondaryAction.icon }}</mat-icon>
-          <span>{{ ticketsPage.secondaryAction.label }}</span>
-        </button>
+    <div class="tickets-page__actions">
+      <button mat-stroked-button type="button" class="tickets-page__action tickets-page__action--secondary" (click)="refresh()">
+        <mat-icon>refresh</mat-icon>
+        <span>Actualizar</span>
+      </button>
 
-        <button mat-flat-button color="primary" type="button" class="tickets-page__action" (click)="openCreateTicketDialog()">
-          <mat-icon>{{ ticketsPage.primaryAction.icon }}</mat-icon>
-          <span>{{ ticketsPage.primaryAction.label }}</span>
-        </button>
-      </div>
+      <button mat-flat-button color="primary" type="button" class="tickets-page__action" (click)="openCreateTicketDialog()">
+        <mat-icon>add_circle</mat-icon>
+        <span>Crear ticket</span>
+      </button>
     </div>
+  </div>
 
-    <app-tickets-table [block]="ticketsPage.ticketsTable" />
-  </section>
-}
+  @if (errorMessage(); as errorMessage) {
+    <div class="tickets-page__alert tickets-page__alert--error">{{ errorMessage }}</div>
+  }
+
+  @if (successMessage(); as successMessage) {
+    <div class="tickets-page__alert tickets-page__alert--success">{{ successMessage }}</div>
+  }
+
+  @if (isLoading()) {
+    <div class="tickets-page__loading">
+      <mat-spinner diameter="42" />
+      <p>Cargando bandejas de tickets...</p>
+    </div>
+  } @else {
+    <mat-tab-group
+      class="tickets-page__tabs"
+      [selectedIndex]="selectedTabIndex()"
+      (selectedIndexChange)="onTabIndexChange($event)"
+      animationDuration="200ms"
+    >
+      <mat-tab [label]="'Asignados a mí (' + assignedRows().length + ')'">
+        <div class="tickets-page__tab-content">
+          <app-listing-controls
+            [searchValue]="listState('assigned').search"
+            searchPlaceholder="Buscar por ticket, cliente o titulo"
+            [selectedStatus]="listState('assigned').status"
+            [statusOptions]="ticketStatusOptions"
+            [sortDirection]="listState('assigned').sortDirection"
+            [viewMode]="listState('assigned').viewMode"
+            (searchChanged)="onListSearchChanged('assigned', $event)"
+            (statusChanged)="onListStatusChanged('assigned', $event)"
+            (sortDirectionChanged)="onListSortDirectionChanged('assigned', $event)"
+            (viewModeChanged)="onListViewModeChanged('assigned', $event)"
+          />
+          <app-tickets-table title="Tickets asignados a mí" [items]="assignedVisibleRows()" [viewMode]="listState('assigned').viewMode" />
+        </div>
+      </mat-tab>
+
+      <mat-tab [label]="'Sin asignar en mi rol (' + unassignedRows().length + ')'">
+        <div class="tickets-page__tab-content">
+          <app-listing-controls
+            [searchValue]="listState('unassigned').search"
+            searchPlaceholder="Buscar por ticket, cliente o titulo"
+            [selectedStatus]="listState('unassigned').status"
+            [statusOptions]="ticketStatusOptions"
+            [sortDirection]="listState('unassigned').sortDirection"
+            [viewMode]="listState('unassigned').viewMode"
+            (searchChanged)="onListSearchChanged('unassigned', $event)"
+            (statusChanged)="onListStatusChanged('unassigned', $event)"
+            (sortDirectionChanged)="onListSortDirectionChanged('unassigned', $event)"
+            (viewModeChanged)="onListViewModeChanged('unassigned', $event)"
+          />
+          <app-tickets-table
+            title="Tickets sin asignar en mi rol"
+            [items]="unassignedVisibleRows()"
+            [canSelfAssign]="canSelfAssignUnassignedTickets()"
+            [isAssigning]="isAssigning()"
+            [assigningTicketId]="assigningTicketId()"
+            [viewMode]="listState('unassigned').viewMode"
+            (selfAssignRequested)="selfAssignTicket($event)"
+          />
+        </div>
+      </mat-tab>
+
+      <mat-tab [label]="'Seguimiento general (' + trackingRows().length + ')'">
+        <div class="tickets-page__tab-content">
+          <app-listing-controls
+            [searchValue]="listState('tracking').search"
+            searchPlaceholder="Buscar por ticket, cliente o titulo"
+            [selectedStatus]="listState('tracking').status"
+            [statusOptions]="ticketStatusOptions"
+            [sortDirection]="listState('tracking').sortDirection"
+            [viewMode]="listState('tracking').viewMode"
+            (searchChanged)="onListSearchChanged('tracking', $event)"
+            (statusChanged)="onListStatusChanged('tracking', $event)"
+            (sortDirectionChanged)="onListSortDirectionChanged('tracking', $event)"
+            (viewModeChanged)="onListViewModeChanged('tracking', $event)"
+          />
+          <app-tickets-table title="Seguimiento general" [items]="trackingVisibleRows()" [viewMode]="listState('tracking').viewMode" />
+        </div>
+      </mat-tab>
+
+      @if (canViewHistory()) {
+        <mat-tab [label]="'Historial cerrados (' + historyRows().length + ')'">
+          <div class="tickets-page__tab-content">
+            <app-listing-controls
+              [searchValue]="listState('history').search"
+              searchPlaceholder="Buscar por ticket, cliente o titulo"
+              [selectedStatus]="listState('history').status"
+              [statusOptions]="ticketStatusOptions"
+              [sortDirection]="listState('history').sortDirection"
+              [viewMode]="listState('history').viewMode"
+              (searchChanged)="onListSearchChanged('history', $event)"
+              (statusChanged)="onListStatusChanged('history', $event)"
+              (sortDirectionChanged)="onListSortDirectionChanged('history', $event)"
+              (viewModeChanged)="onListViewModeChanged('history', $event)"
+            />
+            <app-tickets-table title="Historial de tickets cerrados" [items]="historyVisibleRows()" [viewMode]="listState('history').viewMode" />
+          </div>
+        </mat-tab>
+      }
+    </mat-tab-group>
+  }
+</section>

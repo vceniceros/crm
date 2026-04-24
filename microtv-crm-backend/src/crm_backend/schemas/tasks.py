@@ -76,6 +76,19 @@ class ExecuteSubtaskActionRequest(BaseModel):
     attachment_ids: list[str] = Field(default_factory=list)
 
 
+class AssignSubtaskRequest(BaseModel):
+    assigned_crm_user_id: str = Field(..., min_length=1)
+    notes: str | None = None
+
+
+class ApproveTaskRequest(BaseModel):
+    comment: str | None = None
+
+
+class RejectTaskApprovalRequest(BaseModel):
+    comment: str = Field(..., min_length=1)
+
+
 class TaskAttachmentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

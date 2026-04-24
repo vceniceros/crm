@@ -48,6 +48,7 @@ class UpdateClientCommand:
 class ClientLocationView:
     """Serializable client location snapshot returned by the API."""
 
+    location_id: str
     latitude: float
     longitude: float
     address_label: str | None
@@ -155,6 +156,7 @@ class ClientApplicationService:
         if location is None:
             return None
         return ClientLocationView(
+            location_id=location.location_id,
             latitude=float(location.latitude),
             longitude=float(location.longitude),
             address_label=location.address_label,

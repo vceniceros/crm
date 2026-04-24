@@ -7,12 +7,12 @@
     />
 
     <div class="tasks-page__actions">
-      <a mat-stroked-button type="button" class="tasks-page__action tasks-page__action--secondary" routerLink="/tasks/templates">
-        <mat-icon>schema</mat-icon>
-        <span>Templates</span>
-      </a>
+      @if (isAdmin()) {
+        <a mat-stroked-button type="button" class="tasks-page__action tasks-page__action--secondary" routerLink="/tasks/templates">
+          <mat-icon>schema</mat-icon>
+          <span>Templates</span>
+        </a>
 
-      @if (isAdminOrExecutive()) {
         <a mat-flat-button color="primary" type="button" class="tasks-page__action" routerLink="/tasks/templates/new">
           <mat-icon>add_box</mat-icon>
           <span>Nuevo template</span>
@@ -145,19 +145,34 @@
       </mat-card-content>
     </mat-card>
   } @else {
-    <mat-tab-group>
-      <mat-tab label="Asignadas a mí">
+    <mat-tab-group class="tasks-page__tabs" [selectedIndex]="initialTabIndex()" [dynamicHeight]="isHandset()" [mat-stretch-tabs]="!isHandset()">
+      <mat-tab [label]="isHandset() ? 'Asignadas' : 'Asignadas a mí'">
         <div class="tasks-page__tab-content">
-          @if (!assignedTasks().length) {
+          <app-listing-controls
+            [searchValue]="listState('assigned').search"
+            searchPlaceholder="Buscar por id, cliente o titulo"
+            [selectedStatus]="listState('assigned').status"
+            [statusOptions]="taskStatusOptions"
+            [sortDirection]="listState('assigned').sortDirection"
+            [viewMode]="listState('assigned').viewMode"
+            (searchChanged)="onListSearchChanged('assigned', $event)"
+            (statusChanged)="onListStatusChanged('assigned', $event)"
+            (sortDirectionChanged)="onListSortDirectionChanged('assigned', $event)"
+            (viewModeChanged)="onListViewModeChanged('assigned', $event)"
+          />
+
+          @if (!assignedVisibleTasks().length) {
             <mat-card class="tasks-page__message">
               <mat-card-content>
                 <mat-icon>assignment_ind</mat-icon>
                 <p>No tenés tareas asignadas en este momento.</p>
               </mat-card-content>
             </mat-card>
+          } @else if (listState('assigned').viewMode === 'table') {
+            <app-tasks-table [block]="assignedTableBlock()" [viewMode]="listState('assigned').viewMode" />
           } @else {
             <div class="tasks-page__task-grid">
-              @for (task of assignedTasks(); track task.task_id) {
+              @for (task of assignedVisibleTasks(); track task.task_id) {
                 <mat-card class="tasks-page__task-card">
                   <mat-card-content>
                     <div class="tasks-page__task-top">
@@ -165,7 +180,7 @@
                         <p class="tasks-page__label">Tarea</p>
                         <h2>{{ task.task_title }}</h2>
                       </div>
-                      <app-status-badge [label]="formatTaskStatus(task.status)" [tone]="toTaskTone(task.status)" />
+                      <app-status-badge [label]="taskStatusLabel(task)" [tone]="toTaskTone(task.status)" />
                     </div>
 
                     <div class="tasks-page__task-meta">
@@ -191,18 +206,37 @@
         </div>
       </mat-tab>
 
-      <mat-tab label="Sin asignar de mi rol">
+      <mat-tab [label]="isHandset() ? 'Sin asignar' : 'Sin asignar de mi rol'">
         <div class="tasks-page__tab-content">
-          @if (!unassignedSubtasks().length) {
+          <app-listing-controls
+            [searchValue]="listState('unassigned').search"
+            searchPlaceholder="Buscar por id, cliente o titulo"
+            [selectedStatus]="listState('unassigned').status"
+            [statusOptions]="taskStatusOptions"
+            [sortDirection]="listState('unassigned').sortDirection"
+            [viewMode]="listState('unassigned').viewMode"
+            (searchChanged)="onListSearchChanged('unassigned', $event)"
+            (statusChanged)="onListStatusChanged('unassigned', $event)"
+            (sortDirectionChanged)="onListSortDirectionChanged('unassigned', $event)"
+            (viewModeChanged)="onListViewModeChanged('unassigned', $event)"
+          />
+
+          @if (!unassignedVisibleSubtasks().length) {
             <mat-card class="tasks-page__message">
               <mat-card-content>
                 <mat-icon>inbox</mat-icon>
                 <p>No hay subtareas pendientes de asignación para tus roles.</p>
               </mat-card-content>
             </mat-card>
+          } @else if (listState('unassigned').viewMode === 'table') {
+            <app-tasks-table
+              [block]="unassignedTableBlock()"
+              [viewMode]="listState('unassigned').viewMode"
+              [rowActionRequested]="claimSubtaskFromRow.bind(this)"
+            />
           } @else {
             <div class="tasks-page__task-grid">
-              @for (queueItem of unassignedSubtasks(); track queueItem.subtask_id) {
+              @for (queueItem of unassignedVisibleSubtasks(); track queueItem.subtask_id) {
                 <mat-card class="tasks-page__task-card">
                   <mat-card-content>
                     <div class="tasks-page__task-top">
@@ -232,18 +266,33 @@
       </mat-tab>
 
       @if (canTrackGeneral()) {
-        <mat-tab label="Seguimiento general">
+        <mat-tab [label]="isHandset() ? 'General' : 'Seguimiento general'">
           <div class="tasks-page__tab-content">
-            @if (!trackingTasks().length) {
+            <app-listing-controls
+              [searchValue]="listState('tracking').search"
+              searchPlaceholder="Buscar por id, cliente o titulo"
+              [selectedStatus]="listState('tracking').status"
+              [statusOptions]="taskStatusOptions"
+              [sortDirection]="listState('tracking').sortDirection"
+              [viewMode]="listState('tracking').viewMode"
+              (searchChanged)="onListSearchChanged('tracking', $event)"
+              (statusChanged)="onListStatusChanged('tracking', $event)"
+              (sortDirectionChanged)="onListSortDirectionChanged('tracking', $event)"
+              (viewModeChanged)="onListViewModeChanged('tracking', $event)"
+            />
+
+            @if (!trackingVisibleTasks().length) {
               <mat-card class="tasks-page__message">
                 <mat-card-content>
                   <mat-icon>visibility</mat-icon>
                   <p>No hay tareas para seguimiento general.</p>
                 </mat-card-content>
               </mat-card>
+            } @else if (listState('tracking').viewMode === 'table') {
+              <app-tasks-table [block]="trackingTableBlock()" [viewMode]="listState('tracking').viewMode" [rowActionRequested]="approveTask.bind(this)" />
             } @else {
               <div class="tasks-page__task-grid">
-                @for (task of trackingTasks(); track task.task_id) {
+                @for (task of trackingVisibleTasks(); track task.task_id) {
                   <mat-card class="tasks-page__task-card">
                     <mat-card-content>
                       <div class="tasks-page__task-top">
@@ -251,7 +300,7 @@
                           <p class="tasks-page__label">Tarea</p>
                           <h2>{{ task.task_title }}</h2>
                         </div>
-                        <app-status-badge [label]="formatTaskStatus(task.status)" [tone]="toTaskTone(task.status)" />
+                        <app-status-badge [label]="taskStatusLabel(task)" [tone]="toTaskTone(task.status)" />
                       </div>
 
                       <div class="tasks-page__task-meta">
@@ -264,7 +313,69 @@
                     </mat-card-content>
 
                     <mat-card-actions align="end">
+                      @if (canApproveTask(task)) {
+                        <button mat-stroked-button type="button" (click)="rejectTask(task.task_id)">Rechazar cierre</button>
+                        <button mat-flat-button color="primary" type="button" (click)="approveTask(task.task_id)">Aprobar tarea</button>
+                      }
                       <a mat-button [routerLink]="['/tasks', task.task_id]">Ver detalle</a>
+                    </mat-card-actions>
+                  </mat-card>
+                }
+              </div>
+            }
+          </div>
+        </mat-tab>
+      }
+
+      @if (isAdminOrExecutive()) {
+        <mat-tab [label]="isHandset() ? 'Historial' : 'Historial de tareas'">
+          <div class="tasks-page__tab-content">
+            <app-listing-controls
+              [searchValue]="listState('history').search"
+              searchPlaceholder="Buscar por id, cliente o titulo"
+              [selectedStatus]="listState('history').status"
+              [statusOptions]="taskStatusOptions"
+              [sortDirection]="listState('history').sortDirection"
+              [viewMode]="listState('history').viewMode"
+              (searchChanged)="onListSearchChanged('history', $event)"
+              (statusChanged)="onListStatusChanged('history', $event)"
+              (sortDirectionChanged)="onListSortDirectionChanged('history', $event)"
+              (viewModeChanged)="onListViewModeChanged('history', $event)"
+            />
+
+            @if (!historyVisibleTasks().length) {
+              <mat-card class="tasks-page__message">
+                <mat-card-content>
+                  <mat-icon>history</mat-icon>
+                  <p>No hay tareas aprobadas en el historial.</p>
+                </mat-card-content>
+              </mat-card>
+            } @else if (listState('history').viewMode === 'table') {
+              <app-tasks-table [block]="historyTableBlock()" [viewMode]="listState('history').viewMode" />
+            } @else {
+              <div class="tasks-page__task-grid">
+                @for (task of historyVisibleTasks(); track task.task_id) {
+                  <mat-card class="tasks-page__task-card" [class.tasks-page__task-card--highlighted]="highlightedHistoryTaskId() === task.task_id">
+                    <mat-card-content>
+                      <div class="tasks-page__task-top">
+                        <div>
+                          <p class="tasks-page__label">Tarea</p>
+                          <h2>{{ task.task_title }}</h2>
+                        </div>
+                        <app-status-badge [label]="taskStatusLabel(task)" [tone]="toTaskTone(task.status)" />
+                      </div>
+
+                      <div class="tasks-page__task-meta">
+                        <span>ID: {{ task.task_id }}</span>
+                        <span>Cliente: {{ task.client_name }}</span>
+                        <span>Template: {{ task.template_name }}</span>
+                        <span>Aprobada por: {{ task.finalized_by_display_name || 'N/D' }}</span>
+                        <span>Fecha: {{ task.finalized_at ? (task.finalized_at | date: 'dd/MM/yyyy HH:mm') : 'N/D' }}</span>
+                      </div>
+                    </mat-card-content>
+
+                    <mat-card-actions align="end">
+                      <a mat-button [routerLink]="['/tasks', task.task_id]">Ver historial completo</a>
                     </mat-card-actions>
                   </mat-card>
                 }

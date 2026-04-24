@@ -4,13 +4,8 @@
   box-shadow: var(--shadow-panel);
 }
 
-.ticket-description-section mat-card-header,
 .ticket-description-section mat-card-content {
   padding-inline: 1.25rem;
-}
-
-.ticket-description-section mat-card-header {
-  padding-top: 1.15rem;
 }
 
 .ticket-description-section__body,
@@ -19,10 +14,34 @@
   margin: 0;
 }
 
+.ticket-description-section__ticket-number {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+}
+
+.ticket-description-section__ticket-value {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.ticket-description-section__description-highlight {
+  display: grid;
+  gap: 0.65rem;
+  padding: 1.15rem 1.2rem;
+  border: 1px solid rgba(23, 24, 26, 0.12);
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 6px 20px rgba(23, 24, 26, 0.06);
+}
+
 .ticket-description-section__body {
   color: var(--text-primary);
-  font-size: 0.95rem;
-  line-height: 1.65;
+  font-size: 1.12rem;
+  line-height: 1.8;
+  font-weight: 700;
 }
 
 .ticket-description-section__grid {
@@ -39,6 +58,15 @@
   border: 1px solid rgba(23, 24, 26, 0.06);
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.82);
+}
+
+.ticket-description-section__item--priority {
+  border-color: rgba(198, 40, 40, 0.24);
+}
+
+.ticket-description-section__item--priority app-priority-indicator {
+  transform: scale(1.06);
+  transform-origin: left center;
 }
 
 .ticket-description-section__item--wide {
@@ -60,6 +88,41 @@
   color: var(--text-primary);
 }
 
+.ticket-description-section__location-block {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1rem;
+}
+
+.ticket-description-section__location-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.ticket-description-section__location-map-wrap {
+  position: relative;
+}
+
+.ticket-description-section__location-map-wrap app-location-map {
+  display: block;
+  min-height: 200px;
+}
+
+.ticket-description-section__location-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ticket-description-section__map-button {
+  display: flex;
+  align-items: center;
+}
+
+.ticket-description-section__map-button mat-icon {
+  margin-right: 0.25rem;
+}
+
 @media (max-width: 720px) {
   .ticket-description-section__grid {
     grid-template-columns: 1fr;
@@ -67,5 +130,19 @@
 
   .ticket-description-section__item--wide {
     grid-column: auto;
+  }
+
+  .ticket-description-section__location-actions {
+    justify-content: stretch;
+  }
+
+  .ticket-description-section__map-button {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .ticket-description-section__location-title-row {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

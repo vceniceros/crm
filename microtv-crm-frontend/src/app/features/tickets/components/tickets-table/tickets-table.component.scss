@@ -23,6 +23,31 @@
   display: none;
 }
 
+.tickets-table--force-table .tickets-table__desktop-scroll {
+  display: block;
+}
+
+.tickets-table--force-table .tickets-table__mobile-list {
+  display: none;
+}
+
+.tickets-table--force-cards .tickets-table__desktop-scroll {
+  display: none;
+}
+
+.tickets-table--force-cards .tickets-table__mobile-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 18.5rem));
+  justify-content: center;
+  gap: 0.85rem;
+}
+
+@media (max-width: 1240px) {
+  .tickets-table--force-cards .tickets-table__mobile-list {
+    grid-template-columns: repeat(2, minmax(0, 18.5rem));
+  }
+}
+
 .tickets-table__table {
   width: 100%;
   min-width: 980px;
@@ -51,6 +76,33 @@
   align-items: center;
   gap: 0.7rem;
   font-weight: 600;
+}
+
+.tickets-table__location-cell {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.tickets-table__location-label {
+  font-weight: 600;
+}
+
+.tickets-table__maps-link,
+.tickets-table__assign-button {
+  width: fit-content;
+  min-height: 2rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.tickets-table__maps-link--mobile,
+.tickets-table__assign-button--mobile {
+  margin-top: 0.45rem;
+}
+
+.tickets-table__unassigned-wrap {
+  display: grid;
+  gap: 0.45rem;
 }
 
 .tickets-table__unassigned {
@@ -82,10 +134,6 @@ td.mat-mdc-cell {
   border: 1px solid rgba(23, 24, 26, 0.08);
   border-radius: 1.1rem;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 249, 251, 0.92));
-}
-
-.tickets-table__mobile-card + .tickets-table__mobile-card {
-  margin-top: 0.9rem;
 }
 
 .tickets-table__mobile-top {
@@ -159,7 +207,27 @@ td.mat-mdc-cell {
   }
 
   .tickets-table__mobile-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+
+  .tickets-table--force-table .tickets-table__desktop-scroll {
     display: block;
+  }
+
+  .tickets-table--force-table .tickets-table__mobile-list {
+    display: none;
+  }
+
+  .tickets-table--force-cards .tickets-table__desktop-scroll {
+    display: none;
+  }
+
+  .tickets-table--force-cards .tickets-table__mobile-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
   }
 
   .tickets-table__mobile-grid {

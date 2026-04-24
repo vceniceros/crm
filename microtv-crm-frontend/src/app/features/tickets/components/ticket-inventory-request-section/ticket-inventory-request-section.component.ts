@@ -116,7 +116,7 @@ export class TicketInventoryRequestSectionComponent {
   }
 
   statusTone(status: TicketInventoryRequestStatus): 'neutral' | 'warning' | 'success' {
-    if (status === 'approved') {
+    if (status === 'approved_for_dispatch' || status === 'dispatched') {
       return 'success';
     }
 
@@ -128,15 +128,23 @@ export class TicketInventoryRequestSectionComponent {
   }
 
   statusLabel(status: TicketInventoryRequestStatus): string {
-    if (status === 'approved') {
-      return 'Autorizada';
+    if (status === 'approved_for_dispatch') {
+      return 'Aprobada para despacho';
+    }
+
+    if (status === 'dispatched') {
+      return 'Despachada';
     }
 
     if (status === 'rejected') {
       return 'Rechazada';
     }
 
-    return 'Pendiente';
+    if (status === 'cancelled') {
+      return 'Cancelada';
+    }
+
+    return 'Pendiente de depósito';
   }
 
   decisionComment(requestId: string): string {

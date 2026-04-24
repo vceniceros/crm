@@ -18,6 +18,10 @@ export interface TaskListItem {
   assignedToUserId: number | string | null;
   assignedTo: string;
   assignedInitials: string;
+  routeTaskId?: string;
+  rowActionLabel?: string;
+  rowActionId?: string;
+  rowActionDisabled?: boolean;
 }
 
 export interface TasksTableColumn {

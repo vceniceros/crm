@@ -1,0 +1,14 @@
+<section class="subtask-success-page">
+  <mat-card class="subtask-success-page__card">
+    <mat-card-content>
+      <mat-icon class="subtask-success-page__icon">check_circle</mat-icon>
+      <h1>{{ title() }}</h1>
+      <p>La subtarea se cerro correctamente y el flujo avanzo al siguiente rol/usuario.</p>
+      <p>Redirigiendo al menu de tareas en {{ redirectInSeconds() }}s...</p>
+
+      <button mat-flat-button color="primary" type="button" (click)="goToTasks()">
+        Ir ahora al menu de tareas
+      </button>
+    </mat-card-content>
+  </mat-card>
+</section>

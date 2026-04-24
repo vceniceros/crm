@@ -1,0 +1,225 @@
+@if (report; as reportInfo) {
+  <section class="report-detail">
+    <header class="report-detail__header">
+      <div>
+        <a class="report-detail__back" [routerLink]="['/reports', reportInfo.category]">← Volver a reportes</a>
+        <h2>{{ reportInfo.title }}</h2>
+        <p>{{ reportInfo.description }}</p>
+      </div>
+
+      <div class="report-detail__actions">
+        <button type="button" class="btn btn--ghost" (click)="updateReport()">Actualizar</button>
+        <button type="button" class="btn" (click)="exportCsv()">Exportar CSV</button>
+      </div>
+    </header>
+
+    <section class="filters-card">
+      <div class="quick-dates">
+        <button type="button" [ngClass]="{ active: quickDate === 'week' }" (click)="applyQuickRange('week')">Esta semana</button>
+        <button type="button" [ngClass]="{ active: quickDate === 'month' }" (click)="applyQuickRange('month')">Este mes</button>
+        <button type="button" [ngClass]="{ active: quickDate === 'last-month' }" (click)="applyQuickRange('last-month')">Último mes</button>
+        <button type="button" [ngClass]="{ active: quickDate === 'custom' }" (click)="applyQuickRange('custom')">Personalizado</button>
+      </div>
+
+      @if (filtersLoading) {
+        <div class="filters-card__state">Cargando opciones de filtros...</div>
+      } @else if (filtersErrorMessage) {
+        <div class="filters-card__state filters-card__state--error">{{ filtersErrorMessage }}</div>
+      }
+
+      <div class="filters-grid">
+        <label>
+          Desde
+          <input type="date" [(ngModel)]="dateFrom" />
+        </label>
+        <label>
+          Hasta
+          <input type="date" [(ngModel)]="dateTo" />
+        </label>
+
+        @if (reportId === 'tickets-by-priority' || reportId === 'tickets-by-status' || reportId === 'tickets-by-client' || reportId === 'deposit-requests-status' || reportId === 'tasks-by-status' || reportId === 'tasks-by-technician') {
+          <label>
+            Estado
+            <select [(ngModel)]="filterStatus">
+              <option value="">Todos</option>
+              @for (status of statusSelectOptions; track status.id) {
+                <option [value]="status.id">{{ status.label }}</option>
+              }
+            </select>
+          </label>
+        }
+
+        @if (reportId === 'tickets-by-priority') {
+          <label>
+            Prioridad
+            <select [(ngModel)]="filterPriority">
+              <option value="">Todas</option>
+              @for (priority of prioritySelectOptions; track priority.id) {
+                <option [value]="priority.id">{{ priority.label }}</option>
+              }
+            </select>
+          </label>
+        }
+
+        @if (reportId === 'tickets-by-client') {
+          <label>
+            Cliente
+            <select [(ngModel)]="filterClient">
+              <option value="">Todos</option>
+              @for (client of filterCatalogs.clients; track client.id) {
+                <option [value]="client.id">{{ client.label }}</option>
+              }
+            </select>
+          </label>
+        }
+
+        @if (reportId === 'tasks-by-status' || reportId === 'tasks-by-technician') {
+          <label>
+            Técnico
+            <select [(ngModel)]="filterTechnician">
+              <option value="">Todos</option>
+              @for (technician of filterCatalogs.technicians; track technician.id) {
+                <option [value]="technician.id">{{ technician.label }}</option>
+              }
+            </select>
+          </label>
+        }
+
+        @if (reportId === 'stock-critical') {
+          <label>
+            Categoría
+            <select [(ngModel)]="filterCategory">
+              <option value="">Todas</option>
+              @for (category of filterCatalogs.categories; track category.id) {
+                <option [value]="category.id">{{ category.label }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Depósito
+            <select [(ngModel)]="filterWarehouse">
+              <option value="">Todos</option>
+              @for (warehouse of filterCatalogs.warehouses; track warehouse.id) {
+                <option [value]="warehouse.id">{{ warehouse.label }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Solo críticos
+            <select [(ngModel)]="onlyCritical">
+              <option [ngValue]="true">Sí</option>
+              <option [ngValue]="false">No</option>
+            </select>
+          </label>
+        }
+
+        @if (reportId === 'deposit-requests-status') {
+          <label>
+            Solicitante
+            <select [(ngModel)]="filterRequester">
+              <option value="">Todos</option>
+              @for (user of filterCatalogs.users; track user.id) {
+                <option [value]="user.id">{{ user.label }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Aprobador
+            <select [(ngModel)]="filterApprover">
+              <option value="">Todos</option>
+              @for (user of filterCatalogs.users; track user.id) {
+                <option [value]="user.id">{{ user.label }}</option>
+              }
+            </select>
+          </label>
+        }
+
+        @if (reportId === 'activity-by-user') {
+          <label>
+            Usuario
+            <select [(ngModel)]="filterUser">
+              <option value="">Todos</option>
+              @for (user of filterCatalogs.users; track user.id) {
+                <option [value]="user.id">{{ user.label }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Tipo de acción
+            <select [(ngModel)]="filterActionType">
+              <option value="">Todas</option>
+              @for (actionType of filterCatalogs.actionTypes; track actionType.id) {
+                <option [value]="actionType.id">{{ actionType.label }}</option>
+              }
+            </select>
+          </label>
+        }
+      </div>
+    </section>
+
+    @if (loading) {
+      <section class="report-state report-state--loading">Cargando reporte...</section>
+    } @else if (errorMessage) {
+      <section class="report-state report-state--error">{{ errorMessage }}</section>
+    } @else if (payload; as data) {
+      <section class="kpis-grid">
+        @for (kpi of data.kpis; track kpi.key) {
+          <article class="kpi-card">
+            <h3>{{ kpi.label }}</h3>
+            <p>{{ kpi.value }}</p>
+          </article>
+        }
+      </section>
+
+      <section class="chart-card">
+        @if (chartHint; as hint) {
+          <p class="chart-card__hint">{{ hint }}</p>
+        }
+
+        @if (data.series.length > 0) {
+          <app-recharts-host [chartKind]="data.chart_kind" [series]="data.series" />
+        } @else {
+          <div class="empty-state">{{ chartEmptyMessage }}</div>
+        }
+      </section>
+
+      <section class="table-card">
+        <div class="table-card__toolbar">
+          <input type="search" [(ngModel)]="tableSearch" placeholder="Buscar en resultados" />
+          <span>{{ filteredRows.length }} resultados</span>
+        </div>
+
+        @if (columns.length === 0 || filteredRows.length === 0) {
+          <div class="empty-state">No hay resultados para mostrar.</div>
+        } @else {
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  @for (column of columns; track column.key) {
+                    <th>{{ column.label }}</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of pagedRows; track $index) {
+                  <tr>
+                    @for (column of columns; track column.key) {
+                      <td>{{ formatCell(row, column.key) }}</td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-pagination">
+            <button type="button" class="btn btn--ghost" (click)="previousPage()" [disabled]="page <= 1">Anterior</button>
+            <span>Página {{ page }} de {{ totalPages }}</span>
+            <button type="button" class="btn btn--ghost" (click)="nextPage()" [disabled]="page >= totalPages">Siguiente</button>
+          </div>
+        }
+      </section>
+    }
+  </section>
+}

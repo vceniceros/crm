@@ -28,6 +28,14 @@
   font-weight: 700;
 }
 
+.tickets-table__row {
+  cursor: pointer;
+}
+
+.tickets-table__row:hover td {
+  background: rgba(37, 99, 235, 0.04);
+}
+
 .tickets-table__assignee {
   display: inline-flex;
   align-items: center;

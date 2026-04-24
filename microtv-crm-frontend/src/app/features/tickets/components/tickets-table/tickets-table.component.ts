@@ -1,11 +1,12 @@
-import { Component, input } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
 
-import { TicketsTableData } from '../../../../core/models/ticket.model';
+import { TicketTableItem } from '../../../../core/models/ticket-management.model';
+import { ListingViewMode } from '../../../../shared/services/listing-view-preference.service';
 import { PriorityIndicatorComponent } from '../../../../shared/ui/priority-indicator/priority-indicator.component';
 import { StatusBadgeComponent } from '../../../../shared/ui/status-badge/status-badge.component';
 import { UserAvatarComponent } from '../../../../shared/ui/user-avatar/user-avatar.component';
@@ -18,24 +19,50 @@ import { UserAvatarComponent } from '../../../../shared/ui/user-avatar/user-avat
   styleUrl: './tickets-table.component.scss'
 })
 export class TicketsTableComponent {
-  readonly block = input.required<TicketsTableData>();
+  readonly title = input.required<string>();
+  readonly items = input.required<readonly TicketTableItem[]>();
+  readonly canSelfAssign = input(false);
+  readonly isAssigning = input(false);
+  readonly assigningTicketId = input<string | null>(null);
+  readonly viewMode = input<ListingViewMode>('table');
+  readonly selfAssignRequested = output<string>();
 
-  readonly displayedColumns: Array<'id' | 'title' | 'category' | 'affectedDevice' | 'status' | 'priority' | 'createdAt' | 'assignee'> = [
-    'id',
+  readonly displayedColumns: Array<'ticketNumber' | 'title' | 'client' | 'location' | 'status' | 'priority' | 'updatedAt' | 'assignedTo'> = [
+    'ticketNumber',
     'title',
-    'category',
-    'affectedDevice',
+    'client',
+    'location',
     'status',
     'priority',
-    'createdAt',
-    'assignee'
+    'updatedAt',
+    'assignedTo'
   ];
 
+  readonly labels: Record<(typeof this.displayedColumns)[number], string> = {
+    ticketNumber: 'Ticket',
+    title: 'Título',
+    client: 'Cliente',
+    location: 'Ubicación',
+    status: 'Estado',
+    priority: 'Prioridad',
+    updatedAt: 'Actualizado',
+    assignedTo: 'Asignado'
+  };
+
   labelFor(column: (typeof this.displayedColumns)[number]): string {
-    return this.block().columns.find((item) => item.key === column)?.label ?? column;
+    return this.labels[column] ?? column;
   }
 
-  hasAssignee(assigneeName?: string | null): boolean {
-    return Boolean(assigneeName);
+  initialsFor(value: string): string {
+    return value
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((segment) => segment[0]?.toUpperCase() ?? '')
+      .join('') || 'SA';
+  }
+
+  requestSelfAssign(ticketId: string): void {
+    this.selfAssignRequested.emit(ticketId);
   }
 }

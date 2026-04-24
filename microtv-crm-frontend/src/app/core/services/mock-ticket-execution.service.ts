@@ -137,7 +137,7 @@ export class MockTicketExecutionService {
       requestedByUserId: user.id,
       requestedByUserName: user.name,
       requestedAt: new Date().toISOString(),
-      status: 'pending',
+      status: 'pending_deposit_review',
       items: items.map((item) => ({ ...item }))
     };
 
@@ -153,7 +153,7 @@ export class MockTicketExecutionService {
 
     if (
       !ticket ||
-      (status !== 'approved' && status !== 'rejected') ||
+      (status !== 'approved_for_dispatch' && status !== 'rejected') ||
       !this.mockAccessControlService.canUserReviewTicketInventoryRequests(user, ticket.depositAssigneeId)
     ) {
       return false;
@@ -161,7 +161,7 @@ export class MockTicketExecutionService {
 
     const state = this.cloneExecutionState(this.currentExecutionState(ticketId));
     const nextRequests = state.inventoryRequests.map((request) =>
-      request.id === requestId && request.status === 'pending'
+      request.id === requestId && request.status === 'pending_deposit_review'
         ? {
             ...request,
             status,
@@ -268,11 +268,11 @@ export class MockTicketExecutionService {
       return 'Despacho registrado';
     }
 
-    if (state.inventoryRequests.some((request) => request.status === 'approved')) {
+    if (state.inventoryRequests.some((request) => request.status === 'approved_for_dispatch')) {
       return 'Solicitud autorizada';
     }
 
-    if (state.inventoryRequests.some((request) => request.status === 'pending')) {
+    if (state.inventoryRequests.some((request) => request.status === 'pending_deposit_review')) {
       return 'Esperando depósito';
     }
 
@@ -284,11 +284,11 @@ export class MockTicketExecutionService {
   }
 
   private resolveStatusTone(ticket: TicketExecutionDefinition, state: TicketExecutionState): TicketListItem['statusTone'] {
-    if (state.dispatchedItems.length > 0 || state.inventoryRequests.some((request) => request.status === 'approved')) {
+    if (state.dispatchedItems.length > 0 || state.inventoryRequests.some((request) => request.status === 'approved_for_dispatch')) {
       return 'success';
     }
 
-    if (state.inventoryRequests.some((request) => request.status === 'pending') || state.resolutionComment.trim() || state.attachments.length > 0) {
+    if (state.inventoryRequests.some((request) => request.status === 'pending_deposit_review') || state.resolutionComment.trim() || state.attachments.length > 0) {
       return 'progress';
     }
 

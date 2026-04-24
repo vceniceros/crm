@@ -13,9 +13,48 @@
   </div>
 
   <div class="topbar__actions">
-    <button type="button" mat-icon-button class="topbar__icon-button topbar__icon-button--alert" aria-label="Notificaciones">
+    <button
+      type="button"
+      mat-icon-button
+      class="topbar__icon-button topbar__icon-button--notifications"
+      [class.topbar__icon-button--notifications-active]="((unreadCount$ | async) ?? 0) > 0"
+      aria-label="Notificaciones"
+      [matMenuTriggerFor]="notifPanel"
+      [matBadge]="(unreadCount$ | async) ?? 0"
+      [matBadgeHidden]="((unreadCount$ | async) ?? 0) === 0"
+      matBadgeColor="warn"
+      matBadgeSize="small"
+    >
       <mat-icon>notifications</mat-icon>
     </button>
+
+    <mat-menu #notifPanel="matMenu" class="notif-panel" xPosition="before" panelClass="topbar__notif-menu-panel">
+      <div class="notif-panel__header" (click)="$event.stopPropagation()">
+        <span class="notif-panel__heading">Notificaciones</span>
+        @if ((unreadCount$ | async) ?? 0) {
+          <button type="button" mat-button color="primary" class="notif-panel__mark-all" (click)="markAllRead()">
+            Marcar todas leídas
+          </button>
+        }
+      </div>
+      @if ((unreadNotifications$ | async)?.length === 0) {
+        <div class="notif-panel__empty" (click)="$event.stopPropagation()">Sin notificaciones</div>
+      }
+      @for (notif of unreadNotifications$ | async; track notif.notification_id) {
+        <button
+          mat-menu-item
+          class="notif-item"
+          [class.notif-item--unread]="!notif.is_read"
+          (click)="openNotification(notif)"
+        >
+          <div class="notif-item__content">
+            <span class="notif-item__title">{{ notif.title }}</span>
+            <span class="notif-item__body">{{ notif.body }}</span>
+            <span class="notif-item__time">{{ notif.created_at | date: 'dd/MM HH:mm' }}</span>
+          </div>
+        </button>
+      }
+    </mat-menu>
 
     <button type="button" mat-icon-button class="topbar__icon-button" aria-label="Ayuda">
       <mat-icon>help_outline</mat-icon>

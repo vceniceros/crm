@@ -4,6 +4,10 @@ export interface AppLocation {
   addressLabel?: string;
 }
 
+export interface LocationMapMarker extends AppLocation {
+  title?: string;
+}
+
 export interface LocationPickerDialogData {
   title?: string;
   initialLocation?: AppLocation | null;

@@ -1,5 +1,5 @@
 export type InventorySourceType = 'TASK' | 'TICKET';
-export type InventoryRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+export type InventoryRequestStatus = 'PENDING' | 'PENDING_DISPATCH' | 'PENDING_RECEIPT' | 'APPROVED' | 'COMPLETED' | 'REJECTED' | 'CANCELLED';
 export type DispatchConfirmationType = 'received' | 'delivered' | 'installed';
 
 export interface RequiredMaterialWriteRequest {
@@ -53,6 +53,7 @@ export interface CreateTaskDispatchRequest {
 
 export interface ConfirmDispatchItemRequest {
   confirmation_type: DispatchConfirmationType;
+  reception_comment?: string | null;
 }
 
 export interface InventoryRequestItem {
@@ -93,6 +94,10 @@ export interface InventoryDispatch {
   request_id: string | null;
   dispatched_by_crm_user_id: string;
   dispatched_by_display_name: string | null;
+  received_by_crm_user_id: string | null;
+  received_by_display_name: string | null;
+  received_at: string | null;
+  reception_comment: string | null;
   warehouse_id: string;
   dispatch_notes: string | null;
   created_at: string;
@@ -129,8 +134,14 @@ export function formatInventoryRequestStatus(status: InventoryRequestStatus): st
   switch (status) {
     case 'PENDING':
       return 'Pendiente';
+    case 'PENDING_DISPATCH':
+      return 'Pendiente de despacho';
+    case 'PENDING_RECEIPT':
+      return 'Pendiente de recibimiento';
     case 'APPROVED':
       return 'Aprobada';
+    case 'COMPLETED':
+      return 'Completada';
     case 'REJECTED':
       return 'Rechazada';
     case 'CANCELLED':

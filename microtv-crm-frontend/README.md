@@ -57,3 +57,19 @@ Angular CLI does not come with an end-to-end testing framework by default. You c
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+
+## PWA (Instalable)
+
+El frontend incluye configuración PWA básica para instalación en Android/desktop (manifest + service worker).
+
+- El service worker cachea solo recursos estáticos de la app (JS/CSS/iconos/assets).
+- No se configuró cache de endpoints API ni datos autenticados.
+- Los iconos actuales son placeholders internos y deben reemplazarse por arte final de CRM/MicroTV.
+
+### Fallback SPA en Nginx
+
+Para que el refresh o apertura directa de rutas internas (`/dashboard`, `/tickets`, `/tasks`, `/reports`, `/settings`) funcione correctamente en producción, el servidor debe tener fallback a `index.html`:
+
+```nginx
+try_files $uri $uri/ /index.html;
+```

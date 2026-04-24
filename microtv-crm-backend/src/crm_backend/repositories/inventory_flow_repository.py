@@ -91,7 +91,6 @@ class InventoryFlowRepository:
                 selectinload(InventoryRequest.items).selectinload(InventoryRequestItem.product),
                 selectinload(InventoryRequest.dispatches).selectinload(InventoryDispatch.items).selectinload(InventoryDispatchItem.product),
             )
-            .where(InventoryRequest.request_status.in_(["PENDING", "APPROVED"]))
             .order_by(InventoryRequest.requested_at.desc())
         )
         return list(self._session.scalars(statement).all())
