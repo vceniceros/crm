@@ -1,0 +1,96 @@
+<div class="satisfaction-page">
+  @if (isLoading()) {
+    <div class="satisfaction-page__loading">
+      <mat-spinner diameter="48"></mat-spinner>
+      <p>Cargando formulario...</p>
+    </div>
+  } @else if (response()) {
+    <mat-card class="satisfaction-page__card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar color="primary">check_circle</mat-icon>
+        <mat-card-title>¡Gracias por tu respuesta!</mat-card-title>
+        <mat-card-subtitle>Tu opinión fue registrada correctamente.</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <p>Puntuación: <strong>{{ response()!.rating }} / 5</strong></p>
+        @if (response()!.comment) {
+          <p>Comentario: {{ response()!.comment }}</p>
+        }
+      </mat-card-content>
+    </mat-card>
+  } @else if (errorMessage()) {
+    <mat-card class="satisfaction-page__card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar color="warn">error</mat-icon>
+        <mat-card-title>Formulario no disponible</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <p>{{ errorMessage() }}</p>
+      </mat-card-content>
+    </mat-card>
+  } @else if (formInfo()) {
+    <mat-card class="satisfaction-page__card">
+      <mat-card-header>
+        <mat-card-title>Encuesta de satisfacción</mat-card-title>
+        <mat-card-subtitle>
+          Ticket #{{ formInfo()!.ticket_number }}
+          @if (formInfo()!.client_name) {
+            · {{ formInfo()!.client_name }}
+          }
+          @if (formInfo()!.location_name) {
+            · {{ formInfo()!.location_name }}
+          }
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="satisfactionForm" (ngSubmit)="onSubmit()">
+          <div class="satisfaction-page__rating">
+            <p class="satisfaction-page__rating-label">¿Cómo calificarías el servicio recibido?</p>
+            <div class="satisfaction-page__stars" role="radiogroup" aria-label="Calificación">
+              @for (star of ratingOptions; track star) {
+                <button
+                  type="button"
+                  class="satisfaction-page__star"
+                  [class.satisfaction-page__star--filled]="star <= (hoverRating() || selectedRating)"
+                  (mouseenter)="hoverRating.set(star)"
+                  (mouseleave)="hoverRating.set(0)"
+                  (click)="setRating(star)"
+                  [attr.aria-label]="star + ' estrella' + (star > 1 ? 's' : '')"
+                >
+                  <mat-icon>star</mat-icon>
+                </button>
+              }
+              @if (selectedRating > 0) {
+                <span class="satisfaction-page__rating-value">{{ selectedRating }} / 5</span>
+              }
+            </div>
+          </div>
+
+          <mat-form-field appearance="outline" class="satisfaction-page__comment">
+            <mat-label>Comentario (opcional)</mat-label>
+            <textarea matInput formControlName="comment" rows="4" maxlength="2000"></textarea>
+          </mat-form-field>
+
+          @if (errorMessage()) {
+            <p class="satisfaction-page__error">{{ errorMessage() }}</p>
+          }
+
+          <div class="satisfaction-page__actions">
+            <button
+              mat-flat-button
+              color="primary"
+              type="submit"
+              [disabled]="satisfactionForm.invalid || isSubmitting() || selectedRating === 0"
+            >
+              @if (isSubmitting()) {
+                <mat-spinner diameter="20"></mat-spinner>
+              } @else {
+                Enviar encuesta
+              }
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+  }
+</div>

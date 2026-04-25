@@ -353,6 +353,25 @@ class TicketConflictError(ApplicationError):
         super().__init__(code="ticket_conflict", message=message, status_code=409)
 
 
+class SatisfactionFormNotFoundError(ApplicationError):
+    """Señala que el formulario de satisfacción no existe o el token es inválido."""
+
+    def __init__(self) -> None:
+        # Generic message to avoid token oracle.
+        super().__init__(
+            code="satisfaction_form_not_found",
+            message="El formulario de satisfacción indicado no existe, expiró o ya fue utilizado.",
+            status_code=404,
+        )
+
+
+class SatisfactionFormConflictError(ApplicationError):
+    """Señala un conflicto de estado en el formulario de satisfacción."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(code="satisfaction_form_conflict", message=message, status_code=409)
+
+
 class NotificationNotFoundError(ApplicationError):
     """Señala que la notificación indicada no existe."""
 

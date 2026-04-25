@@ -21,8 +21,8 @@ class Settings(BaseSettings):
         database_url: URL SQLAlchemy de la base del CRM.
         cors_origins: Orígenes permitidos para clientes browser.
         cors_origin_regex: Regex opcional para permitir orígenes dinámicos, por ejemplo LAN privada.
-        auth_base_url: Base URL de auth.microtv.ar.
-        auth_login_path: Path relativo de login en auth.microtv.ar.
+        auth_base_url: Base URL de auth interno del CRM.
+        auth_login_path: Path relativo de login en auth interno.
         auth_timeout_seconds: Timeout de llamadas a auth externo.
         auth_jwt_secret: Secret compartido para validar JWTs de auth.
         auth_jwt_algorithm: Algoritmo de firma del JWT.
@@ -56,17 +56,19 @@ class Settings(BaseSettings):
     auth_timeout_seconds: float = Field(default=10.0)
     auth_jwt_secret: str = Field(default="change-me")
     auth_jwt_algorithm: str = Field(default="HS256")
-    auth_jwt_issuer: str = Field(default="auth.microtv.ar")
+    auth_jwt_issuer: str = Field(default="auth.crm.ycc.internal")
     auth_jwt_audience: str = Field(default="microtv-platform")
     auto_provision_crm_role: bool = Field(default=True)
     product_images_max_bytes: int = Field(default=2 * 1024 * 1024)
     task_images_max_bytes: int = Field(default=8 * 1024 * 1024)
     task_videos_max_bytes: int = Field(default=128 * 1024 * 1024)
     default_admin_auth_roles: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["platform_admin", "company_admin"]
+        default_factory=lambda: ["admin", "platform_admin", "company_admin"]
     )
-    default_deposito_auth_roles: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["company_operator"])
-    default_tech_auth_roles: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["company_operator"])
+    default_deposito_auth_roles: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["operador_deposito", "company_operator"]
+    )
+    default_tech_auth_roles: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["tecnico_campo"])
     deposito_demo_tenant_id: str = Field(default="YCC")
 
     @field_validator(
@@ -128,6 +130,22 @@ class Settings(BaseSettings):
     @property
     def task_videos_dir(self) -> Path:
         return self.public_videos_dir / "task"
+
+    satisfaction_images_max_bytes: int = Field(default=8 * 1024 * 1024)
+    satisfaction_videos_max_bytes: int = Field(default=64 * 1024 * 1024)
+    satisfaction_form_expiry_hours: int = Field(default=72)
+
+    @property
+    def satisfaction_images_dir(self) -> Path:
+        return self.public_images_dir / "satisfaction"
+
+    @property
+    def satisfaction_videos_dir(self) -> Path:
+        return self.public_videos_dir / "satisfaction"
+
+    @property
+    def satisfaction_media_dir(self) -> Path:
+        return self.public_dir / "satisfaction"
 
 
 @lru_cache(maxsize=1)

@@ -16,6 +16,15 @@ export const routes: Routes = [
 		data: { title: 'Ingresar' }
 	},
 	{
+		// Public satisfaction form — NO auth guard
+		path: 'satisfaction/:token',
+		loadComponent: () =>
+			import('./features/satisfaction/components/satisfaction-page/satisfaction-page.component').then(
+				(m) => m.SatisfactionPageComponent
+			),
+		data: { title: 'Encuesta de satisfacción' }
+	},
+	{
 		path: '',
 		canActivate: [authGuard],
 		component: AppShellComponent,

@@ -370,3 +370,24 @@ def get_settings_service(session: Session = Depends(get_db_session)) -> Settings
     """Provide the settings service."""
 
     return SettingsService(session)
+
+
+def get_satisfaction_form_service(
+    session: Session = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> "PublicSatisfactionFormService":
+    """Provide the satisfaction form service."""
+    from crm_backend.services.satisfaction_form_service import PublicSatisfactionFormService  # noqa: PLC0415
+    return PublicSatisfactionFormService(
+        session=session,
+        satisfaction_media_dir=settings.satisfaction_media_dir,
+        expiry_hours=settings.satisfaction_form_expiry_hours,
+    )
+
+
+def get_ticket_export_service(
+    settings: Settings = Depends(get_settings),
+) -> "TicketExportService":
+    """Provide the ticket export service."""
+    from crm_backend.services.ticket_export_service import TicketExportService  # noqa: PLC0415
+    return TicketExportService(media_base_dir=settings.public_dir)

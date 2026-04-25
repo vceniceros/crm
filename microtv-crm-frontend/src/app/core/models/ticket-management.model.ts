@@ -120,6 +120,8 @@ export interface TicketSummary {
   closed_by_crm_user_id: string | null;
   closed_by_display_name: string | null;
   closed_at: string | null;
+  has_arrival_registered?: boolean;
+  can_register_arrival?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -181,6 +183,59 @@ export interface RejectTicketApprovalRequest {
 
 export interface ReopenTicketRequest {
   comment: string;
+}
+
+// ---------------------------------------------------------------------------
+// Arrival registration (US-1)
+// ---------------------------------------------------------------------------
+
+export interface RegisterArrivalRequest {
+  body: string;
+  attachment_ids?: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Satisfaction form (US-2)
+// ---------------------------------------------------------------------------
+
+export interface GenerateSatisfactionFormResponse {
+  form_id: string;
+  ticket_id: string;
+  public_link_token: string;
+  expires_at: string;
+  status_label: string;
+}
+
+export interface SatisfactionFormStatusResponse {
+  form_id: string;
+  ticket_id: string;
+  status_label: string;
+  expires_at: string;
+  used_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+  has_response: boolean;
+}
+
+export interface SubmitSatisfactionFormRequest {
+  rating: number;
+  comment?: string | null;
+}
+
+export interface SatisfactionResponseDetailResponse {
+  response_id: string;
+  ticket_id: string;
+  rating: number;
+  comment: string | null;
+  submitted_at: string;
+  media_count: number;
+}
+
+export interface PublicSatisfactionFormInfoResponse {
+  ticket_number: string;
+  client_name: string | null;
+  location_name: string | null;
+  status_label: string;
 }
 
 export interface TicketTableItem {

@@ -230,12 +230,44 @@
                 <mat-icon>task_alt</mat-icon>
                 <span>Cerrar ticket</span>
               </button>
+              <button mat-menu-item type="button" (click)="showArrivalPanel.set(!showArrivalPanel())">
+                <mat-icon>place</mat-icon>
+                <span>Registrar llegada</span>
+              </button>
             </mat-menu>
 
             <button mat-stroked-button type="button" (click)="toggleInventoryRequestDrawer()" [disabled]="!canCreateInventoryRequest() || isSaving()">
               Hacer solicitud a depósito
             </button>
+
+            @if (!canRegisterArrival() && hasArrivalRegistered()) {
+              <span class="ticket-execution-page__arrival-badge">
+                <mat-icon style="font-size:16px;vertical-align:middle">check_circle</mat-icon>
+                Llegada registrada
+              </span>
+            }
           </div>
+
+          @if (showArrivalPanel()) {
+            <section class="ticket-execution-page__arrival-panel" [formGroup]="arrivalForm">
+              <p style="margin:0 0 8px;font-weight:500">Registrar llegada al sitio</p>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" style="width:100%">
+                <mat-label>Descripción de la llegada</mat-label>
+                <textarea matInput formControlName="body" rows="3"></textarea>
+              </mat-form-field>
+              <p style="margin:8px 0 4px;font-size:0.85em;color:#666">
+                Adjuntá al menos un video de evidencia usando el panel de adjuntos, luego presioná Guardar.
+              </p>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button mat-flat-button color="primary" type="button" (click)="onRegisterArrival()" [disabled]="arrivalForm.invalid || isSaving()">
+                  Guardar llegada
+                </button>
+                <button mat-stroked-button type="button" (click)="showArrivalPanel.set(false)">
+                  Cancelar
+                </button>
+              </div>
+            </section>
+          }
 
           @if (showInventoryRequestDrawer()) {
             <section class="ticket-execution-page__request-drawer" [formGroup]="inventoryRequestForm">

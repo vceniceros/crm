@@ -1440,10 +1440,83 @@ export class TicketExecutionPageComponent {
     if (commentType === 'closure') {
       return 'Cierre';
     }
+    if (commentType === 'closure_evidence') {
+      return 'Evidencia de cierre';
+    }
+    if (commentType === 'arrival_registration') {
+      return 'Llegada al sitio';
+    }
     if (commentType === 'system') {
       return 'Sistema';
     }
     return 'Comentario';
+  }
+
+  readonly hasArrivalRegistered = computed(() => {
+    const ticket = this.ticket();
+    if (!ticket) return false;
+    if (typeof ticket.has_arrival_registered === 'boolean') {
+      return ticket.has_arrival_registered;
+    }
+    return ticket.comments.some(
+      (c) => (c as any).comment_type === 'arrival_registration'
+    );
+  });
+
+  readonly canRegisterArrival = computed(() => {
+    const ticket = this.ticket();
+    if (!ticket) return false;
+
+    // Keep UI resilient: if backend flag arrives false unexpectedly, preserve local
+    // operability fallback so the option is not blocked by stale/incomplete payloads.
+    const locallyAllowed = ticket.status !== 'CLOSED' && !this.hasArrivalRegistered() && this.canOperateTicket() && !this.isDeposito();
+
+    if (ticket.can_register_arrival === true) {
+      return true;
+    }
+
+    if (ticket.can_register_arrival === false) {
+      return locallyAllowed;
+    }
+
+    return locallyAllowed;
+  });
+
+  readonly arrivalForm = this.formBuilder.group({
+    body: this.formBuilder.control('', { validators: [Validators.required, Validators.minLength(1)], nonNullable: true })
+  });
+  readonly showArrivalPanel = signal(false);
+
+  onRegisterArrival(): void {
+    if (this.arrivalForm.invalid || this.isSaving()) return;
+    const body = this.arrivalForm.getRawValue().body.trim();
+    if (!body) return;
+
+    const attachmentIds = this.pendingAttachments().map((a) => a.id);
+    if (attachmentIds.length === 0) {
+      this.errorMessage.set('Adjuntá al menos un video de evidencia antes de registrar la llegada.');
+      return;
+    }
+
+    this.isSaving.set(true);
+    this.errorMessage.set(null);
+    this.ticketManagementService
+      .registerArrival(this.ticketId(), { body, attachment_ids: attachmentIds })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (ticket) => {
+          this.ticket.set(ticket);
+          this.pendingAttachments.set([]);
+          this.arrivalForm.reset();
+          this.showArrivalPanel.set(false);
+          this.isSaving.set(false);
+          this.snackBar.open('Llegada al sitio registrada con evidencia de video.', 'OK', { duration: 4000 });
+        },
+        error: (err) => {
+          this.isSaving.set(false);
+          this.errorMessage.set(err?.message ?? 'Error al registrar la llegada.');
+        }
+      });
   }
 
   private hasRole(roleKey: string): boolean {

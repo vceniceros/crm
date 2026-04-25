@@ -10,6 +10,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { forkJoin } from 'rxjs';
 
 import {
+  SettingsAuthUser,
   SettingsCategory,
   SettingsCategoryWriteRequest,
   SettingsNotificationRule,
@@ -27,6 +28,7 @@ import {
   SettingsUserRoleAssignment,
   SettingsUserRoleAssignmentRequest
 } from '../../../../core/models/settings-management.model';
+import { AuthSessionService } from '../../../../core/services/auth-session.service';
 import { SettingsManagementService } from '../../../../core/services/settings-management.service';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 import {
@@ -53,6 +55,7 @@ import {
 })
 export class SettingsPageComponent {
   private readonly settingsService = inject(SettingsManagementService);
+  private readonly authSessionService = inject(AuthSessionService);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -61,12 +64,20 @@ export class SettingsPageComponent {
 
   readonly roles = signal<SettingsRole[]>([]);
   readonly userRoles = signal<SettingsUserRoleAssignment[]>([]);
+  readonly authUsers = signal<SettingsAuthUser[]>([]);
   readonly categories = signal<SettingsCategory[]>([]);
   readonly priorities = signal<SettingsPriority[]>([]);
   readonly statuses = signal<SettingsStatus[]>([]);
   readonly templates = signal<SettingsTaskTemplate[]>([]);
   readonly slaRules = signal<SettingsSlaRule[]>([]);
   readonly notificationRules = signal<SettingsNotificationRule[]>([]);
+
+  readonly crmOperationalRoles: Array<{ code: string; label: string }> = [
+    { code: 'admin', label: 'Administrador' },
+    { code: 'ejecutivo', label: 'Ejecutivo' },
+    { code: 'tecnico_campo', label: 'Técnico de campo' },
+    { code: 'operador_deposito', label: 'Operador depósito' }
+  ];
 
   constructor() {
     this.reload();
@@ -79,6 +90,7 @@ export class SettingsPageComponent {
     forkJoin({
       roles: this.settingsService.listRoles(),
       userRoles: this.settingsService.listUserRoles(),
+      authUsers: this.settingsService.listAuthUsers(),
       categories: this.settingsService.listCategories(),
       priorities: this.settingsService.listPriorities(),
       statuses: this.settingsService.listStatuses(),
@@ -91,6 +103,7 @@ export class SettingsPageComponent {
         next: (result) => {
           this.roles.set(result.roles);
           this.userRoles.set(result.userRoles);
+          this.authUsers.set(result.authUsers);
           this.categories.set(result.categories);
           this.priorities.set(result.priorities);
           this.statuses.set(result.statuses);
@@ -341,5 +354,123 @@ export class SettingsPageComponent {
     }
     const byKey = new Map(this.roles().map((role) => [role.role_key, role.role_label]));
     return roleKeys.map((key) => byKey.get(key) ?? key).join(', ');
+  }
+
+  isAdmin(): boolean {
+    return this.authSessionService.sessionSnapshot()?.user.role_keys.includes('admin') ?? false;
+  }
+
+  prettyAuthRoles(roleKeys: string[]): string {
+    const byKey = new Map(this.crmOperationalRoles.map((role) => [role.code, role.label]));
+    if (!roleKeys.length) {
+      return 'Sin roles';
+    }
+    return roleKeys.map((key) => byKey.get(key) ?? key).join(', ');
+  }
+
+  createAuthUser(): void {
+    const email = window.prompt('Email del usuario nuevo (obligatorio):', '')?.trim();
+    if (!email) {
+      return;
+    }
+    const displayName = window.prompt('Nombre visible:', '')?.trim();
+    if (!displayName) {
+      return;
+    }
+    const password = window.prompt('Contraseña inicial (mínimo 8 caracteres):', '') ?? '';
+    if (password.length < 8) {
+      this.errorMessage.set('La contraseña inicial debe tener al menos 8 caracteres.');
+      return;
+    }
+    const roleInput = window.prompt(
+      'Roles (separados por coma): admin, ejecutivo, tecnico_campo, operador_deposito',
+      'operador_deposito'
+    );
+    const roles = (roleInput ?? '')
+      .split(',')
+      .map((role) => role.trim())
+      .filter((role) => !!role);
+
+    this.settingsService
+      .createAuthUser({
+        email,
+        display_name: displayName,
+        password,
+        is_active: true,
+        roles
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.reload(),
+        error: (error: Error) => this.errorMessage.set(error.message)
+      });
+  }
+
+  editAuthUser(user: SettingsAuthUser): void {
+    const nextEmail = window.prompt('Email del usuario:', user.email)?.trim();
+    if (!nextEmail) {
+      return;
+    }
+    const nextName = window.prompt('Nombre visible:', user.display_name)?.trim();
+    if (!nextName) {
+      return;
+    }
+    this.settingsService
+      .updateAuthUser(user.user_id, {
+        email: nextEmail,
+        display_name: nextName
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.reload(),
+        error: (error: Error) => this.errorMessage.set(error.message)
+      });
+  }
+
+  toggleAuthUserStatus(user: SettingsAuthUser): void {
+    this.settingsService
+      .setAuthUserStatus(user.user_id, { is_active: !user.is_active })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.reload(),
+        error: (error: Error) => this.errorMessage.set(error.message)
+      });
+  }
+
+  updateAuthUserRoles(user: SettingsAuthUser): void {
+    const value = window.prompt(
+      'Roles (separados por coma): admin, ejecutivo, tecnico_campo, operador_deposito',
+      user.roles.join(', ')
+    );
+    if (value === null) {
+      return;
+    }
+    const roles = value
+      .split(',')
+      .map((role) => role.trim())
+      .filter((role) => !!role);
+
+    this.settingsService
+      .setAuthUserRoles(user.user_id, { roles })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.reload(),
+        error: (error: Error) => this.errorMessage.set(error.message)
+      });
+  }
+
+  resetAuthUserPassword(user: SettingsAuthUser): void {
+    const newPassword = window.prompt(`Nueva contraseña para ${user.display_name} (${user.email}):`, '') ?? '';
+    if (newPassword.length < 8) {
+      this.errorMessage.set('La nueva contraseña debe tener al menos 8 caracteres.');
+      return;
+    }
+    this.settingsService
+      .resetAuthUserPassword(user.user_id, { new_password: newPassword })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.reload(),
+        error: (error: Error) => this.errorMessage.set(error.message)
+      });
   }
 }

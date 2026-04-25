@@ -1,4 +1,4 @@
-"""Script de seed para el entorno local de auth del CRM."""
+"""Script de seed para el entorno local de auth interno del CRM."""
 
 from __future__ import annotations
 
@@ -165,8 +165,10 @@ def main() -> None:
     database_url = normalize_database_url(
         os.getenv("DATABASE_URL", "postgresql+psycopg://authmicrotv:authmicrotv@localhost:5432/auth_microtv")
     )
-    admin_email = os.getenv("CRM_LOCAL_ADMIN_EMAIL", "admin.crm@microtv.com")
-    admin_password = os.getenv("CRM_LOCAL_ADMIN_PASSWORD", "Passw0rd!")
+    admin_email = os.getenv("CRM_AUTH_ADMIN_EMAIL", os.getenv("CRM_LOCAL_ADMIN_EMAIL", "admin@ycc.local"))
+    admin_password = os.getenv("CRM_AUTH_ADMIN_PASSWORD", os.getenv("CRM_LOCAL_ADMIN_PASSWORD", "changeme-secure-password"))
+    admin_name = os.getenv("CRM_AUTH_ADMIN_NAME", "Administrador CRM")
+    tenant_id = os.getenv("CRM_AUTH_TENANT_ID", "YCC")
     ycc_email = os.getenv("CRM_LOCAL_YCC_EMAIL", "operador.crm@yccbrothers.com")
     ycc_password = os.getenv("CRM_LOCAL_YCC_PASSWORD", "Passw0rd!")
     ycc_aux_email = os.getenv("CRM_LOCAL_YCC_AUX_EMAIL", "deposito.aux@yccbrothers.com")
@@ -179,18 +181,24 @@ def main() -> None:
 
     with psycopg.connect(database_url) as connection:
         with connection.cursor() as cursor:
-            platform_admin_role_id = ensure_role(cursor, "platform_admin")
-            company_operator_role_id = ensure_role(cursor, "company_operator")
+            admin_role_id = ensure_role(cursor, "admin")
+            operator_role_id = ensure_role(cursor, "operador_deposito")
             ejecutivo_role_id = ensure_role(cursor, "ejecutivo")
+            tecnico_role_id = ensure_role(cursor, "tecnico_campo")
 
-            microtv_company_id = ensure_company(cursor, company_id="MICROTV", company_name="MicroTV")
-            ycc_company_id = ensure_company(cursor, company_id="YCC", company_name="YCC Brothers")
+            # Keep legacy roles available for compatibility with historic flows/tests.
+            ensure_role(cursor, "platform_admin")
+            ensure_role(cursor, "company_operator")
+            ensure_role(cursor, "company_admin")
+
+            ensure_company(cursor, company_id="MICROTV", company_name="MicroTV")
+            ycc_company_id = ensure_company(cursor, company_id=tenant_id, company_name="YCC Brothers")
 
             admin_user_id = ensure_user(
                 cursor,
                 email=admin_email,
                 password=admin_password,
-                display_name="Admin MicroTV",
+                display_name=admin_name,
             )
             ycc_user_id = ensure_user(
                 cursor,
@@ -221,20 +229,20 @@ def main() -> None:
             ensure_membership(
                 cursor,
                 user_id=admin_user_id,
-                company_id=microtv_company_id,
-                role_id=platform_admin_role_id,
+                company_id=ycc_company_id,
+                role_id=admin_role_id,
             )
             ensure_membership(
                 cursor,
                 user_id=ycc_user_id,
                 company_id=ycc_company_id,
-                role_id=company_operator_role_id,
+                role_id=operator_role_id,
             )
             ensure_membership(
                 cursor,
                 user_id=ycc_aux_user_id,
                 company_id=ycc_company_id,
-                role_id=company_operator_role_id,
+                role_id=operator_role_id,
             )
             ensure_membership(
                 cursor,
@@ -246,7 +254,7 @@ def main() -> None:
                 cursor,
                 user_id=ycc_tech_user_id,
                 company_id=ycc_company_id,
-                role_id=company_operator_role_id,
+                role_id=tecnico_role_id,
             )
         connection.commit()
 

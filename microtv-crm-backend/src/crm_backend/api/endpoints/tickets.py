@@ -3,8 +3,14 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Response, UploadFile, status
+from fastapi.responses import StreamingResponse
 
-from crm_backend.api.dependencies import get_authenticated_crm_session, get_ticket_application_service
+from crm_backend.api.dependencies import (
+    get_authenticated_crm_session,
+    get_satisfaction_form_service,
+    get_ticket_application_service,
+    get_ticket_export_service,
+)
 from crm_backend.schemas import (
     ApproveTicketRequest,
     AssignTicketRequest,
@@ -20,11 +26,30 @@ from crm_backend.schemas import (
     TicketSummaryResponse,
     UpdateTicketStatusRequest,
 )
+from crm_backend.schemas.tickets import (
+    GenerateSatisfactionFormResponse,
+    RegisterArrivalRequest,
+    SatisfactionFormStatusResponse,
+    SatisfactionResponseDetailResponse,
+)
 from crm_backend.services.auth_service import ResolvedCrmSession
+from crm_backend.services.satisfaction_form_service import PublicSatisfactionFormService
+from crm_backend.services.ticket_export_service import TicketExportService
 from crm_backend.services.ticket_service import TicketApplicationService
 
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
+
+
+def _to_ticket_detail_response(
+    *,
+    actor: ResolvedCrmSession,
+    ticket_service: TicketApplicationService,
+    ticket,
+) -> TicketDetailResponse:
+    setattr(ticket, "has_arrival_registered", ticket_service.has_arrival_registered(ticket))
+    setattr(ticket, "can_register_arrival", ticket_service.can_register_arrival(actor, ticket))
+    return TicketDetailResponse.model_validate(ticket)
 
 
 @router.get(
@@ -57,7 +82,8 @@ def create_ticket(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
 ) -> TicketDetailResponse:
-    return TicketDetailResponse.model_validate(ticket_service.create_ticket(actor, payload))
+    ticket = ticket_service.create_ticket(actor, payload)
+    return _to_ticket_detail_response(actor=actor, ticket_service=ticket_service, ticket=ticket)
 
 
 @router.get(
@@ -118,7 +144,8 @@ def get_ticket_detail(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
 ) -> TicketDetailResponse:
-    return TicketDetailResponse.model_validate(ticket_service.get_ticket_detail(actor, ticket_id))
+    ticket = ticket_service.get_ticket_detail(actor, ticket_id)
+    return _to_ticket_detail_response(actor=actor, ticket_service=ticket_service, ticket=ticket)
 
 
 @router.patch(
@@ -132,15 +159,14 @@ def assign_ticket(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
 ) -> TicketDetailResponse:
-    return TicketDetailResponse.model_validate(
-        ticket_service.assign_ticket(
-            actor,
-            ticket_id,
-            payload.assigned_role_id,
-            payload.assigned_user_id,
-            payload.notes,
-        )
+    ticket = ticket_service.assign_ticket(
+        actor,
+        ticket_id,
+        payload.assigned_role_id,
+        payload.assigned_user_id,
+        payload.notes,
     )
+    return _to_ticket_detail_response(actor=actor, ticket_service=ticket_service, ticket=ticket)
 
 
 @router.post(
@@ -154,15 +180,14 @@ def add_ticket_comment(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
 ) -> TicketDetailResponse:
-    return TicketDetailResponse.model_validate(
-        ticket_service.add_comment(
-            actor,
-            ticket_id,
-            body=payload.body,
-            location_id=payload.location_id,
-            attachment_ids=payload.attachment_ids,
-        )
+    ticket = ticket_service.add_comment(
+        actor,
+        ticket_id,
+        body=payload.body,
+        location_id=payload.location_id,
+        attachment_ids=payload.attachment_ids,
     )
+    return _to_ticket_detail_response(actor=actor, ticket_service=ticket_service, ticket=ticket)
 
 
 @router.patch(
@@ -176,15 +201,14 @@ def update_ticket_status(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
 ) -> TicketDetailResponse:
-    return TicketDetailResponse.model_validate(
-        ticket_service.update_status(
-            actor,
-            ticket_id,
-            to_status=payload.to_status,
-            comment=payload.comment,
-            attachment_ids=payload.attachment_ids,
-        )
+    ticket = ticket_service.update_status(
+        actor,
+        ticket_id,
+        to_status=payload.to_status,
+        comment=payload.comment,
+        attachment_ids=payload.attachment_ids,
     )
+    return _to_ticket_detail_response(actor=actor, ticket_service=ticket_service, ticket=ticket)
 
 
 @router.patch(
@@ -198,7 +222,8 @@ def approve_ticket(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
 ) -> TicketDetailResponse:
-    return TicketDetailResponse.model_validate(ticket_service.approve_ticket(actor, ticket_id, payload.comment))
+    ticket = ticket_service.approve_ticket(actor, ticket_id, payload.comment)
+    return _to_ticket_detail_response(actor=actor, ticket_service=ticket_service, ticket=ticket)
 
 
 @router.patch(
@@ -212,7 +237,8 @@ def reject_ticket_approval(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
 ) -> TicketDetailResponse:
-    return TicketDetailResponse.model_validate(ticket_service.reject_ticket_approval(actor, ticket_id, payload.comment))
+    ticket = ticket_service.reject_ticket_approval(actor, ticket_id, payload.comment)
+    return _to_ticket_detail_response(actor=actor, ticket_service=ticket_service, ticket=ticket)
 
 
 @router.patch(
@@ -226,14 +252,13 @@ def close_ticket(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
 ) -> TicketDetailResponse:
-    return TicketDetailResponse.model_validate(
-        ticket_service.close_ticket(
-            actor,
-            ticket_id,
-            comment=payload.comment,
-            attachment_ids=payload.attachment_ids,
-        )
+    ticket = ticket_service.close_ticket(
+        actor,
+        ticket_id,
+        comment=payload.comment,
+        attachment_ids=payload.attachment_ids,
     )
+    return _to_ticket_detail_response(actor=actor, ticket_service=ticket_service, ticket=ticket)
 
 
 @router.patch(
@@ -247,13 +272,12 @@ def reopen_ticket(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
 ) -> TicketDetailResponse:
-    return TicketDetailResponse.model_validate(
-        ticket_service.reopen_ticket(
-            actor,
-            ticket_id,
-            comment=payload.comment,
-        )
+    ticket = ticket_service.reopen_ticket(
+        actor,
+        ticket_id,
+        comment=payload.comment,
     )
+    return _to_ticket_detail_response(actor=actor, ticket_service=ticket_service, ticket=ticket)
 
 
 @router.post(
@@ -285,3 +309,147 @@ def delete_ticket_attachment(
 ) -> Response:
     ticket_service.delete_ticket_attachment(actor, attachment_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------
+# Arrival registration (US-1)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/{ticket_id}/arrival",
+    response_model=TicketDetailResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+)
+def register_arrival(
+    ticket_id: str,
+    payload: RegisterArrivalRequest,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
+) -> TicketDetailResponse:
+    ticket = ticket_service.register_arrival(
+        actor,
+        ticket_id,
+        body=payload.body,
+        attachment_ids=payload.attachment_ids,
+    )
+    return _to_ticket_detail_response(actor=actor, ticket_service=ticket_service, ticket=ticket)
+
+
+# ---------------------------------------------------------------------------
+# Satisfaction form (US-2)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/{ticket_id}/satisfaction-form",
+    response_model=GenerateSatisfactionFormResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
+)
+def generate_satisfaction_form(
+    ticket_id: str,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
+    sat_service: PublicSatisfactionFormService = Depends(get_satisfaction_form_service),
+) -> GenerateSatisfactionFormResponse:
+    ticket = ticket_service.get_ticket_detail(actor, ticket_id)
+    form, raw_token = sat_service.generate_form(actor, ticket)
+    return GenerateSatisfactionFormResponse(
+        form_id=form.form_id,
+        ticket_id=form.ticket_id,
+        public_link_token=raw_token,
+        expires_at=form.expires_at,
+        status_label=form.status_label,
+    )
+
+
+@router.post(
+    "/{ticket_id}/satisfaction-form/revoke",
+    response_model=SatisfactionFormStatusResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
+)
+def revoke_satisfaction_form(
+    ticket_id: str,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
+    sat_service: PublicSatisfactionFormService = Depends(get_satisfaction_form_service),
+) -> SatisfactionFormStatusResponse:
+    ticket = ticket_service.get_ticket_detail(actor, ticket_id)
+    form = sat_service.revoke_form(actor, ticket)
+    return SatisfactionFormStatusResponse.from_orm_form(form)
+
+
+@router.get(
+    "/{ticket_id}/satisfaction-form/status",
+    response_model=SatisfactionFormStatusResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def get_satisfaction_form_status(
+    ticket_id: str,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
+    sat_service: PublicSatisfactionFormService = Depends(get_satisfaction_form_service),
+) -> SatisfactionFormStatusResponse:
+    from crm_backend.core.exceptions import SatisfactionFormNotFoundError  # noqa: PLC0415
+    ticket = ticket_service.get_ticket_detail(actor, ticket_id)
+    form = sat_service.get_form_status(actor, ticket)
+    if form is None:
+        raise SatisfactionFormNotFoundError()
+    return SatisfactionFormStatusResponse.from_orm_form(form)
+
+
+@router.get(
+    "/{ticket_id}/satisfaction-form/response",
+    response_model=SatisfactionResponseDetailResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def get_satisfaction_response(
+    ticket_id: str,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
+    sat_service: PublicSatisfactionFormService = Depends(get_satisfaction_form_service),
+) -> SatisfactionResponseDetailResponse:
+    from crm_backend.core.exceptions import SatisfactionFormNotFoundError  # noqa: PLC0415
+    ticket = ticket_service.get_ticket_detail(actor, ticket_id)
+    resp = sat_service.get_response_for_ticket(actor, ticket)
+    if resp is None:
+        raise SatisfactionFormNotFoundError()
+    return SatisfactionResponseDetailResponse(
+        response_id=resp.response_id,
+        ticket_id=resp.ticket_id,
+        rating=resp.rating,
+        comment=resp.comment,
+        submitted_at=resp.submitted_at,
+        media_count=len(resp.media or []),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Export development (US-3)
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{ticket_id}/export-development",
+    responses={
+        200: {"content": {"application/zip": {}}, "description": "ZIP archive with PDF + multimedia"},
+        401: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+    },
+)
+def export_ticket_development(
+    ticket_id: str,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
+    export_service: TicketExportService = Depends(get_ticket_export_service),
+) -> StreamingResponse:
+    ticket = ticket_service.get_ticket_detail(actor, ticket_id)
+    zip_bytes = export_service.export_development_zip(actor, ticket)
+    ticket_number = ticket.ticket_number or ticket_id
+    filename = f"ticket_{ticket_number}.zip"
+    return StreamingResponse(
+        iter([zip_bytes]),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

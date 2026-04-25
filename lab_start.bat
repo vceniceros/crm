@@ -4,8 +4,8 @@ setlocal enabledelayedexpansion
 :: =========================================================
 ::  MicroTV CRM - Laboratorio Local
 ::  Levanta el stack completo de pruebas:
-::    1. PostgreSQL de auth  (Docker)
-::    2. auth.microtv        (Docker, puerto 8001)
+::    1. PostgreSQL de auth interno (Docker)
+::    2. auth interno CRM          (Docker, puerto 8001)
 ::    3. CRM Backend         (Python/uvicorn, puerto 8010)
 ::    4. CRM Frontend        (Angular ng serve, puerto 4200)
 :: =========================================================
@@ -40,8 +40,8 @@ if errorlevel 1 (
 echo   OK - Docker activo.
 echo.
 
-:: ---- 2. Levantar auth local + PostgreSQL CRM -------------------
-echo [2/6] Levantando auth.microtv + PostgreSQL de laboratorio (Docker Compose)...
+:: ---- 2. Levantar auth interno + PostgreSQL CRM ------------------
+echo [2/6] Levantando auth interno CRM + PostgreSQL de laboratorio (Docker Compose)...
 echo   Compose: %COMPOSE_DIR%\docker-compose.auth-local.yml
 echo.
 docker compose -f "%COMPOSE_DIR%\docker-compose.auth-local.yml" up --build -d
@@ -49,13 +49,9 @@ if errorlevel 1 (
     echo.
     echo   ERROR: docker compose fallo. Revisa el output arriba.
     echo.
-    echo   Causa frecuente: auth.microtv.ar debe estar clonado
-    echo   en el mismo directorio padre que microtv-crm-ycc.
-    echo   Ejemplo:
-    echo     C:\repos\auth.microtv.ar\
-    echo     C:\repos\microtv-crm-ycc\    <- ejecutas desde aqui
-    echo.
-    echo   Ver: lab_deploy.md - seccion Troubleshooting
+    echo   Causa frecuente: revisar rutas/build-context en docker-compose
+    echo   y que exista la carpeta interna auth.microtv.ar dentro de este repo.
+    echo   Ver: lab_deploy.md - seccion Troubleshooting.
     echo.
     pause
     exit /b 1
@@ -117,9 +113,9 @@ if /I "%CRM_SCHEMA_READY%"=="READY" (
 echo.
 
 :: ---- 5. Abrir terminal de logs de auth --------------------------
-echo [5/6] Abriendo logs de auth.microtv en ventana separada...
-start "auth.microtv logs [8001]" /d "%COMPOSE_DIR%" cmd /k docker compose -f docker-compose.auth-local.yml logs -f auth-local
-echo   Ventana: "auth.microtv logs [8001]"
+echo [5/6] Abriendo logs de auth interno CRM en ventana separada...
+start "Auth interno CRM logs [8001]" /d "%COMPOSE_DIR%" cmd /k docker compose -f docker-compose.auth-local.yml logs -f auth-local
+echo   Ventana: "Auth interno CRM logs [8001]"
 echo.
 
 :: ---- 5a. Esperar que auth responda (healthcheck) ----------------
@@ -131,8 +127,8 @@ set HTTP_CODE=000
 set /a RETRIES=RETRIES+1
 if %RETRIES% GTR 40 (
     echo.
-    echo   ERROR: auth no respondio en ~120 segundos.
-    echo   Revisa la ventana "auth.microtv logs [8001]"
+    echo   ERROR: auth interno CRM no respondio en ~120 segundos.
+    echo   Revisa la ventana "Auth interno CRM logs [8001]"
     echo   o ejecuta:
     echo     docker compose -f microtv-crm-backend\docker-compose.auth-local.yml logs
     echo.
@@ -147,7 +143,7 @@ timeout /t 3 /nobreak > nul
 goto wait_auth
 
 :auth_ready
-echo   OK - auth.microtv responde en http://localhost:8001
+echo   OK - auth interno CRM responde en http://localhost:8001
 echo.
 
 :: ---- 6. Abrir CRM Backend ---------------------------------------
@@ -168,18 +164,18 @@ echo   Stack de laboratorio iniciado
 echo =========================================================
 echo.
 echo   SERVICIOS:
-echo     auth.microtv   http://localhost:8001/health   (Docker)
+echo     Auth interno CRM   http://localhost:8001/health   (Docker)
 echo     CRM PostgreSQL localhost:%CRM_DB_PORT%        (Docker)
 echo     CRM Backend    http://localhost:8010/health   (ventana "CRM Backend [8010]")
 echo     CRM Frontend   http://localhost:4200          (ventana "CRM Frontend [4200]")
 echo.
 echo   TERMINALES ABIERTAS:
-echo     "auth.microtv logs [8001]"   logs de auth en tiempo real
+echo     "Auth interno CRM logs [8001]"   logs de auth en tiempo real
 echo     "CRM Backend [8010]"         uvicorn CRM backend
 echo     "CRM Frontend [4200]"        ng serve Angular
 echo.
 echo   USUARIOS DE PRUEBA:
-echo     admin.crm@microtv.com          Passw0rd!   (rol local: admin_crm ^| alias UI: admin)
+echo     admin@ycc.local                changeme-secure-password   (rol auth: admin)
 echo     deposito.aux@yccbrothers.com   Passw0rd!   (rol local: encargado_deposito ^| alias UI: deposito)
 echo     operador.crm@yccbrothers.com   Passw0rd!   (rol local: encargado_deposito ^| alias UI: deposito)
 echo     ejecutivo.crm@yccbrothers.com  Passw0rd!   (rol local: ejecutivo ^| alias UI: ejecutivo)

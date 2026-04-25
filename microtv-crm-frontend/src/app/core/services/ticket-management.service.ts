@@ -10,8 +10,14 @@ import {
   CloseTicketRequest,
   CreateTicketCommentRequest,
   CreateTicketRequest,
+  GenerateSatisfactionFormResponse,
+  PublicSatisfactionFormInfoResponse,
+  RegisterArrivalRequest,
   RejectTicketApprovalRequest,
   ReopenTicketRequest,
+  SatisfactionFormStatusResponse,
+  SatisfactionResponseDetailResponse,
+  SubmitSatisfactionFormRequest,
   TicketAttachment,
   TicketClientOption,
   TicketDetail,
@@ -166,6 +172,69 @@ export class TicketManagementService {
 
     return this.http
       .delete<void>(`${crmApiConfig.baseUrl}/tickets/attachments/${attachmentId}`, { headers })
+      .pipe(catchError((error) => this.handleRequestError(error)));
+  }
+
+  // -------------------------------------------------------------------------
+  // Arrival registration (US-1)
+  // -------------------------------------------------------------------------
+
+  registerArrival(ticketId: string, payload: RegisterArrivalRequest): Observable<TicketDetail> {
+    return this.request<TicketDetail>('post', `/tickets/${ticketId}/arrival`, payload).pipe(
+      map((ticket) => this.normalizeTicketDetail(ticket))
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Satisfaction form (US-2)
+  // -------------------------------------------------------------------------
+
+  generateSatisfactionForm(ticketId: string): Observable<GenerateSatisfactionFormResponse> {
+    return this.request<GenerateSatisfactionFormResponse>('post', `/tickets/${ticketId}/satisfaction-form`);
+  }
+
+  revokeSatisfactionForm(ticketId: string): Observable<SatisfactionFormStatusResponse> {
+    return this.request<SatisfactionFormStatusResponse>('post', `/tickets/${ticketId}/satisfaction-form/revoke`);
+  }
+
+  getSatisfactionFormStatus(ticketId: string): Observable<SatisfactionFormStatusResponse> {
+    return this.request<SatisfactionFormStatusResponse>('get', `/tickets/${ticketId}/satisfaction-form/status`);
+  }
+
+  getSatisfactionResponse(ticketId: string): Observable<SatisfactionResponseDetailResponse> {
+    return this.request<SatisfactionResponseDetailResponse>('get', `/tickets/${ticketId}/satisfaction-form/response`);
+  }
+
+  // Public (no auth required)
+  getPublicSatisfactionForm(token: string): Observable<PublicSatisfactionFormInfoResponse> {
+    return this.http
+      .get<PublicSatisfactionFormInfoResponse>(`${crmApiConfig.baseUrl}/public/tickets/satisfaction/${encodeURIComponent(token)}`)
+      .pipe(catchError((error) => this.handleRequestError(error)));
+  }
+
+  submitPublicSatisfactionForm(token: string, payload: SubmitSatisfactionFormRequest): Observable<SatisfactionResponseDetailResponse> {
+    return this.http
+      .post<SatisfactionResponseDetailResponse>(
+        `${crmApiConfig.baseUrl}/public/tickets/satisfaction/${encodeURIComponent(token)}`,
+        payload
+      )
+      .pipe(catchError((error) => this.handleRequestError(error)));
+  }
+
+  // -------------------------------------------------------------------------
+  // Export development (US-3)
+  // -------------------------------------------------------------------------
+
+  exportTicketDevelopment(ticketId: string): Observable<Blob> {
+    const headers = this.buildAuthHeaders();
+    if (!headers) {
+      return throwError(() => new Error('No hay una sesión autenticada válida para operar tickets.'));
+    }
+    return this.http
+      .get(`${crmApiConfig.baseUrl}/tickets/${ticketId}/export-development`, {
+        headers,
+        responseType: 'blob'
+      })
       .pipe(catchError((error) => this.handleRequestError(error)));
   }
 

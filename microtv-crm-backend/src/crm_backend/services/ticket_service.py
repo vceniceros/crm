@@ -360,6 +360,76 @@ class TicketApplicationService:
         )
         return self._ticket_repository.save(ticket)
 
+    def register_arrival(
+        self,
+        actor: ResolvedCrmSession,
+        ticket_id: str,
+        body: str,
+        attachment_ids: list[str],
+    ) -> Ticket:
+        """Register the technician arrival at the site with mandatory video evidence."""
+        ticket = self.get_ticket_detail(actor, ticket_id)
+        self._ensure_ticket_operable(actor, ticket)
+
+        if ticket.status == TicketStatus.CLOSED.value:
+            raise TicketConflictError("No se puede registrar llegada en un ticket cerrado.")
+
+        if self._has_arrival_registered(ticket):
+            raise TicketConflictError("La llegada ya fue registrada para este ticket.")
+
+        normalized_body = body.strip()
+        if not normalized_body:
+            raise TicketValidationError("El registro de llegada requiere un comentario descriptivo.")
+
+        if not attachment_ids:
+            raise TicketValidationError("El registro de llegada requiere al menos un video adjunto obligatorio.")
+
+        comment = TicketComment(
+            ticket_comment_id=str(uuid4()),
+            ticket_id=ticket.ticket_id,
+            author_crm_user_id=actor.crm_user.crm_user_id,
+            location_id=ticket.location_id,
+            comment_type=TicketCommentType.ARRIVAL_REGISTRATION.value,
+            body=normalized_body,
+        )
+        ticket.comments.append(comment)
+        self._attach_files_to_comment(ticket, comment, attachment_ids)
+
+        # Validate that at least one attached file is a video.
+        if not self._comment_has_video(ticket, comment):
+            raise TicketValidationError("El registro de llegada requiere al menos un video obligatorio.")
+
+        ticket.audit_events.append(
+            TicketAuditEvent(
+                event_type="ticket.arrival_registered",
+                actor_crm_user_id=actor.crm_user.crm_user_id,
+                payload_json={
+                    "comment_id": comment.ticket_comment_id,
+                    "location_id": ticket.location_id,
+                    "attachment_ids": list(attachment_ids),
+                },
+            )
+        )
+        return self._ticket_repository.save(ticket)
+
+    def has_arrival_registered(self, ticket: Ticket) -> bool:
+        """Expose arrival registration status for API serialization."""
+        return self._has_arrival_registered(ticket)
+
+    def can_register_arrival(self, actor: ResolvedCrmSession, ticket: Ticket) -> bool:
+        """Return whether the current actor can register arrival for this ticket."""
+        if ticket.status == TicketStatus.CLOSED.value:
+            return False
+        if self._has_arrival_registered(ticket):
+            return False
+        if "deposito" in actor.role_keys:
+            return False
+        try:
+            self._ensure_ticket_operable(actor, ticket)
+        except TicketAccessDeniedError:
+            return False
+        return True
+
     def close_ticket(
         self,
         actor: ResolvedCrmSession,
@@ -377,16 +447,35 @@ class TicketApplicationService:
         if ticket.status == TicketStatus.CLOSED.value:
             raise TicketConflictError("El ticket ya se encuentra cerrado.")
 
+        # Enforce arrival evidence requirement (non-admin/executive flows).
+        is_executive_actor = bool({"admin", "ejecutivo"}.intersection(actor.role_keys))
+        if not is_executive_actor and not self._has_arrival_registered(ticket):
+            raise TicketConflictError(
+                "No se puede cerrar el ticket sin haber registrado la llegada al sitio con evidencia de video."
+            )
+
+        # Enforce closure video requirement.
+        if not attachment_ids:
+            raise TicketValidationError(
+                "El cierre del ticket requiere al menos un video de evidencia obligatorio."
+            )
+
         from_status = ticket.status
         ticket_comment = TicketComment(
             ticket_comment_id=str(uuid4()),
             ticket_id=ticket.ticket_id,
             author_crm_user_id=actor.crm_user.crm_user_id,
-            comment_type=TicketCommentType.CLOSURE.value,
+            comment_type=TicketCommentType.CLOSURE_EVIDENCE.value,
             body=normalized_comment,
         )
         ticket.comments.append(ticket_comment)
         self._attach_files_to_comment(ticket, ticket_comment, attachment_ids)
+
+        # Validate that at least one closure attachment is a video.
+        if not self._comment_has_video(ticket, ticket_comment):
+            raise TicketValidationError(
+                "El cierre del ticket requiere al menos un video de evidencia adjunto."
+            )
 
         is_executive_closure = bool({"admin", "ejecutivo"}.intersection(actor.role_keys))
         if is_executive_closure:
@@ -659,6 +748,22 @@ class TicketApplicationService:
         except Exception:
             _logger.exception("Error sending reopen_ticket notification for ticket %s", saved_ticket.ticket_id)
         return saved_ticket
+
+    def _has_arrival_registered(self, ticket: Ticket) -> bool:
+        """Return True if the ticket has at least one valid arrival registration comment."""
+        return any(
+            comment.comment_type == TicketCommentType.ARRIVAL_REGISTRATION.value
+            for comment in ticket.comments
+        )
+
+    def _comment_has_video(self, ticket: Ticket, comment: TicketComment) -> bool:
+        """Return True if at least one attachment linked to `comment` is a video."""
+        from crm_backend.models import TicketAttachmentType
+        return any(
+            attachment.attachment_type == TicketAttachmentType.VIDEO.value
+            for attachment in ticket.attachments
+            if attachment.ticket_comment_id == comment.ticket_comment_id
+        )
 
     def _ensure_no_pending_receipt_for_actor(self, actor: ResolvedCrmSession, ticket: Ticket) -> None:
         result = self._ticket_repository.session.execute(

@@ -4,9 +4,17 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
-from crm_backend.api.dependencies import get_authenticated_crm_session, get_settings_service
+from crm_backend.adapters.auth_service_adapter import AuthManagedUser, AuthServiceAdapter
+from crm_backend.api.dependencies import get_auth_service_adapter, get_authenticated_crm_session, get_settings_service
+from crm_backend.core.exceptions import ApplicationError
 from crm_backend.schemas import ErrorResponse
 from crm_backend.schemas.settings import (
+    SettingsAuthUserCreateRequest,
+    SettingsAuthUserResetPasswordRequest,
+    SettingsAuthUserResponse,
+    SettingsAuthUserRolesRequest,
+    SettingsAuthUserStatusRequest,
+    SettingsAuthUserUpdateRequest,
     SettingsCategoryResponse,
     SettingsCategoryWriteRequest,
     SettingsNotificationRuleResponse,
@@ -29,6 +37,22 @@ from crm_backend.services.settings_service import SettingsService
 
 
 router = APIRouter(prefix="/settings", tags=["settings"])
+
+
+def _require_admin(actor: ResolvedCrmSession) -> None:
+    if "admin" in actor.role_keys:
+        return
+    raise ApplicationError("settings_admin_required", "La operación requiere rol administrador.", 403)
+
+
+def _map_auth_managed_user(user: AuthManagedUser) -> SettingsAuthUserResponse:
+    return SettingsAuthUserResponse(
+        user_id=user.user_id,
+        email=user.email,
+        display_name=user.display_name,
+        is_active=user.is_active,
+        roles=user.roles,
+    )
 
 
 @router.get("/roles", response_model=list[SettingsRoleResponse], responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}})
@@ -253,3 +277,96 @@ def update_notification_rule(
     settings_service: SettingsService = Depends(get_settings_service),
 ) -> SettingsNotificationRuleResponse:
     return SettingsNotificationRuleResponse.model_validate(settings_service.update_notification_rule(actor, rule_id, payload))
+
+
+@router.get("/auth-users", response_model=list[SettingsAuthUserResponse], responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}})
+def list_auth_users(
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    auth_adapter: AuthServiceAdapter = Depends(get_auth_service_adapter),
+) -> list[SettingsAuthUserResponse]:
+    _require_admin(actor)
+    users = auth_adapter.list_managed_users(actor.auth_result.access_token)
+    return [_map_auth_managed_user(user) for user in users]
+
+
+@router.post("/auth-users", response_model=SettingsAuthUserResponse, responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 422: {"model": ErrorResponse}})
+def create_auth_user(
+    payload: SettingsAuthUserCreateRequest,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    auth_adapter: AuthServiceAdapter = Depends(get_auth_service_adapter),
+) -> SettingsAuthUserResponse:
+    _require_admin(actor)
+    created = auth_adapter.create_managed_user(
+        access_token=actor.auth_result.access_token,
+        email=payload.email,
+        display_name=payload.display_name,
+        password=payload.password,
+        is_active=payload.is_active,
+        roles=payload.roles,
+    )
+    return _map_auth_managed_user(created)
+
+
+@router.put("/auth-users/{user_id}", response_model=SettingsAuthUserResponse, responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 422: {"model": ErrorResponse}})
+def update_auth_user(
+    user_id: str,
+    payload: SettingsAuthUserUpdateRequest,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    auth_adapter: AuthServiceAdapter = Depends(get_auth_service_adapter),
+) -> SettingsAuthUserResponse:
+    _require_admin(actor)
+    updated = auth_adapter.update_managed_user(
+        access_token=actor.auth_result.access_token,
+        user_id=user_id,
+        email=payload.email,
+        display_name=payload.display_name,
+    )
+    return _map_auth_managed_user(updated)
+
+
+@router.put("/auth-users/{user_id}/status", response_model=SettingsAuthUserResponse, responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}})
+def update_auth_user_status(
+    user_id: str,
+    payload: SettingsAuthUserStatusRequest,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    auth_adapter: AuthServiceAdapter = Depends(get_auth_service_adapter),
+) -> SettingsAuthUserResponse:
+    _require_admin(actor)
+    updated = auth_adapter.set_managed_user_status(
+        access_token=actor.auth_result.access_token,
+        user_id=user_id,
+        is_active=payload.is_active,
+    )
+    return _map_auth_managed_user(updated)
+
+
+@router.put("/auth-users/{user_id}/roles", response_model=SettingsAuthUserResponse, responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 422: {"model": ErrorResponse}})
+def update_auth_user_roles(
+    user_id: str,
+    payload: SettingsAuthUserRolesRequest,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    auth_adapter: AuthServiceAdapter = Depends(get_auth_service_adapter),
+) -> SettingsAuthUserResponse:
+    _require_admin(actor)
+    updated = auth_adapter.set_managed_user_roles(
+        access_token=actor.auth_result.access_token,
+        user_id=user_id,
+        roles=payload.roles,
+    )
+    return _map_auth_managed_user(updated)
+
+
+@router.put("/auth-users/{user_id}/reset-password", response_model=SettingsAuthUserResponse, responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}})
+def reset_auth_user_password(
+    user_id: str,
+    payload: SettingsAuthUserResetPasswordRequest,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    auth_adapter: AuthServiceAdapter = Depends(get_auth_service_adapter),
+) -> SettingsAuthUserResponse:
+    _require_admin(actor)
+    updated = auth_adapter.reset_managed_user_password(
+        access_token=actor.auth_result.access_token,
+        user_id=user_id,
+        new_password=payload.new_password,
+    )
+    return _map_auth_managed_user(updated)

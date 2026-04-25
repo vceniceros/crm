@@ -17,6 +17,7 @@ src/crm_backend/api/endpoints/health.py
 src/crm_backend/api/endpoints/inventory_flow.py
 src/crm_backend/api/endpoints/locations.py
 src/crm_backend/api/endpoints/notifications.py
+src/crm_backend/api/endpoints/public_tickets.py
 src/crm_backend/api/endpoints/reports.py
 src/crm_backend/api/endpoints/settings.py
 src/crm_backend/api/endpoints/stock.py
@@ -82,8 +83,10 @@ src/crm_backend/services/material_flow_service.py
 src/crm_backend/services/notification_service.py
 src/crm_backend/services/reports_service.py
 src/crm_backend/services/role_resolution_service.py
+src/crm_backend/services/satisfaction_form_service.py
 src/crm_backend/services/settings_service.py
 src/crm_backend/services/stock_service.py
+src/crm_backend/services/ticket_export_service.py
 src/crm_backend/services/ticket_service.py
 src/crm_backend/services/tasks/__init__.py
 src/crm_backend/services/tasks/action_execution.py
@@ -100,4 +103,5 @@ tests/test_auth_api.py
 tests/test_clients_api.py
 tests/test_stock_api.py
 tests/test_tasks_api.py
+tests/test_ticket_evidence_and_satisfaction.py
 tests/test_tickets_api.py

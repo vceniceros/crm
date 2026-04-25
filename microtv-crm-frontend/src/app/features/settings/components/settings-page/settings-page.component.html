@@ -25,7 +25,48 @@
   } @else {
     <mat-card class="settings-page__tabs-card">
       <mat-tab-group>
-        <mat-tab label="Usuarios y roles">
+        @if (isAdmin()) {
+          <mat-tab label="Gestión de usuarios">
+            <section class="settings-page__tab-content">
+              <div class="settings-page__section-header">
+                <h3>Usuarios del auth interno CRM</h3>
+                <button mat-flat-button color="primary" type="button" (click)="createAuthUser()">Nuevo usuario</button>
+              </div>
+
+              <table class="settings-page__table">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Estado</th>
+                    <th>Roles</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of authUsers(); track item.user_id) {
+                    <tr>
+                      <td>{{ item.display_name }}</td>
+                      <td>{{ item.email }}</td>
+                      <td>{{ item.is_active ? 'Activo' : 'Inactivo' }}</td>
+                      <td>{{ prettyAuthRoles(item.roles) }}</td>
+                      <td class="settings-page__actions-cell">
+                        <button mat-button type="button" (click)="editAuthUser(item)">Editar</button>
+                        <button mat-button type="button" (click)="toggleAuthUserStatus(item)">
+                          {{ item.is_active ? 'Desactivar' : 'Activar' }}
+                        </button>
+                        <button mat-button type="button" (click)="updateAuthUserRoles(item)">Roles</button>
+                        <button mat-button type="button" (click)="resetAuthUserPassword(item)">Reset password</button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </section>
+          </mat-tab>
+        }
+
+        <mat-tab label="Usuarios y roles CRM">
           <section class="settings-page__tab-content">
             <div class="settings-page__section-header">
               <h3>Roles funcionales</h3>

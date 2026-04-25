@@ -5,6 +5,12 @@ import { catchError } from 'rxjs/operators';
 
 import { crmApiConfig } from '../config/crm-api.config';
 import {
+  SettingsAuthUser,
+  SettingsAuthUserCreateRequest,
+  SettingsAuthUserResetPasswordRequest,
+  SettingsAuthUserRolesRequest,
+  SettingsAuthUserStatusRequest,
+  SettingsAuthUserUpdateRequest,
   SettingsCategory,
   SettingsCategoryWriteRequest,
   SettingsNotificationRule,
@@ -50,6 +56,30 @@ export class SettingsManagementService {
 
   setUserRoles(userId: string, payload: SettingsUserRoleAssignmentRequest): Observable<SettingsUserRoleAssignment> {
     return this.request<SettingsUserRoleAssignment>('put', `/settings/user-roles/${userId}`, payload);
+  }
+
+  listAuthUsers(): Observable<SettingsAuthUser[]> {
+    return this.request<SettingsAuthUser[]>('get', '/settings/auth-users');
+  }
+
+  createAuthUser(payload: SettingsAuthUserCreateRequest): Observable<SettingsAuthUser> {
+    return this.request<SettingsAuthUser>('post', '/settings/auth-users', payload);
+  }
+
+  updateAuthUser(userId: string, payload: SettingsAuthUserUpdateRequest): Observable<SettingsAuthUser> {
+    return this.request<SettingsAuthUser>('put', `/settings/auth-users/${userId}`, payload);
+  }
+
+  setAuthUserStatus(userId: string, payload: SettingsAuthUserStatusRequest): Observable<SettingsAuthUser> {
+    return this.request<SettingsAuthUser>('put', `/settings/auth-users/${userId}/status`, payload);
+  }
+
+  setAuthUserRoles(userId: string, payload: SettingsAuthUserRolesRequest): Observable<SettingsAuthUser> {
+    return this.request<SettingsAuthUser>('put', `/settings/auth-users/${userId}/roles`, payload);
+  }
+
+  resetAuthUserPassword(userId: string, payload: SettingsAuthUserResetPasswordRequest): Observable<SettingsAuthUser> {
+    return this.request<SettingsAuthUser>('put', `/settings/auth-users/${userId}/reset-password`, payload);
   }
 
   listCategories(type?: string): Observable<SettingsCategory[]> {

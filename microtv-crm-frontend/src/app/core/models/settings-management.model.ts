@@ -23,6 +23,39 @@ export interface SettingsUserRoleAssignmentRequest {
   role_keys: string[];
 }
 
+export interface SettingsAuthUser {
+  user_id: string;
+  email: string;
+  display_name: string;
+  is_active: boolean;
+  roles: string[];
+}
+
+export interface SettingsAuthUserCreateRequest {
+  email: string;
+  display_name: string;
+  password: string;
+  is_active: boolean;
+  roles: string[];
+}
+
+export interface SettingsAuthUserUpdateRequest {
+  email: string;
+  display_name: string;
+}
+
+export interface SettingsAuthUserStatusRequest {
+  is_active: boolean;
+}
+
+export interface SettingsAuthUserRolesRequest {
+  roles: string[];
+}
+
+export interface SettingsAuthUserResetPasswordRequest {
+  new_password: string;
+}
+
 export interface SettingsCategory {
   category_id: string;
   name: string;

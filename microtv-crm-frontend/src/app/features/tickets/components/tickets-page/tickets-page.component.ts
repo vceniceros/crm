@@ -4,10 +4,12 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 
 import {
@@ -46,6 +48,7 @@ interface TicketListUiState {
     MatDialogModule,
     MatIconModule,
     MatProgressSpinnerModule,
+    MatSnackBarModule,
     MatTabsModule,
     ListingControlsComponent,
     PageTitleComponent,
@@ -63,6 +66,7 @@ export class TicketsPageComponent {
   private readonly authSessionService = inject(AuthSessionService);
   private readonly ticketManagementService = inject(TicketManagementService);
   private readonly listingViewPreferenceService = inject(ListingViewPreferenceService);
+  private readonly snackBar = inject(MatSnackBar);
 
   readonly isHandset = toSignal(
     this.breakpointObserver.observe([Breakpoints.Handset]).pipe(map((state) => state.matches)),
@@ -361,5 +365,76 @@ export class TicketsPageComponent {
       hour: '2-digit',
       minute: '2-digit'
     });
+  }
+
+  // -------------------------------------------------------------------------
+  // Satisfaction form (US-2) — history tab actions
+  // -------------------------------------------------------------------------
+
+  readonly satisfactionFormGenerating = signal<string | null>(null); // ticketId
+
+  readonly canGenerateSatisfactionForms = computed(() => {
+    const roles = this.currentRoles();
+    return roles.includes('admin') || roles.includes('ejecutivo');
+  });
+
+  onGenerateSatisfactionForm(ticketId: string): void {
+    if (this.satisfactionFormGenerating()) return;
+    this.satisfactionFormGenerating.set(ticketId);
+    this.errorMessage.set(null);
+
+    this.ticketManagementService
+      .generateSatisfactionForm(ticketId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (response) => {
+          this.satisfactionFormGenerating.set(null);
+          const token = response.public_link_token;
+          const link = `${window.location.origin}/satisfaction/${token}`;
+          // Copy to clipboard
+          navigator.clipboard?.writeText(link).catch(() => {/* ignore */});
+          this.snackBar.open(
+            `Formulario generado. Link copiado: ${link}`,
+            'OK',
+            { duration: 10000 }
+          );
+        },
+        error: (err: Error) => {
+          this.satisfactionFormGenerating.set(null);
+          this.errorMessage.set(err.message ?? 'Error al generar el formulario.');
+        }
+      });
+  }
+
+  // -------------------------------------------------------------------------
+  // Export development (US-3)
+  // -------------------------------------------------------------------------
+
+  readonly exportingTicketId = signal<string | null>(null);
+
+  onExportTicketDevelopment(ticketId: string): void {
+    if (this.exportingTicketId()) return;
+    this.exportingTicketId.set(ticketId);
+    this.errorMessage.set(null);
+
+    this.ticketManagementService
+      .exportTicketDevelopment(ticketId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (blob) => {
+          this.exportingTicketId.set(null);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          const ticket = this.historyTickets().find((t) => t.ticket_id === ticketId);
+          a.download = ticket ? `ticket_${ticket.ticket_number}.zip` : 'ticket_desarrollo.zip';
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+        error: (err: Error) => {
+          this.exportingTicketId.set(null);
+          this.errorMessage.set(err.message ?? 'Error al exportar el desarrollo del ticket.');
+        }
+      });
   }
 }

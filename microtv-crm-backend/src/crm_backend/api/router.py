@@ -15,6 +15,7 @@ from crm_backend.api.endpoints.settings import router as settings_router
 from crm_backend.api.endpoints.stock import router as stock_router
 from crm_backend.api.endpoints.tasks import router as tasks_router
 from crm_backend.api.endpoints.tickets import router as tickets_router
+from crm_backend.api.endpoints.public_tickets import router as public_tickets_router
 
 
 api_router = APIRouter()
@@ -28,6 +29,7 @@ api_router.include_router(stock_router)
 api_router.include_router(inventory_flow_router)
 api_router.include_router(tasks_router)
 api_router.include_router(tickets_router)
+api_router.include_router(public_tickets_router)
 api_router.include_router(notifications_router)
 api_router.include_router(reports_router)
 api_router.include_router(settings_router)

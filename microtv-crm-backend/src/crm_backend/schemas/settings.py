@@ -34,6 +34,39 @@ class SettingsUserRoleAssignmentRequest(BaseModel):
     role_keys: list[str] = Field(default_factory=list)
 
 
+class SettingsAuthUserResponse(BaseModel):
+    user_id: str
+    email: str
+    display_name: str
+    is_active: bool
+    roles: list[str] = Field(default_factory=list)
+
+
+class SettingsAuthUserCreateRequest(BaseModel):
+    email: str = Field(..., min_length=5, max_length=255)
+    display_name: str = Field(..., min_length=2, max_length=120)
+    password: str = Field(..., min_length=8)
+    is_active: bool = True
+    roles: list[str] = Field(default_factory=list)
+
+
+class SettingsAuthUserUpdateRequest(BaseModel):
+    email: str = Field(..., min_length=5, max_length=255)
+    display_name: str = Field(..., min_length=2, max_length=120)
+
+
+class SettingsAuthUserStatusRequest(BaseModel):
+    is_active: bool
+
+
+class SettingsAuthUserRolesRequest(BaseModel):
+    roles: list[str] = Field(default_factory=list)
+
+
+class SettingsAuthUserResetPasswordRequest(BaseModel):
+    new_password: str = Field(..., min_length=8)
+
+
 class SettingsCategoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

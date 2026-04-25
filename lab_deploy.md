@@ -2,7 +2,7 @@
 
 ## 1. Propósito
 
-Este documento describe el entorno de laboratorio local que permite probar el stack completo del CRM contra un servicio de autenticación real y una base de datos de prueba, sin depender de entornos externos.
+Este documento describe el entorno de laboratorio local que permite probar el stack completo del CRM contra una instancia interna de autenticación y una base de datos de prueba, sin depender de repositorios externos.
 
 El laboratorio replica el flujo de producción completo:
 - auth.microtv (servicio de identidad y JWT)
@@ -36,17 +36,9 @@ El laboratorio replica el flujo de producción completo:
 
 > `curl` ya viene incluido en Windows 10 versión 1803 en adelante. No requiere instalación adicional.
 
-### Repositorios requeridos
+### Repositorio requerido
 
-Ambos repositorios deben estar clonados **en el mismo directorio padre**:
-
-```
-[raiz_comun]\
-    auth.microtv.ar\      <- repo separado
-    microtv-crm-ycc\      <- este repo
-```
-
-El Docker Compose de auth usa `context: ../..` (relativo al archivo compose dentro de `microtv-crm-ycc/microtv-crm-backend/`), lo que resuelve a `[raiz_comun]\`. El Dockerfile dentro de ese contexto copia desde `auth.microtv.ar/backend/`.
+Solo se requiere este repositorio (`microtv-crm-ycc`), que ya contiene la copia interna de `auth.microtv.ar` en la subcarpeta local.
 
 ### Variables de entorno
 
@@ -57,11 +49,11 @@ DATABASE_URL=postgresql+psycopg://crmmicrotv:crmmicrotv@localhost:5433/crm_micro
 AUTH_BASE_URL=http://localhost:8001
 AUTH_JWT_SECRET=change-me
 AUTH_JWT_ALGORITHM=HS256
-AUTH_JWT_ISSUER=auth.microtv.ar
+AUTH_JWT_ISSUER=auth.crm.ycc.internal
 AUTH_JWT_AUDIENCE=microtv-platform
 ```
 
-> `AUTH_JWT_SECRET=change-me` debe coincidir con el `JWT_SECRET` del contenedor auth
+> `AUTH_JWT_SECRET=change-me` debe coincidir con el `JWT_SECRET` del contenedor auth interno
 > (definido en `docker-compose.auth-local.yml`, valor: `change-me`).
 > No cambies uno sin cambiar el otro.
 
@@ -162,17 +154,20 @@ Abierto automáticamente por `lab_start.bat`.
 Define tres servicios:
 - `auth-db`: PostgreSQL 16 Alpine, datos en volumen `crm-auth-db-data`, healthcheck cada 5s.
 - `crm-backend-db`: PostgreSQL 16 Alpine, datos en volumen `crm-backend-db-data`, expuesto en `localhost:5433`, healthcheck cada 5s.
-- `auth-local`: imagen construida desde `docker/auth-local/Dockerfile`, depende de `auth-db` con `condition: service_healthy`.
+- `auth-local`: imagen construida desde `docker/auth-local/Dockerfile`, depende de `auth-db` con `condition: service_healthy` y expone healthcheck propio.
 
 Variables de entorno inyectadas al contenedor auth:
 ```
 DATABASE_URL=postgresql+psycopg://authmicrotv:authmicrotv@auth-db:5432/auth_microtv
 JWT_SECRET=change-me
 JWT_ALGORITHM=HS256
+JWT_ISSUER=auth.crm.ycc.internal
 JWT_AUDIENCE=microtv-platform
 ALLOWED_ORIGINS=http://localhost:4200,http://localhost:5173,http://localhost:8010
-CRM_LOCAL_ADMIN_EMAIL=admin.crm@microtv.com
-CRM_LOCAL_ADMIN_PASSWORD=Passw0rd!
+CRM_AUTH_ADMIN_EMAIL=admin@ycc.local
+CRM_AUTH_ADMIN_PASSWORD=changeme-secure-password
+CRM_AUTH_ADMIN_NAME=Administrador CRM
+CRM_AUTH_TENANT_ID=YCC
 CRM_LOCAL_YCC_EMAIL=operador.crm@yccbrothers.com
 CRM_LOCAL_YCC_PASSWORD=Passw0rd!
 CRM_LOCAL_YCC_AUX_EMAIL=deposito.aux@yccbrothers.com
@@ -185,9 +180,9 @@ CRM_LOCAL_YCC_AUX_PASSWORD=Passw0rd!
 FROM python:3.12-slim
 WORKDIR /app
 COPY auth.microtv.ar/backend/ /app/
-COPY microtv-crm-ycc/microtv-crm-backend/docker/auth-local/seed_crm_auth.py /opt/seed/
+COPY microtv-crm-backend/docker/auth-local/seed_crm_auth.py /opt/seed/
 RUN pip install "psycopg[binary]" && pip install .
-CMD alembic upgrade head && python /opt/seed/seed_crm_auth.py && uvicorn src.main:app --host 0.0.0.0 --port 8001
+CMD alembic upgrade head && python -m src.cli ensure_crm_bootstrap && python /opt/seed/seed_crm_auth.py && uvicorn src.main:app --host 0.0.0.0 --port 8001
 ```
 
 El `CMD` corre tres pasos en secuencia:
@@ -198,7 +193,8 @@ El `CMD` corre tres pasos en secuencia:
 ### `docker/auth-local/seed_crm_auth.py` (ya existente)
 
 Script Python que conecta directamente via `psycopg` y garantiza (ON CONFLICT idempotente):
-- Roles: `platform_admin`, `company_operator`
+- Roles operativos: `admin`, `ejecutivo`, `tecnico_campo`, `operador_deposito`
+- Roles legacy de compatibilidad: `platform_admin`, `company_operator`, `company_admin`
 - Compañías: `MICROTV`, `YCC Brothers`
 - Usuarios con memberships y role assignments (ver sección 9)
 

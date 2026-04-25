@@ -84,6 +84,15 @@ class AccessPendingResult:
     user_type: str
 
 
+@dataclass(slots=True)
+class AuthManagedUser:
+    user_id: str
+    email: str
+    display_name: str
+    is_active: bool
+    roles: list[str]
+
+
 class AuthServiceAdapter:
     """Encapsulate the HTTP and JWT contract of auth.microtv.ar."""
 
@@ -264,3 +273,106 @@ class AuthServiceAdapter:
             return "El servicio auth devolvió una respuesta no parseable."
         detail = payload.get("detail")
         return str(detail) if detail else "El servicio auth rechazó la solicitud."
+
+    def list_managed_users(self, access_token: str) -> list[AuthManagedUser]:
+        payload = self._call_crm_admin("GET", "/v1/crm-admin/users", access_token=access_token)
+        if not isinstance(payload, list):
+            raise UpstreamAuthError("El servicio auth devolvió una respuesta inválida al listar usuarios.")
+        return [self._build_managed_user(item) for item in payload if isinstance(item, dict)]
+
+    def create_managed_user(
+        self,
+        *,
+        access_token: str,
+        email: str,
+        display_name: str,
+        password: str,
+        is_active: bool,
+        roles: list[str],
+    ) -> AuthManagedUser:
+        payload = self._call_crm_admin(
+            "POST",
+            "/v1/crm-admin/users",
+            access_token=access_token,
+            body={
+                "email": email,
+                "display_name": display_name,
+                "password": password,
+                "is_active": is_active,
+                "roles": roles,
+            },
+        )
+        if not isinstance(payload, dict):
+            raise UpstreamAuthError("El servicio auth devolvió una respuesta inválida al crear usuario.")
+        return self._build_managed_user(payload)
+
+    def update_managed_user(self, *, access_token: str, user_id: str, email: str, display_name: str) -> AuthManagedUser:
+        payload = self._call_crm_admin(
+            "PUT",
+            f"/v1/crm-admin/users/{user_id}",
+            access_token=access_token,
+            body={"email": email, "display_name": display_name},
+        )
+        if not isinstance(payload, dict):
+            raise UpstreamAuthError("El servicio auth devolvió una respuesta inválida al actualizar usuario.")
+        return self._build_managed_user(payload)
+
+    def set_managed_user_status(self, *, access_token: str, user_id: str, is_active: bool) -> AuthManagedUser:
+        payload = self._call_crm_admin(
+            "PUT",
+            f"/v1/crm-admin/users/{user_id}/status",
+            access_token=access_token,
+            body={"is_active": is_active},
+        )
+        if not isinstance(payload, dict):
+            raise UpstreamAuthError("El servicio auth devolvió una respuesta inválida al cambiar estado de usuario.")
+        return self._build_managed_user(payload)
+
+    def set_managed_user_roles(self, *, access_token: str, user_id: str, roles: list[str]) -> AuthManagedUser:
+        payload = self._call_crm_admin(
+            "PUT",
+            f"/v1/crm-admin/users/{user_id}/roles",
+            access_token=access_token,
+            body={"roles": roles},
+        )
+        if not isinstance(payload, dict):
+            raise UpstreamAuthError("El servicio auth devolvió una respuesta inválida al asignar roles.")
+        return self._build_managed_user(payload)
+
+    def reset_managed_user_password(self, *, access_token: str, user_id: str, new_password: str) -> AuthManagedUser:
+        payload = self._call_crm_admin(
+            "PUT",
+            f"/v1/crm-admin/users/{user_id}/reset-password",
+            access_token=access_token,
+            body={"new_password": new_password},
+        )
+        if not isinstance(payload, dict):
+            raise UpstreamAuthError("El servicio auth devolvió una respuesta inválida al resetear contraseña.")
+        return self._build_managed_user(payload)
+
+    def _call_crm_admin(self, method: str, path: str, *, access_token: str, body: dict[str, Any] | None = None) -> Any:
+        headers = {"Authorization": f"Bearer {access_token}"}
+        try:
+            with httpx.Client(base_url=self._settings.auth_base_url, timeout=self._settings.auth_timeout_seconds) as client:
+                response = client.request(method, path, json=body, headers=headers)
+        except httpx.HTTPError as exc:
+            raise UpstreamAuthError() from exc
+
+        if response.status_code >= 500:
+            raise UpstreamAuthError("El servicio auth respondió con un error interno.")
+        if response.status_code >= 400:
+            detail = self._extract_error_detail(response)
+            if response.status_code == 401:
+                raise UnauthenticatedError(detail)
+            raise AuthenticationContextError(detail)
+
+        return response.json()
+
+    def _build_managed_user(self, payload: dict[str, Any]) -> AuthManagedUser:
+        return AuthManagedUser(
+            user_id=str(payload.get("user_id", "")),
+            email=str(payload.get("email", "")),
+            display_name=str(payload.get("display_name", "")),
+            is_active=bool(payload.get("is_active", False)),
+            roles=[str(role) for role in payload.get("roles", []) if isinstance(role, str)],
+        )

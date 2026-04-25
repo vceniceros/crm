@@ -46,6 +46,8 @@ class TicketCommentType(StrEnum):
     GENERAL = "general"
     SYSTEM = "system"
     CLOSURE = "closure"
+    ARRIVAL_REGISTRATION = "arrival_registration"
+    CLOSURE_EVIDENCE = "closure_evidence"
 
 
 class TicketAttachmentType(StrEnum):
@@ -383,3 +385,95 @@ def _normalize_role_key(role_key: str | None) -> str | None:
     if normalized == "encargado_deposito":
         return "deposito"
     return normalized or None
+
+
+# ---------------------------------------------------------------------------
+# Satisfaction forms (US-2: formulario de satisfacción del cliente)
+# ---------------------------------------------------------------------------
+
+
+class TicketSatisfactionForm(Base):
+    """Secure one-use satisfaction form generated for a closed ticket."""
+
+    __tablename__ = "ticket_satisfaction_forms"
+
+    form_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    ticket_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("tickets.ticket_id"), index=True)
+    # SHA-256 hex digest of the raw opaque token — never store the raw token.
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    created_by_user_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id"), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    ticket: Mapped["Ticket"] = relationship("Ticket", foreign_keys=[ticket_id], lazy="joined")
+    created_by_user: Mapped["CrmUser"] = relationship("CrmUser", foreign_keys=[created_by_user_id], lazy="joined")
+    response: Mapped["TicketSatisfactionResponse | None"] = relationship(
+        "TicketSatisfactionResponse",
+        back_populates="form",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    @property
+    def is_expired(self) -> bool:
+        from datetime import timezone as _tz
+        return datetime.now(_tz.utc) > self.expires_at
+
+    @property
+    def is_usable(self) -> bool:
+        return self.revoked_at is None and self.used_at is None and not self.is_expired
+
+    @property
+    def status_label(self) -> str:
+        if self.revoked_at is not None:
+            return "revocado"
+        if self.used_at is not None:
+            return "respondido"
+        if self.is_expired:
+            return "expirado"
+        return "pendiente"
+
+
+class TicketSatisfactionResponse(Base):
+    """Client response to a satisfaction form."""
+
+    __tablename__ = "ticket_satisfaction_responses"
+
+    response_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    form_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("ticket_satisfaction_forms.form_id"), unique=True, index=True)
+    ticket_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("tickets.ticket_id"), index=True)
+    # Rating: 0.5 to 5.0 stored as NUMERIC(3,1)
+    rating: Mapped[float] = mapped_column(nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Basic audit — hashed IP and user-agent, never raw IP.
+    submitter_ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    submitter_user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    form: Mapped["TicketSatisfactionForm"] = relationship("TicketSatisfactionForm", back_populates="response")
+    media: Mapped[list["TicketSatisfactionMedia"]] = relationship(
+        "TicketSatisfactionMedia",
+        back_populates="response",
+        cascade="all, delete-orphan",
+        order_by="TicketSatisfactionMedia.created_at",
+        lazy="selectin",
+    )
+
+
+class TicketSatisfactionMedia(Base):
+    """Multimedia attached to a satisfaction response."""
+
+    __tablename__ = "ticket_satisfaction_media"
+
+    media_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    response_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("ticket_satisfaction_responses.response_id"), index=True)
+    file_path: Mapped[str] = mapped_column(String(1000))
+    file_name: Mapped[str] = mapped_column(String(500))
+    mime_type: Mapped[str] = mapped_column(String(100))
+    size_bytes: Mapped[int] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    response: Mapped["TicketSatisfactionResponse"] = relationship("TicketSatisfactionResponse", back_populates="media")

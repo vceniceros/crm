@@ -50,6 +50,24 @@ if not exist ".env" (
     echo   [*] .env existente encontrado, no se sobreescribe.
 )
 
+:: -- Forzar variables de auth internas para el lab
+set "AUTH_BASE_URL=http://localhost:8001"
+set "AUTH_LOGIN_PATH=/v1/auth/login"
+set "AUTH_TIMEOUT_SECONDS=10"
+set "AUTH_JWT_SECRET=change-me"
+set "AUTH_JWT_ALGORITHM=HS256"
+set "AUTH_JWT_ISSUER=auth.crm.ycc.internal"
+set "AUTH_JWT_AUDIENCE=microtv-platform"
+set "AUTO_PROVISION_CRM_ROLE=true"
+set "DEFAULT_ADMIN_AUTH_ROLES=admin,platform_admin,company_admin"
+set "DEFAULT_DEPOSITO_AUTH_ROLES=operador_deposito,company_operator"
+set "DEFAULT_TECH_AUTH_ROLES=tecnico_campo"
+
+echo   [*] Auth lab interno forzado por entorno:
+echo       AUTH_BASE_URL=%AUTH_BASE_URL%
+echo       AUTH_JWT_ISSUER=%AUTH_JWT_ISSUER%
+echo       DEFAULT_ADMIN_AUTH_ROLES=%DEFAULT_ADMIN_AUTH_ROLES%
+
 :: -- Instalar dependencias
 echo.
 echo   [*] Instalando / verificando dependencias (pip install -e .[test])...

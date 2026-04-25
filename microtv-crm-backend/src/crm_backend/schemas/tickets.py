@@ -160,6 +160,8 @@ class TicketSummaryResponse(BaseModel):
 
 
 class TicketDetailResponse(TicketSummaryResponse):
+    has_arrival_registered: bool = False
+    can_register_arrival: bool = False
     comments: list[TicketCommentResponse] = Field(default_factory=list)
     status_history: list[TicketStatusTransitionResponse] = Field(default_factory=list)
     assignment_history: list[TicketAssignmentHistoryResponse] = Field(default_factory=list)
@@ -172,3 +174,82 @@ class TicketRoleOptionResponse(BaseModel):
     crm_role_id: str
     role_key: str
     role_label: str
+
+
+# ---------------------------------------------------------------------------
+# Arrival registration (US-1)
+# ---------------------------------------------------------------------------
+
+
+class RegisterArrivalRequest(BaseModel):
+    body: str = Field(..., min_length=1, max_length=4000)
+    attachment_ids: list[str] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Satisfaction form (US-2)
+# ---------------------------------------------------------------------------
+
+
+class GenerateSatisfactionFormRequest(BaseModel):
+    """No body needed — ticket_id is in path. Placeholder for future fields."""
+    pass
+
+
+class SatisfactionFormStatusResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    form_id: str
+    ticket_id: str
+    status_label: str
+    expires_at: datetime
+    used_at: datetime | None
+    revoked_at: datetime | None
+    created_at: datetime
+    has_response: bool
+
+    @classmethod
+    def from_orm_form(cls, form) -> "SatisfactionFormStatusResponse":
+        return cls(
+            form_id=form.form_id,
+            ticket_id=form.ticket_id,
+            status_label=form.status_label,
+            expires_at=form.expires_at,
+            used_at=form.used_at,
+            revoked_at=form.revoked_at,
+            created_at=form.created_at,
+            has_response=form.response is not None,
+        )
+
+
+class GenerateSatisfactionFormResponse(BaseModel):
+    """Returned once only — includes raw token for the satisfaction link."""
+    form_id: str
+    ticket_id: str
+    public_link_token: str  # The raw opaque token — shown once.
+    expires_at: datetime
+    status_label: str
+
+
+class PublicSatisfactionFormInfoResponse(BaseModel):
+    """Safe public response — no IDs, no sensitive data."""
+    ticket_number: str
+    client_name: str | None
+    location_name: str | None
+    status_label: str
+
+
+class SubmitSatisfactionFormRequest(BaseModel):
+    rating: float = Field(..., ge=0.5, le=5.0)
+    comment: str | None = Field(default=None, max_length=2000)
+
+
+class SatisfactionResponseDetailResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    response_id: str
+    ticket_id: str
+    rating: float
+    comment: str | None
+    submitted_at: datetime
+    media_count: int

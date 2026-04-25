@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class LoginRequest(BaseModel):
@@ -13,8 +13,16 @@ class LoginRequest(BaseModel):
         password: User password.
     """
 
-    email: EmailStr
+    email: str
     password: str = Field(..., min_length=1)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if not normalized or "@" not in normalized:
+            raise ValueError("email must contain '@'.")
+        return normalized
 
 
 class MembershipOptionResponse(BaseModel):

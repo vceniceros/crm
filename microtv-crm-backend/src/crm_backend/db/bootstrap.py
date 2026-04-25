@@ -216,6 +216,9 @@ def _ensure_extension_tables(session: Session) -> None:
         "ticket_assignment_history",
         "ticket_audit_events",
         "crm_notifications",
+        "ticket_satisfaction_forms",
+        "ticket_satisfaction_responses",
+        "ticket_satisfaction_media",
     ]
     bind = session.get_bind()
     inspector = inspect(bind)
