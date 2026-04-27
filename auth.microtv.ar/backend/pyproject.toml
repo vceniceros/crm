@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "auth-microtv-ar-backend"
+version = "0.1.0"
+description = "Backend service for auth.microtv.ar"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "sqlalchemy",
+    "alembic",
+    "psycopg",
+    "pydantic",
+    "email-validator",
+    "python-dotenv",
+    "argon2-cffi",
+    "pyjwt",
+    "authlib",
+    "aiosmtplib>=3.0",
+    "httpx",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "httpx",
+    "anyio[trio]",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

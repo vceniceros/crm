@@ -1,0 +1,10 @@
+FROM postgres:16-alpine
+
+# Default local values for development/testing only.
+ENV POSTGRES_DB=auth_microtv \
+    POSTGRES_USER=authmicrotv \
+    POSTGRES_PASSWORD=authmicrotv
+
+EXPOSE 5432
+
+HEALTHCHECK --interval=5s --timeout=5s --retries=10 CMD pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" || exit 1
