@@ -7,9 +7,10 @@ information leakage.
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, cast
 
-from fastapi import APIRouter, Depends, File, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from pydantic import ValidationError
 
 from crm_backend.api.dependencies import get_satisfaction_form_service
 from crm_backend.schemas.tickets import (
@@ -27,6 +28,36 @@ def _get_client_ip(request: Request) -> str | None:
     if forwarded_for:
         return forwarded_for.split(",")[0].strip()
     return request.client.host if request.client else None
+
+
+def _to_satisfaction_detail_response(response) -> SatisfactionResponseDetailResponse:
+    return SatisfactionResponseDetailResponse.from_orm_response(response)
+
+
+async def _parse_submission_payload(
+    request: Request,
+) -> tuple[SubmitSatisfactionFormRequest, list[UploadFile]]:
+    content_type = request.headers.get("content-type", "").lower()
+    files: list[UploadFile] = []
+
+    if content_type.startswith("multipart/form-data"):
+        form = await request.form()
+        files = [cast(UploadFile, item) for item in form.getlist("files") if getattr(item, "filename", None)]
+        raw_payload = {
+            "rating": form.get("rating"),
+            "customer_name": form.get("customer_name"),
+            "customer_company": form.get("customer_company"),
+            "comment": form.get("comment"),
+        }
+    else:
+        raw_payload = await request.json()
+
+    try:
+        payload = SubmitSatisfactionFormRequest.model_validate(raw_payload)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors()) from exc
+
+    return payload, files
 
 
 @router.get(
@@ -71,7 +102,6 @@ def get_public_satisfaction_form(
 async def submit_public_satisfaction_form(
     token: str,
     request: Request,
-    payload: SubmitSatisfactionFormRequest,
     sat_service: PublicSatisfactionFormService = Depends(get_satisfaction_form_service),
 ) -> SatisfactionResponseDetailResponse:
     """Submit the client's satisfaction response.
@@ -79,22 +109,19 @@ async def submit_public_satisfaction_form(
     The token is consumed atomically — only one response per form.
     Media files must be uploaded as multipart fields (optional).
     """
+    payload, media_files = await _parse_submission_payload(request)
+
     response = await sat_service.submit_response(
         raw_token=token,
         rating=payload.rating,
+        customer_name=payload.customer_name,
+        customer_company=payload.customer_company,
         comment=payload.comment,
-        media_files=[],  # JSON-only endpoint; for multipart use the /multipart variant below
+        media_files=media_files,
         submitter_ip=_get_client_ip(request),
         submitter_user_agent=request.headers.get("User-Agent"),
     )
-    return SatisfactionResponseDetailResponse(
-        response_id=response.response_id,
-        ticket_id=response.ticket_id,
-        rating=response.rating,
-        comment=response.comment,
-        submitted_at=response.submitted_at,
-        media_count=len(response.media or []),
-    )
+    return _to_satisfaction_detail_response(response)
 
 
 @router.post(
@@ -106,25 +133,34 @@ async def submit_public_satisfaction_form(
 async def submit_public_satisfaction_form_with_media(
     token: str,
     request: Request,
-    rating: float,
-    comment: str | None = None,
+    rating: Annotated[float, Form(...)],
+    customer_name: Annotated[str, Form(...)],
+    customer_company: Annotated[str, Form(...)],
+    comment: Annotated[str | None, Form()] = None,
     files: list[UploadFile] = File(default=[]),
     sat_service: PublicSatisfactionFormService = Depends(get_satisfaction_form_service),
 ) -> SatisfactionResponseDetailResponse:
     """Submit the client's satisfaction response with optional media (multipart/form-data)."""
+    try:
+        payload = SubmitSatisfactionFormRequest.model_validate(
+            {
+                "rating": rating,
+                "customer_name": customer_name,
+                "customer_company": customer_company,
+                "comment": comment,
+            }
+        )
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors()) from exc
+
     response = await sat_service.submit_response(
         raw_token=token,
-        rating=rating,
-        comment=comment,
+        rating=payload.rating,
+        customer_name=payload.customer_name,
+        customer_company=payload.customer_company,
+        comment=payload.comment,
         media_files=list(files),
         submitter_ip=_get_client_ip(request),
         submitter_user_agent=request.headers.get("User-Agent"),
     )
-    return SatisfactionResponseDetailResponse(
-        response_id=response.response_id,
-        ticket_id=response.ticket_id,
-        rating=response.rating,
-        comment=response.comment,
-        submitted_at=response.submitted_at,
-        media_count=len(response.media or []),
-    )
+    return _to_satisfaction_detail_response(response)

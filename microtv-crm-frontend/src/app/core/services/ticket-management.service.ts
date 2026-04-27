@@ -13,6 +13,7 @@ import {
   GenerateSatisfactionFormResponse,
   PublicSatisfactionFormInfoResponse,
   RegisterArrivalRequest,
+  SatisfactionMediaFile,
   RejectTicketApprovalRequest,
   ReopenTicketRequest,
   SatisfactionFormStatusResponse,
@@ -189,8 +190,12 @@ export class TicketManagementService {
   // Satisfaction form (US-2)
   // -------------------------------------------------------------------------
 
+  generateTicketSurvey(ticketId: string): Observable<GenerateSatisfactionFormResponse> {
+    return this.request<GenerateSatisfactionFormResponse>('post', `/tickets/${ticketId}/generate-survey`);
+  }
+
   generateSatisfactionForm(ticketId: string): Observable<GenerateSatisfactionFormResponse> {
-    return this.request<GenerateSatisfactionFormResponse>('post', `/tickets/${ticketId}/satisfaction-form`);
+    return this.generateTicketSurvey(ticketId);
   }
 
   revokeSatisfactionForm(ticketId: string): Observable<SatisfactionFormStatusResponse> {
@@ -202,7 +207,9 @@ export class TicketManagementService {
   }
 
   getSatisfactionResponse(ticketId: string): Observable<SatisfactionResponseDetailResponse> {
-    return this.request<SatisfactionResponseDetailResponse>('get', `/tickets/${ticketId}/satisfaction-form/response`);
+    return this.request<SatisfactionResponseDetailResponse>('get', `/tickets/${ticketId}/satisfaction-form/response`).pipe(
+      map((response) => this.normalizeSatisfactionResponse(response))
+    );
   }
 
   // Public (no auth required)
@@ -212,30 +219,57 @@ export class TicketManagementService {
       .pipe(catchError((error) => this.handleRequestError(error)));
   }
 
-  submitPublicSatisfactionForm(token: string, payload: SubmitSatisfactionFormRequest): Observable<SatisfactionResponseDetailResponse> {
+  submitPublicSatisfactionForm(
+    token: string,
+    payload: SubmitSatisfactionFormRequest,
+    files: readonly File[] = []
+  ): Observable<SatisfactionResponseDetailResponse> {
+    const endpoint = `${crmApiConfig.baseUrl}/public/tickets/satisfaction/${encodeURIComponent(token)}`;
+    if (files.length > 0) {
+      const formData = new FormData();
+      formData.append('rating', String(payload.rating));
+      formData.append('customer_name', payload.customer_name);
+      formData.append('customer_company', payload.customer_company);
+      if (payload.comment?.trim()) {
+        formData.append('comment', payload.comment.trim());
+      }
+      files.forEach((file) => formData.append('files', file));
+
+      return this.http
+        .post<SatisfactionResponseDetailResponse>(endpoint, formData)
+        .pipe(
+          map((response) => this.normalizeSatisfactionResponse(response)),
+          catchError((error) => this.handleRequestError(error))
+        );
+    }
+
     return this.http
-      .post<SatisfactionResponseDetailResponse>(
-        `${crmApiConfig.baseUrl}/public/tickets/satisfaction/${encodeURIComponent(token)}`,
-        payload
-      )
-      .pipe(catchError((error) => this.handleRequestError(error)));
+      .post<SatisfactionResponseDetailResponse>(endpoint, payload)
+      .pipe(
+        map((response) => this.normalizeSatisfactionResponse(response)),
+        catchError((error) => this.handleRequestError(error))
+      );
   }
 
   // -------------------------------------------------------------------------
   // Export development (US-3)
   // -------------------------------------------------------------------------
 
-  exportTicketDevelopment(ticketId: string): Observable<Blob> {
+  exportTicketHistory(ticketId: string): Observable<Blob> {
     const headers = this.buildAuthHeaders();
     if (!headers) {
       return throwError(() => new Error('No hay una sesión autenticada válida para operar tickets.'));
     }
     return this.http
-      .get(`${crmApiConfig.baseUrl}/tickets/${ticketId}/export-development`, {
+      .get(`${crmApiConfig.baseUrl}/tickets/${ticketId}/export`, {
         headers,
         responseType: 'blob'
       })
       .pipe(catchError((error) => this.handleRequestError(error)));
+  }
+
+  exportTicketDevelopment(ticketId: string): Observable<Blob> {
+    return this.exportTicketHistory(ticketId);
   }
 
   private request<T>(method: 'get' | 'post' | 'put' | 'patch', path: string, body?: unknown): Observable<T> {
@@ -318,6 +352,20 @@ export class TicketManagementService {
     };
   }
 
+  private normalizeSatisfactionResponse(response: SatisfactionResponseDetailResponse): SatisfactionResponseDetailResponse {
+    return {
+      ...response,
+      media_files: (response.media_files ?? []).map((media) => this.normalizeSatisfactionMedia(media))
+    };
+  }
+
+  private normalizeSatisfactionMedia(media: SatisfactionMediaFile): SatisfactionMediaFile {
+    return {
+      ...media,
+      file_path: this.resolveAttachmentUrl(media.file_path) ?? media.file_path
+    };
+  }
+
   private resolveAttachmentUrl(rawUrl: string | null | undefined): string | null {
     const normalized = rawUrl?.trim();
     if (!normalized) {
@@ -329,7 +377,18 @@ export class TicketManagementService {
     }
 
     const backendOrigin = this.resolveBackendOrigin();
-    const normalizedPath = normalized.replace(/^\/?public\//i, '').replace(/^\/+/, '');
+    const slashNormalized = normalized.replace(/\\/g, '/');
+    const lowerPath = slashNormalized.toLowerCase();
+    const publicMarker = '/public/';
+    const publicIndex = lowerPath.lastIndexOf(publicMarker);
+    const normalizedPath = (publicIndex >= 0 ? slashNormalized.slice(publicIndex + publicMarker.length) : slashNormalized)
+      .replace(/^\/?public\//i, '')
+      .replace(/^\/+/, '');
+
+    if (!normalizedPath || /^[a-z]:\//i.test(normalizedPath)) {
+      return null;
+    }
+
     return `${backendOrigin}/${normalizedPath}`;
   }
 

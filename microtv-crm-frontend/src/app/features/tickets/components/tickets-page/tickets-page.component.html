@@ -116,7 +116,17 @@
               (sortDirectionChanged)="onListSortDirectionChanged('history', $event)"
               (viewModeChanged)="onListViewModeChanged('history', $event)"
             />
-            <app-tickets-table title="Historial de tickets cerrados" [items]="historyVisibleRows()" [viewMode]="listState('history').viewMode" />
+            <app-tickets-table
+              title="Historial de tickets cerrados"
+              [items]="historyVisibleRows()"
+              [viewMode]="listState('history').viewMode"
+              [enablePostClosureActions]="canGenerateSatisfactionForms()"
+              [exportingTicketId]="exportingTicketId()"
+              [generatingSurveyTicketId]="satisfactionFormGenerating()"
+              (exportHistoryRequested)="onExportTicketHistory($event)"
+              (generateSurveyRequested)="onGenerateTicketSurvey($event)"
+              (viewSurveyRequested)="onViewSurvey($event)"
+            />
           </div>
         </mat-tab>
       }

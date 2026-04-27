@@ -380,7 +380,8 @@ def get_satisfaction_form_service(
     from crm_backend.services.satisfaction_form_service import PublicSatisfactionFormService  # noqa: PLC0415
     return PublicSatisfactionFormService(
         session=session,
-        satisfaction_media_dir=settings.satisfaction_media_dir,
+        satisfaction_images_dir=settings.satisfaction_images_dir,
+        satisfaction_videos_dir=settings.satisfaction_videos_dir,
         expiry_hours=settings.satisfaction_form_expiry_hours,
     )
 

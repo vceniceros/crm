@@ -1,11 +1,11 @@
 <mat-card class="ticket-attachments-section">
   <mat-card-header>
-    <mat-card-title>Adjuntos del ticket</mat-card-title>
+    <mat-card-title>{{ sectionTitle() }}</mat-card-title>
     <mat-card-subtitle>
       @if (canEdit()) {
-        Fotos y videos del diagnóstico técnico persistidos en backend.
+        {{ editableSubtitle() }}
       } @else {
-        Evidencia visual cargada en el ticket. Visible para seguimiento cruzado entre técnico, depósito y admin.
+        {{ readonlySubtitle() }}
       }
     </mat-card-subtitle>
   </mat-card-header>
@@ -17,10 +17,10 @@
 
         <button mat-stroked-button type="button" (click)="fileInput.click()">
           <mat-icon>upload_file</mat-icon>
-          <span>Agregar fotos o videos</span>
+          <span>{{ uploadButtonLabel() }}</span>
         </button>
 
-        <p class="ticket-attachments-section__hint">Los archivos quedan disponibles para comentarios, transiciones y cierre del ticket.</p>
+        <p class="ticket-attachments-section__hint">{{ hintText() }}</p>
       </div>
     }
 
@@ -58,7 +58,7 @@
     } @else {
       <div class="ticket-attachments-section__empty">
         <mat-icon>perm_media</mat-icon>
-        <p>No hay adjuntos cargados todavía para este ticket.</p>
+        <p>{{ emptyMessage() }}</p>
       </div>
     }
   </mat-card-content>

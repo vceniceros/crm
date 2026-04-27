@@ -1,0 +1,65 @@
+<h2 mat-dialog-title>{{ data.title }}</h2>
+
+<mat-dialog-content class="survey-link-dialog__content">
+  <p class="survey-link-dialog__message">{{ data.message }}</p>
+
+  @if (data.surveyResponse; as surveyResponse) {
+    <section class="survey-link-dialog__response-block" aria-label="Detalle de respuesta de encuesta">
+      <div class="survey-link-dialog__grid">
+        <div>
+          <p class="survey-link-dialog__label">Cliente</p>
+          <p class="survey-link-dialog__value">{{ surveyResponse.customer_name }}</p>
+        </div>
+        <div>
+          <p class="survey-link-dialog__label">Empresa</p>
+          <p class="survey-link-dialog__value">{{ surveyResponse.customer_company }}</p>
+        </div>
+      </div>
+
+      <div class="survey-link-dialog__rating" aria-label="Calificación">
+        @for (star of ratingScale; track star) {
+          <mat-icon [class.survey-link-dialog__rating-star--filled]="star <= surveyResponse.rating">star</mat-icon>
+        }
+        <span class="survey-link-dialog__rating-value">{{ surveyResponse.rating }} / 5</span>
+      </div>
+
+      @if (surveyResponse.comment) {
+        <div>
+          <p class="survey-link-dialog__label">Comentario</p>
+          <p class="survey-link-dialog__value">{{ surveyResponse.comment }}</p>
+        </div>
+      }
+
+      @if (surveyAttachments.length > 0) {
+        <app-ticket-attachments-section
+          [attachments]="surveyAttachments"
+          sectionTitle="Archivos adjuntos de la encuesta"
+          readonlySubtitle="Imágenes y videos enviados por el cliente en la encuesta."
+          emptyMessage="La encuesta no tiene adjuntos."
+        />
+      }
+    </section>
+  }
+
+  @if (data.surveyUrl) {
+    <div class="survey-link-dialog__link-block">
+      <p class="survey-link-dialog__label">Link</p>
+      <a [href]="data.surveyUrl" target="_blank" rel="noopener noreferrer">{{ data.surveyUrl }}</a>
+    </div>
+  }
+
+  @if (data.details) {
+    <p class="survey-link-dialog__details">{{ data.details }}</p>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  @if (data.copyEnabled && data.surveyUrl) {
+    <button mat-stroked-button type="button" (click)="copyLink()">
+      <mat-icon>content_copy</mat-icon>
+      <span>Copiar link</span>
+    </button>
+  }
+
+  <button mat-flat-button color="primary" type="button" (click)="close()">Cerrar</button>
+</mat-dialog-actions>

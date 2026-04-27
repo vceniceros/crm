@@ -26,6 +26,10 @@
       <div class="ticket-execution-page__header-side">
         <app-status-badge [label]="formatTicketStatus(ticket.status)" [tone]="toTicketStatusTone(ticket.status)" />
 
+        @if (ticket.status === 'CLOSED' && ticket.approved_by_executive) {
+          <app-status-badge label="Cerrado y aprobado" tone="success" />
+        }
+
         <div
           class="ticket-execution-page__assignee"
           [class.ticket-execution-page__assignee--action]="canOpenAssigneeMenu()"
@@ -98,7 +102,7 @@
           @if (timelineEvents().length) {
             <div class="ticket-execution-page__timeline-list">
               @for (event of timelineEvents(); track timelineTrackBy($index, event)) {
-                <article class="ticket-execution-page__timeline-item">
+                <article class="ticket-execution-page__timeline-item" [attr.id]="event.anchorId || null">
                   <div class="ticket-execution-page__timeline-head">
                     <div>
                       <p class="ticket-execution-page__timeline-author">{{ event.title }}</p>
@@ -106,6 +110,13 @@
                     </div>
                     <app-status-badge [label]="event.subtitle" [tone]="timelineTone(event)" />
                   </div>
+
+                  @if (event.isArrivalComment) {
+                    <div class="ticket-execution-page__timeline-arrival-badge">
+                      <mat-icon>place</mat-icon>
+                      <span>Comentario de llegada</span>
+                    </div>
+                  }
 
                   <p class="ticket-execution-page__timeline-body">{{ event.body }}</p>
 
@@ -133,6 +144,23 @@
 
         <section class="ticket-execution-page__composer-panel">
           <h3>Nuevo comentario</h3>
+
+          @if (ticket.requires_arrival_comment) {
+            <div class="ticket-execution-page__arrival-status" [class.ticket-execution-page__arrival-status--done]="hasArrivalRegistered()">
+              @if (hasArrivalRegistered()) {
+                <strong>Llegada registrada</strong>
+                <p>
+                  {{ ticket.arrival_registered_at | date: 'dd/MM/yyyy HH:mm' }}
+                  @if (arrivalCommentAnchor()) {
+                    · <a [href]="arrivalCommentAnchor()">Ver comentario</a>
+                  }
+                </p>
+              } @else {
+                <strong>Llegada pendiente</strong>
+                <p>Este ticket requiere un comentario con multimedia y ubicación antes de cerrarse.</p>
+              }
+            </div>
+          }
 
           @if (blockingRequestForCurrentUser(); as blockingRequest) {
             <div class="ticket-execution-page__readonly-banner">
@@ -226,13 +254,9 @@
                 <mat-icon>sync</mat-icon>
                 <span>Cambiar estado</span>
               </button>
-              <button mat-menu-item type="button" (click)="selectPrimaryAction('close')" [disabled]="!canCloseOrTransition()">
+              <button mat-menu-item type="button" (click)="selectPrimaryAction('close')" [disabled]="!canCloseTicket()">
                 <mat-icon>task_alt</mat-icon>
                 <span>Cerrar ticket</span>
-              </button>
-              <button mat-menu-item type="button" (click)="showArrivalPanel.set(!showArrivalPanel())">
-                <mat-icon>place</mat-icon>
-                <span>Registrar llegada</span>
               </button>
             </mat-menu>
 
@@ -240,33 +264,12 @@
               Hacer solicitud a depósito
             </button>
 
-            @if (!canRegisterArrival() && hasArrivalRegistered()) {
-              <span class="ticket-execution-page__arrival-badge">
-                <mat-icon style="font-size:16px;vertical-align:middle">check_circle</mat-icon>
-                Llegada registrada
-              </span>
-            }
           </div>
 
-          @if (showArrivalPanel()) {
-            <section class="ticket-execution-page__arrival-panel" [formGroup]="arrivalForm">
-              <p style="margin:0 0 8px;font-weight:500">Registrar llegada al sitio</p>
-              <mat-form-field appearance="outline" subscriptSizing="dynamic" style="width:100%">
-                <mat-label>Descripción de la llegada</mat-label>
-                <textarea matInput formControlName="body" rows="3"></textarea>
-              </mat-form-field>
-              <p style="margin:8px 0 4px;font-size:0.85em;color:#666">
-                Adjuntá al menos un video de evidencia usando el panel de adjuntos, luego presioná Guardar.
-              </p>
-              <div style="display:flex;gap:8px;margin-top:8px">
-                <button mat-flat-button color="primary" type="button" (click)="onRegisterArrival()" [disabled]="arrivalForm.invalid || isSaving()">
-                  Guardar llegada
-                </button>
-                <button mat-stroked-button type="button" (click)="showArrivalPanel.set(false)">
-                  Cancelar
-                </button>
-              </div>
-            </section>
+          @if (selectedPrimaryAction() === 'close' && isCloseBlockedByArrivalRequirement()) {
+            <p class="ticket-execution-page__summary-caption">
+              Este ticket requiere registrar llegada antes de poder cerrarse. Agregá un comentario con multimedia y ubicación asociada.
+            </p>
           }
 
           @if (showInventoryRequestDrawer()) {
@@ -399,6 +402,34 @@
                 <button mat-flat-button color="primary" type="button" (click)="reopenTicket()" [disabled]="isSaving()">
                   Reabrir ticket
                 </button>
+              </div>
+            </article>
+          }
+
+          @if (canAccessPostClosureActions()) {
+            <article class="ticket-execution-page__request-item ticket-execution-page__request-item--post-close">
+              <div class="ticket-execution-page__request-head">
+                <div>
+                  <p class="ticket-execution-page__timeline-author">Acciones post-cierre</p>
+                  <p class="ticket-execution-page__timeline-meta">Disponibles solo para tickets cerrados y aprobados por ejecutivo.</p>
+                </div>
+                <app-status-badge label="Cerrado y aprobado" tone="success" />
+              </div>
+
+              <div class="ticket-execution-page__footer-actions ticket-execution-page__footer-actions--post-close">
+                <button mat-stroked-button type="button" (click)="exportTicketHistory()" [disabled]="isSaving() || exportingHistory()">
+                  {{ exportingHistory() ? 'Exportando...' : 'Exportar historial' }}
+                </button>
+
+                @if (hasGeneratedSurvey()) {
+                  <button mat-stroked-button type="button" (click)="viewSurveyStatus()" [disabled]="isSaving() || loadingSurveyStatus()">
+                    {{ loadingSurveyStatus() ? 'Cargando...' : 'Ver encuesta' }}
+                  </button>
+                } @else {
+                  <button mat-flat-button color="primary" type="button" (click)="generateTicketSurvey()" [disabled]="isSaving() || generatingSurvey()">
+                    {{ generatingSurvey() ? 'Generando...' : 'Generar encuesta' }}
+                  </button>
+                }
               </div>
             </article>
           }

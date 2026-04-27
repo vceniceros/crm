@@ -16,6 +16,15 @@ export const routes: Routes = [
 		data: { title: 'Ingresar' }
 	},
 	{
+		// Public survey form alias — NO auth guard
+		path: 'survey/:token',
+		loadComponent: () =>
+			import('./features/satisfaction/components/satisfaction-page/satisfaction-page.component').then(
+				(m) => m.SatisfactionPageComponent
+			),
+		data: { title: 'Encuesta de satisfacción' }
+	},
+	{
 		// Public satisfaction form — NO auth guard
 		path: 'satisfaction/:token',
 		loadComponent: () =>

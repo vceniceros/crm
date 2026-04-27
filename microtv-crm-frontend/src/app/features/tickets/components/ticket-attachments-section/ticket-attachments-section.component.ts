@@ -15,6 +15,12 @@ import { TicketAttachment } from '../../../../core/models/ticket-attachment.mode
 export class TicketAttachmentsSectionComponent {
   readonly attachments = input.required<readonly TicketAttachment[]>();
   readonly canEdit = input(false);
+  readonly sectionTitle = input('Adjuntos del ticket');
+  readonly editableSubtitle = input('Fotos y videos del diagnóstico técnico persistidos en backend.');
+  readonly readonlySubtitle = input('Evidencia visual cargada en el ticket. Visible para seguimiento cruzado entre técnico, depósito y admin.');
+  readonly uploadButtonLabel = input('Agregar fotos o videos');
+  readonly hintText = input('Los archivos quedan disponibles para comentarios, transiciones y cierre del ticket.');
+  readonly emptyMessage = input('No hay adjuntos cargados todavía para este ticket.');
   readonly attachmentsSelected = output<readonly File[]>();
   readonly attachmentRemoved = output<string>();
 

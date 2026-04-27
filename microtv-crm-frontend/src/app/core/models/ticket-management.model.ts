@@ -120,6 +120,14 @@ export interface TicketSummary {
   closed_by_crm_user_id: string | null;
   closed_by_display_name: string | null;
   closed_at: string | null;
+  approved_by_executive?: boolean;
+  survey_generated_at?: string | null;
+  survey_completed_at?: string | null;
+  survey_status_label?: string | null;
+  has_active_survey?: boolean;
+  requires_arrival_comment?: boolean;
+  arrival_registered_at?: string | null;
+  arrival_comment_id?: string | null;
   has_arrival_registered?: boolean;
   can_register_arrival?: boolean;
   created_at: string;
@@ -141,6 +149,7 @@ export interface CreateTicketRequest {
   location_id: string | null;
   description: string;
   priority: TicketPriority;
+  requires_arrival_comment?: boolean;
   assigned_role_id: string | null;
   assigned_user_id: string | null;
 }
@@ -202,6 +211,7 @@ export interface GenerateSatisfactionFormResponse {
   form_id: string;
   ticket_id: string;
   public_link_token: string;
+  survey_path: string;
   expires_at: string;
   status_label: string;
 }
@@ -219,16 +229,30 @@ export interface SatisfactionFormStatusResponse {
 
 export interface SubmitSatisfactionFormRequest {
   rating: number;
+  customer_name: string;
+  customer_company: string;
   comment?: string | null;
+}
+
+export interface SatisfactionMediaFile {
+  id: string;
+  survey_id: string;
+  file_path: string;
+  file_type: string;
+  file_name?: string | null;
+  size_bytes?: number | null;
 }
 
 export interface SatisfactionResponseDetailResponse {
   response_id: string;
   ticket_id: string;
+  customer_name: string;
+  customer_company: string;
   rating: number;
   comment: string | null;
   submitted_at: string;
   media_count: number;
+  media_files: SatisfactionMediaFile[];
 }
 
 export interface PublicSatisfactionFormInfoResponse {
@@ -254,6 +278,10 @@ export interface TicketTableItem {
   assignedUserId: string | null;
   assignedRoleId: string | null;
   assignedRoleKey: string | null;
+  isExecutiveApprovedClosed: boolean;
+  hasSurveyGenerated: boolean;
+  surveyStatusLabel: string | null;
+  surveyCompletedAt: string | null;
   selfAssignable?: boolean;
   createdAtRaw: string;
   createdAt: string;

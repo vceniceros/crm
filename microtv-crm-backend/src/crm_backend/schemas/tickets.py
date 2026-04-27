@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -22,6 +22,7 @@ class CreateTicketRequest(BaseModel):
     location_id: str | None = None
     description: str = Field(..., min_length=1)
     priority: TicketPriorityLiteral = "MEDIUM"
+    requires_arrival_comment: bool = False
     assigned_role_id: str | None = None
     assigned_user_id: str | None = None
 
@@ -155,6 +156,14 @@ class TicketSummaryResponse(BaseModel):
     closed_by_crm_user_id: str | None
     closed_by_display_name: str | None = None
     closed_at: datetime | None
+    approved_by_executive: bool = False
+    survey_generated_at: datetime | None = None
+    survey_completed_at: datetime | None = None
+    survey_status_label: str | None = None
+    has_active_survey: bool = False
+    requires_arrival_comment: bool = False
+    arrival_registered_at: datetime | None = None
+    arrival_comment_id: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -227,6 +236,7 @@ class GenerateSatisfactionFormResponse(BaseModel):
     form_id: str
     ticket_id: str
     public_link_token: str  # The raw opaque token — shown once.
+    survey_path: str
     expires_at: datetime
     status_label: str
 
@@ -241,7 +251,31 @@ class PublicSatisfactionFormInfoResponse(BaseModel):
 
 class SubmitSatisfactionFormRequest(BaseModel):
     rating: float = Field(..., ge=0.5, le=5.0)
+    customer_name: str = Field(..., min_length=1, max_length=255)
+    customer_company: str = Field(..., min_length=1, max_length=255)
     comment: str | None = Field(default=None, max_length=2000)
+
+
+class SatisfactionMediaFileResponse(BaseModel):
+    id: str
+    survey_id: str
+    file_path: str
+    file_type: str
+    file_name: str | None = None
+    size_bytes: int | None = None
+
+    @classmethod
+    def from_orm_media(cls, media: Any) -> "SatisfactionMediaFileResponse":
+        response = getattr(media, "response", None)
+        survey_id = getattr(media, "survey_id", None) or getattr(response, "form_id", "")
+        return cls(
+            id=str(getattr(media, "media_id", "")),
+            survey_id=str(survey_id),
+            file_path=str(getattr(media, "file_path", "")),
+            file_type=str(getattr(media, "mime_type", "application/octet-stream")),
+            file_name=getattr(media, "file_name", None),
+            size_bytes=getattr(media, "size_bytes", None),
+        )
 
 
 class SatisfactionResponseDetailResponse(BaseModel):
@@ -249,7 +283,28 @@ class SatisfactionResponseDetailResponse(BaseModel):
 
     response_id: str
     ticket_id: str
+    customer_name: str
+    customer_company: str
     rating: float
     comment: str | None
     submitted_at: datetime
     media_count: int
+    media_files: list[SatisfactionMediaFileResponse] = Field(default_factory=list)
+
+    @classmethod
+    def from_orm_response(cls, response: Any) -> "SatisfactionResponseDetailResponse":
+        media_files = [
+            SatisfactionMediaFileResponse.from_orm_media(media)
+            for media in (getattr(response, "media", None) or [])
+        ]
+        return cls(
+            response_id=response.response_id,
+            ticket_id=response.ticket_id,
+            customer_name=response.customer_name,
+            customer_company=response.customer_company,
+            rating=response.rating,
+            comment=response.comment,
+            submitted_at=response.submitted_at,
+            media_count=len(media_files),
+            media_files=media_files,
+        )

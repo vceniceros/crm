@@ -43,8 +43,8 @@ export class LoginPageComponent {
   readonly seedAccounts: SeedLoginAccount[] = [
     {
       label: 'Admin MicroTV',
-      email: 'admin.crm@microtv.com',
-      password: 'Passw0rd!',
+      email: 'admin@ycc.com.ar',
+      password: 'b5249a47fc73f4b5618d7b77b9fbe86f1278a96b139d7ee18ba34be181a3809f',
       roleLabel: 'platform_admin -> admin'
     },
     {

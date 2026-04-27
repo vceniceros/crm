@@ -25,6 +25,7 @@ from crm_backend.models import (
     Ticket,
     TicketAssignmentHistory,
     TicketAttachment,
+    TicketAttachmentType,
     TicketAuditEvent,
     TicketComment,
     TicketCommentType,
@@ -118,6 +119,7 @@ class TicketApplicationService:
             location_id=resolved_location_id,
             status=TicketStatus.IN_PROGRESS.value if user is not None else TicketStatus.OPEN.value,
             priority=payload.priority,
+            requires_arrival_comment=bool(payload.requires_arrival_comment),
             assigned_role_id=role.crm_role_id if role is not None else None,
             assigned_user_id=user.crm_user_id if user is not None else None,
             created_by_crm_user_id=actor.crm_user.crm_user_id,
@@ -220,6 +222,12 @@ class TicketApplicationService:
         )
         ticket.comments.append(comment)
         self._attach_files_to_comment(ticket, comment, attachment_ids)
+        self._try_register_arrival_from_comment(
+            actor=actor,
+            ticket=ticket,
+            comment=comment,
+            has_multimedia=bool(attachment_ids),
+        )
         ticket.audit_events.append(
             TicketAuditEvent(
                 event_type="ticket.comment_added",
@@ -367,50 +375,21 @@ class TicketApplicationService:
         body: str,
         attachment_ids: list[str],
     ) -> Ticket:
-        """Register the technician arrival at the site with mandatory video evidence."""
+        """Backward-compatible endpoint: create a comment that can auto-register arrival."""
         ticket = self.get_ticket_detail(actor, ticket_id)
-        self._ensure_ticket_operable(actor, ticket)
-
         if ticket.status == TicketStatus.CLOSED.value:
             raise TicketConflictError("No se puede registrar llegada en un ticket cerrado.")
-
-        if self._has_arrival_registered(ticket):
-            raise TicketConflictError("La llegada ya fue registrada para este ticket.")
-
-        normalized_body = body.strip()
-        if not normalized_body:
-            raise TicketValidationError("El registro de llegada requiere un comentario descriptivo.")
-
         if not attachment_ids:
-            raise TicketValidationError("El registro de llegada requiere al menos un video adjunto obligatorio.")
+            raise TicketValidationError("El registro de llegada requiere al menos un adjunto multimedia.")
 
-        comment = TicketComment(
-            ticket_comment_id=str(uuid4()),
-            ticket_id=ticket.ticket_id,
-            author_crm_user_id=actor.crm_user.crm_user_id,
+        return self.add_comment(
+            actor=actor,
+            ticket_id=ticket_id,
+            body=body,
             location_id=ticket.location_id,
-            comment_type=TicketCommentType.ARRIVAL_REGISTRATION.value,
-            body=normalized_body,
+            attachment_ids=attachment_ids,
+            comment_type=TicketCommentType.GENERAL.value,
         )
-        ticket.comments.append(comment)
-        self._attach_files_to_comment(ticket, comment, attachment_ids)
-
-        # Validate that at least one attached file is a video.
-        if not self._comment_has_video(ticket, comment):
-            raise TicketValidationError("El registro de llegada requiere al menos un video obligatorio.")
-
-        ticket.audit_events.append(
-            TicketAuditEvent(
-                event_type="ticket.arrival_registered",
-                actor_crm_user_id=actor.crm_user.crm_user_id,
-                payload_json={
-                    "comment_id": comment.ticket_comment_id,
-                    "location_id": ticket.location_id,
-                    "attachment_ids": list(attachment_ids),
-                },
-            )
-        )
-        return self._ticket_repository.save(ticket)
 
     def has_arrival_registered(self, ticket: Ticket) -> bool:
         """Expose arrival registration status for API serialization."""
@@ -418,6 +397,8 @@ class TicketApplicationService:
 
     def can_register_arrival(self, actor: ResolvedCrmSession, ticket: Ticket) -> bool:
         """Return whether the current actor can register arrival for this ticket."""
+        if not ticket.requires_arrival_comment:
+            return False
         if ticket.status == TicketStatus.CLOSED.value:
             return False
         if self._has_arrival_registered(ticket):
@@ -447,11 +428,10 @@ class TicketApplicationService:
         if ticket.status == TicketStatus.CLOSED.value:
             raise TicketConflictError("El ticket ya se encuentra cerrado.")
 
-        # Enforce arrival evidence requirement (non-admin/executive flows).
-        is_executive_actor = bool({"admin", "ejecutivo"}.intersection(actor.role_keys))
-        if not is_executive_actor and not self._has_arrival_registered(ticket):
+        if ticket.requires_arrival_comment and ticket.arrival_registered_at is None:
             raise TicketConflictError(
-                "No se puede cerrar el ticket sin haber registrado la llegada al sitio con evidencia de video."
+                "Este ticket requiere registrar llegada antes de poder cerrarse.\n"
+                "Agregá un comentario con multimedia y ubicación asociada."
             )
 
         # Enforce closure video requirement.
@@ -750,11 +730,100 @@ class TicketApplicationService:
         return saved_ticket
 
     def _has_arrival_registered(self, ticket: Ticket) -> bool:
-        """Return True if the ticket has at least one valid arrival registration comment."""
-        return any(
-            comment.comment_type == TicketCommentType.ARRIVAL_REGISTRATION.value
-            for comment in ticket.comments
+        """Return True when arrival metadata is already persisted in the ticket."""
+        if ticket.arrival_registered_at is not None:
+            return True
+        if ticket.arrival_comment_id is not None:
+            return True
+        return any(comment.comment_type == TicketCommentType.ARRIVAL_REGISTRATION.value for comment in ticket.comments)
+
+    def _comment_has_location(self, comment: TicketComment) -> bool:
+        """Return True when the comment is linked to a location with coordinates."""
+        return bool(comment.location_id)
+
+    def _try_register_arrival_from_comment(
+        self,
+        *,
+        actor: ResolvedCrmSession,
+        ticket: Ticket,
+        comment: TicketComment,
+        has_multimedia: bool,
+    ) -> None:
+        """Persist arrival only once using a conditional DB update to avoid race conditions."""
+        if not has_multimedia:
+            return
+        if not self._comment_has_location(comment):
+            return
+        if not ticket.requires_arrival_comment:
+            return
+        if ticket.arrival_registered_at is not None or ticket.arrival_comment_id is not None:
+            return
+
+        registered_at = datetime.now(UTC)
+        self._ticket_repository.session.flush()
+        if self._ticket_repository.session.get_bind().dialect.name != "postgresql":
+            if ticket.arrival_registered_at is None and ticket.arrival_comment_id is None:
+                ticket.arrival_registered_at = registered_at
+                ticket.arrival_comment_id = comment.ticket_comment_id
+                ticket.audit_events.append(
+                    TicketAuditEvent(
+                        event_type="ticket.arrival_registered",
+                        actor_crm_user_id=actor.crm_user.crm_user_id,
+                        payload_json={
+                            "ticket_comment_id": comment.ticket_comment_id,
+                            "location_id": comment.location_id,
+                            "attachment_ids": [
+                                attachment.attachment_id
+                                for attachment in ticket.attachments
+                                if attachment.ticket_comment_id == comment.ticket_comment_id
+                            ],
+                        },
+                    )
+                )
+            return
+
+        self._ticket_repository.session.execute(
+            text(
+                "UPDATE tickets "
+                "SET arrival_registered_at = :registered_at, "
+                "    arrival_comment_id = :comment_id "
+                "WHERE ticket_id = :ticket_id "
+                "  AND arrival_registered_at IS NULL "
+                "  AND arrival_comment_id IS NULL"
+            ),
+            {
+                "registered_at": registered_at,
+                "comment_id": comment.ticket_comment_id,
+                "ticket_id": ticket.ticket_id,
+            },
         )
+        persisted = self._ticket_repository.session.execute(
+            text(
+                "SELECT arrival_registered_at, arrival_comment_id "
+                "FROM tickets "
+                "WHERE ticket_id = :ticket_id"
+            ),
+            {"ticket_id": ticket.ticket_id},
+        ).first()
+        if persisted is not None:
+            ticket.arrival_registered_at = persisted[0]
+            ticket.arrival_comment_id = persisted[1]
+            if ticket.arrival_comment_id == comment.ticket_comment_id:
+                ticket.audit_events.append(
+                    TicketAuditEvent(
+                        event_type="ticket.arrival_registered",
+                        actor_crm_user_id=actor.crm_user.crm_user_id,
+                        payload_json={
+                            "ticket_comment_id": comment.ticket_comment_id,
+                            "location_id": comment.location_id,
+                            "attachment_ids": [
+                                attachment.attachment_id
+                                for attachment in ticket.attachments
+                                if attachment.ticket_comment_id == comment.ticket_comment_id
+                            ],
+                        },
+                    )
+                )
 
     def _comment_has_video(self, ticket: Ticket, comment: TicketComment) -> bool:
         """Return True if at least one attachment linked to `comment` is a video."""

@@ -13,8 +13,12 @@
       </mat-card-header>
       <mat-card-content>
         <p>Puntuación: <strong>{{ response()!.rating }} / 5</strong></p>
+        <p>Cliente: <strong>{{ response()!.customer_name }}</strong> · {{ response()!.customer_company }}</p>
         @if (response()!.comment) {
           <p>Comentario: {{ response()!.comment }}</p>
+        }
+        @if (response()!.media_count > 0) {
+          <p>Adjuntos: {{ response()!.media_count }}</p>
         }
       </mat-card-content>
     </mat-card>
@@ -44,6 +48,18 @@
       </mat-card-header>
       <mat-card-content>
         <form [formGroup]="satisfactionForm" (ngSubmit)="onSubmit()">
+          <div class="satisfaction-page__identity-grid">
+            <mat-form-field appearance="outline">
+              <mat-label>Nombre y apellido</mat-label>
+              <input matInput formControlName="customer_name" maxlength="255" required />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Empresa</mat-label>
+              <input matInput formControlName="customer_company" maxlength="255" required />
+            </mat-form-field>
+          </div>
+
           <div class="satisfaction-page__rating">
             <p class="satisfaction-page__rating-label">¿Cómo calificarías el servicio recibido?</p>
             <div class="satisfaction-page__stars" role="radiogroup" aria-label="Calificación">
@@ -70,6 +86,20 @@
             <mat-label>Comentario (opcional)</mat-label>
             <textarea matInput formControlName="comment" rows="4" maxlength="2000"></textarea>
           </mat-form-field>
+
+          <div class="satisfaction-page__media">
+            <app-ticket-attachments-section
+              [attachments]="pendingAttachments()"
+              [canEdit]="true"
+              sectionTitle="Evidencia multimedia (opcional)"
+              editableSubtitle="Podés adjuntar fotos o videos para respaldar tu calificación."
+              uploadButtonLabel="Agregar imágenes o videos"
+              hintText="Formatos admitidos: JPG, PNG, WEBP, MP4, WEBM, MOV."
+              emptyMessage="No se seleccionaron archivos todavía."
+              (attachmentsSelected)="onSurveyFilesSelected($event)"
+              (attachmentRemoved)="onSurveyAttachmentRemoved($event)"
+            />
+          </div>
 
           @if (errorMessage()) {
             <p class="satisfaction-page__error">{{ errorMessage() }}</p>

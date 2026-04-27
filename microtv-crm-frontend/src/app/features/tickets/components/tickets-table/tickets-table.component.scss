@@ -66,6 +66,20 @@
   font-weight: 700;
 }
 
+.tickets-table__post-close-actions,
+.tickets-table__mobile-post-close-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.tickets-table__post-close-button {
+  min-height: 2rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
 .tickets-table__open-link mat-icon,
 .tickets-table__mobile-action mat-icon {
   margin-left: 0.15rem;
@@ -190,6 +204,11 @@ td.mat-mdc-cell {
 
 .tickets-table__mobile-action {
   justify-content: center;
+}
+
+.tickets-table__mobile-post-close-actions {
+  display: grid;
+  grid-template-columns: 1fr;
 }
 
 @media (max-width: 640px) {

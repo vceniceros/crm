@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS tickets (
     resolved_at TIMESTAMPTZ NULL,
     closed_by_crm_user_id UUID NULL REFERENCES crm_users(crm_user_id),
     closed_at TIMESTAMPTZ NULL,
+    requires_arrival_comment BOOLEAN NOT NULL DEFAULT FALSE,
+    arrival_registered_at TIMESTAMPTZ NULL,
+    arrival_comment_id UUID NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ NULL
@@ -76,12 +79,30 @@ CREATE TABLE IF NOT EXISTS ticket_audit_events (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_tickets_arrival_comment'
+    ) THEN
+        ALTER TABLE tickets
+            ADD CONSTRAINT fk_tickets_arrival_comment
+            FOREIGN KEY (arrival_comment_id)
+            REFERENCES ticket_comments(ticket_comment_id)
+            ON DELETE SET NULL;
+    END IF;
+END;
+$$;
+
 CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
 CREATE INDEX IF NOT EXISTS idx_tickets_client ON tickets(client_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_location ON tickets(location_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_assigned_role ON tickets(assigned_role_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_assigned_user ON tickets(assigned_user_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_created_by ON tickets(created_by_crm_user_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_requires_arrival_comment ON tickets(requires_arrival_comment);
+CREATE INDEX IF NOT EXISTS idx_tickets_arrival_comment_id ON tickets(arrival_comment_id);
 CREATE INDEX IF NOT EXISTS idx_ticket_comments_ticket ON ticket_comments(ticket_id);
 CREATE INDEX IF NOT EXISTS idx_ticket_attachments_ticket ON ticket_attachments(ticket_id);
 CREATE INDEX IF NOT EXISTS idx_ticket_attachments_comment ON ticket_attachments(ticket_comment_id);

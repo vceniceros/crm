@@ -95,6 +95,19 @@ class Ticket(Base):
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     closed_by_crm_user_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id"), nullable=True)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    requires_arrival_comment: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    arrival_registered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    arrival_comment_id: Mapped[str | None] = mapped_column(
+        Uuid(as_uuid=False),
+        ForeignKey(
+            "ticket_comments.ticket_comment_id",
+            ondelete="SET NULL",
+            name="fk_tickets_arrival_comment",
+            use_alter=True,
+        ),
+        nullable=True,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -110,6 +123,7 @@ class Ticket(Base):
     comments: Mapped[list[TicketComment]] = relationship(
         "TicketComment",
         back_populates="ticket",
+        foreign_keys="TicketComment.ticket_id",
         cascade="all, delete-orphan",
         order_by="TicketComment.created_at",
         lazy="selectin",
@@ -156,6 +170,13 @@ class Ticket(Base):
         order_by="InventoryDispatch.created_at.desc()",
         lazy="selectin",
     )
+    satisfaction_forms: Mapped[list["TicketSatisfactionForm"]] = relationship(
+        "TicketSatisfactionForm",
+        back_populates="ticket",
+        cascade="all, delete-orphan",
+        order_by="TicketSatisfactionForm.created_at.desc()",
+        lazy="selectin",
+    )
 
     @property
     def client_name(self) -> str:
@@ -188,6 +209,48 @@ class Ticket(Base):
     def closed_by_display_name(self) -> str | None:
         return _user_display_label(self.closed_by_user)
 
+    @property
+    def approved_by_executive(self) -> bool:
+        if self.status != TicketStatus.CLOSED.value:
+            return False
+        if any(transition.action == TicketTransitionAction.APPROVE_CLOSE.value for transition in self.status_history):
+            return True
+        return any(event.event_type == "ticket.approved_by_executive" for event in self.audit_events)
+
+    @property
+    def latest_satisfaction_form(self) -> "TicketSatisfactionForm | None":
+        if not self.satisfaction_forms:
+            return None
+        return self.satisfaction_forms[0]
+
+    @property
+    def survey_generated_at(self) -> datetime | None:
+        latest_form = self.latest_satisfaction_form
+        if latest_form is None:
+            return None
+        return latest_form.created_at
+
+    @property
+    def survey_completed_at(self) -> datetime | None:
+        latest_form = self.latest_satisfaction_form
+        if latest_form is None:
+            return None
+        return latest_form.used_at
+
+    @property
+    def survey_status_label(self) -> str | None:
+        latest_form = self.latest_satisfaction_form
+        if latest_form is None:
+            return None
+        return latest_form.status_label
+
+    @property
+    def has_active_survey(self) -> bool:
+        latest_form = self.latest_satisfaction_form
+        if latest_form is None:
+            return False
+        return latest_form.is_usable
+
 
 class TicketComment(Base):
     """Comment attached to a ticket timeline."""
@@ -202,7 +265,7 @@ class TicketComment(Base):
     body: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    ticket: Mapped[Ticket] = relationship("Ticket", back_populates="comments")
+    ticket: Mapped[Ticket] = relationship("Ticket", back_populates="comments", foreign_keys=[ticket_id])
     author: Mapped["CrmUser"] = relationship("CrmUser", foreign_keys=[author_crm_user_id], lazy="joined")
     location: Mapped["Location | None"] = relationship("Location", foreign_keys=[location_id], lazy="joined")
     attachments: Mapped[list[TicketAttachment]] = relationship(
@@ -407,7 +470,7 @@ class TicketSatisfactionForm(Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    ticket: Mapped["Ticket"] = relationship("Ticket", foreign_keys=[ticket_id], lazy="joined")
+    ticket: Mapped["Ticket"] = relationship("Ticket", foreign_keys=[ticket_id], back_populates="satisfaction_forms", lazy="joined")
     created_by_user: Mapped["CrmUser"] = relationship("CrmUser", foreign_keys=[created_by_user_id], lazy="joined")
     response: Mapped["TicketSatisfactionResponse | None"] = relationship(
         "TicketSatisfactionResponse",
@@ -420,7 +483,13 @@ class TicketSatisfactionForm(Base):
     @property
     def is_expired(self) -> bool:
         from datetime import timezone as _tz
-        return datetime.now(_tz.utc) > self.expires_at
+
+        expires_at = self.expires_at
+        if expires_at.tzinfo is None:
+            # SQLite can return naive datetimes even when timezone=True.
+            expires_at = expires_at.replace(tzinfo=_tz.utc)
+
+        return datetime.now(_tz.utc) > expires_at
 
     @property
     def is_usable(self) -> bool:
@@ -445,6 +514,8 @@ class TicketSatisfactionResponse(Base):
     response_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
     form_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("ticket_satisfaction_forms.form_id"), unique=True, index=True)
     ticket_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("tickets.ticket_id"), index=True)
+    customer_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    customer_company: Mapped[str] = mapped_column(String(255), nullable=False)
     # Rating: 0.5 to 5.0 stored as NUMERIC(3,1)
     rating: Mapped[float] = mapped_column(nullable=False)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)

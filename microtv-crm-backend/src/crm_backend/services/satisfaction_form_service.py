@@ -7,6 +7,7 @@ import logging
 import re
 import secrets
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -76,11 +77,13 @@ class PublicSatisfactionFormService:
     def __init__(
         self,
         session: Session,
-        satisfaction_media_dir: object,  # pathlib.Path
+        satisfaction_images_dir: object,  # pathlib.Path
+        satisfaction_videos_dir: object,  # pathlib.Path
         expiry_hours: int = _DEFAULT_EXPIRY_HOURS,
     ) -> None:
         self._session = session
-        self._media_dir = satisfaction_media_dir  # type: ignore[assignment]
+        self._images_dir = Path(satisfaction_images_dir)  # type: ignore[arg-type]
+        self._videos_dir = Path(satisfaction_videos_dir)  # type: ignore[arg-type]
         self._expiry_hours = expiry_hours
 
     # ------------------------------------------------------------------
@@ -96,8 +99,10 @@ class PublicSatisfactionFormService:
         if not {"admin", "ejecutivo"}.intersection(actor.role_keys):
             raise TicketAccessDeniedError("Solo admin o ejecutivo pueden generar formularios de satisfacción.")
 
-        if ticket.status != TicketStatus.CLOSED.value:
-            raise TicketConflictError("Solo se pueden generar formularios para tickets cerrados.")
+        if ticket.status != TicketStatus.CLOSED.value or not ticket.approved_by_executive:
+            raise TicketAccessDeniedError(
+                "Solo se puede generar encuesta en tickets cerrados y aprobados por ejecutivo."
+            )
 
         # Allow only one active (non-expired, non-revoked) form per ticket at a time.
         existing = (
@@ -197,6 +202,8 @@ class PublicSatisfactionFormService:
         self,
         raw_token: str,
         rating: float,
+        customer_name: str,
+        customer_company: str,
         comment: str | None,
         media_files: list[UploadFile],
         submitter_ip: str | None,
@@ -212,10 +219,15 @@ class PublicSatisfactionFormService:
         form.used_at = now
         self._session.flush()
 
+        normalized_customer_name = self._normalize_customer_field(customer_name, "nombre")
+        normalized_customer_company = self._normalize_customer_field(customer_company, "empresa")
+
         response = TicketSatisfactionResponse(
             response_id=str(uuid4()),
             form_id=form.form_id,
             ticket_id=form.ticket_id,
+            customer_name=normalized_customer_name,
+            customer_company=normalized_customer_company,
             rating=round(rating * 2) / 2,  # Quantize to nearest 0.5
             comment=(comment or "").strip() or None,
             submitter_ip_hash=_hash_ip(submitter_ip) if submitter_ip else None,
@@ -227,25 +239,24 @@ class PublicSatisfactionFormService:
         # Persist media files
         stored_files: list[str] = []
         try:
-            from pathlib import Path  # noqa: PLC0415
-
-            media_dir = Path(self._media_dir)  # type: ignore[arg-type]
-            media_dir.mkdir(parents=True, exist_ok=True)
-
             for upload in media_files:
                 content = await upload.read()
                 self._validate_satisfaction_media(upload, content)
+                mime = (upload.content_type or "").lower()
+                is_video = mime in _ALLOWED_VIDEO_TYPES
+                target_dir = self._videos_dir if is_video else self._images_dir
+                target_dir.mkdir(parents=True, exist_ok=True)
 
                 suffix = self._resolve_file_suffix(upload)
                 file_name = f"{uuid4().hex}{suffix}"
-                dest = media_dir / file_name
+                dest = target_dir / file_name
                 dest.write_bytes(content)
                 stored_files.append(str(dest))
 
                 media = TicketSatisfactionMedia(
                     media_id=str(uuid4()),
                     response_id=response.response_id,
-                    file_path=str(dest),
+                    file_path=self._build_public_media_path(file_name, is_video=is_video),
                     file_name=_sanitize_filename(upload.filename or file_name),
                     mime_type=upload.content_type or "application/octet-stream",
                     size_bytes=len(content),
@@ -342,3 +353,15 @@ class PublicSatisfactionFormService:
             "video/quicktime": ".mov",
         }
         return defaults.get(mime, ".bin")
+
+    def _normalize_customer_field(self, value: str, field_label: str) -> str:
+        normalized = (value or "").strip()
+        if not normalized:
+            raise TicketValidationError(f"Debes indicar {field_label} del cliente para responder la encuesta.")
+        if len(normalized) > 255:
+            raise TicketValidationError(f"El campo {field_label} supera el máximo permitido de 255 caracteres.")
+        return normalized
+
+    def _build_public_media_path(self, file_name: str, *, is_video: bool) -> str:
+        base = "/videos/satisfaction" if is_video else "/images/satisfaction"
+        return f"{base}/{file_name}"

@@ -19,6 +19,37 @@
               <span>Ver ejecución</span>
               <mat-icon>arrow_forward</mat-icon>
             </a>
+
+            @if (enablePostClosureActions() && ticket.isExecutiveApprovedClosed) {
+              <div class="tickets-table__post-close-actions">
+                <button
+                  mat-stroked-button
+                  type="button"
+                  class="tickets-table__post-close-button"
+                  [disabled]="exportingTicketId() === ticket.ticketId"
+                  (click)="requestExportHistory(ticket.ticketId)"
+                >
+                  {{ exportingTicketId() === ticket.ticketId ? 'Exportando...' : 'Exportar historial' }}
+                </button>
+
+                @if (ticket.hasSurveyGenerated) {
+                  <button mat-stroked-button type="button" class="tickets-table__post-close-button" (click)="requestViewSurvey(ticket.ticketId)">
+                    Ver encuesta
+                  </button>
+                } @else {
+                  <button
+                    mat-flat-button
+                    color="primary"
+                    type="button"
+                    class="tickets-table__post-close-button"
+                    [disabled]="generatingSurveyTicketId() === ticket.ticketId"
+                    (click)="requestGenerateSurvey(ticket.ticketId)"
+                  >
+                    {{ generatingSurveyTicketId() === ticket.ticketId ? 'Generando...' : 'Generar encuesta' }}
+                  </button>
+                }
+              </div>
+            }
           </td>
         </ng-container>
 
@@ -177,6 +208,37 @@
             <span>Ver ejecución</span>
             <mat-icon>arrow_forward</mat-icon>
           </a>
+
+          @if (enablePostClosureActions() && ticket.isExecutiveApprovedClosed) {
+            <div class="tickets-table__mobile-post-close-actions">
+              <button
+                mat-stroked-button
+                type="button"
+                class="tickets-table__post-close-button"
+                [disabled]="exportingTicketId() === ticket.ticketId"
+                (click)="requestExportHistory(ticket.ticketId)"
+              >
+                {{ exportingTicketId() === ticket.ticketId ? 'Exportando...' : 'Exportar historial' }}
+              </button>
+
+              @if (ticket.hasSurveyGenerated) {
+                <button mat-stroked-button type="button" class="tickets-table__post-close-button" (click)="requestViewSurvey(ticket.ticketId)">
+                  Ver encuesta
+                </button>
+              } @else {
+                <button
+                  mat-flat-button
+                  color="primary"
+                  type="button"
+                  class="tickets-table__post-close-button"
+                  [disabled]="generatingSurveyTicketId() === ticket.ticketId"
+                  (click)="requestGenerateSurvey(ticket.ticketId)"
+                >
+                  {{ generatingSurveyTicketId() === ticket.ticketId ? 'Generando...' : 'Generar encuesta' }}
+                </button>
+              }
+            </div>
+          }
         </article>
       }
     </div>

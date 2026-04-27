@@ -25,7 +25,13 @@ export class TicketsTableComponent {
   readonly isAssigning = input(false);
   readonly assigningTicketId = input<string | null>(null);
   readonly viewMode = input<ListingViewMode>('table');
+  readonly enablePostClosureActions = input(false);
+  readonly exportingTicketId = input<string | null>(null);
+  readonly generatingSurveyTicketId = input<string | null>(null);
   readonly selfAssignRequested = output<string>();
+  readonly exportHistoryRequested = output<string>();
+  readonly generateSurveyRequested = output<string>();
+  readonly viewSurveyRequested = output<string>();
 
   readonly displayedColumns: Array<'ticketNumber' | 'title' | 'client' | 'location' | 'status' | 'priority' | 'updatedAt' | 'assignedTo'> = [
     'ticketNumber',
@@ -64,5 +70,17 @@ export class TicketsTableComponent {
 
   requestSelfAssign(ticketId: string): void {
     this.selfAssignRequested.emit(ticketId);
+  }
+
+  requestExportHistory(ticketId: string): void {
+    this.exportHistoryRequested.emit(ticketId);
+  }
+
+  requestGenerateSurvey(ticketId: string): void {
+    this.generateSurveyRequested.emit(ticketId);
+  }
+
+  requestViewSurvey(ticketId: string): void {
+    this.viewSurveyRequested.emit(ticketId);
   }
 }

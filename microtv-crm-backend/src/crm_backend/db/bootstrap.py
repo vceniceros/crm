@@ -232,6 +232,7 @@ def _ensure_extension_tables(session: Session) -> None:
     _ensure_task_attachment_columns(session, inspector)
     _ensure_ticket_attachment_columns(session, inspector)
     _ensure_ticket_columns(session, inspector)
+    _ensure_satisfaction_columns(session, inspector)
 
 
 def _ensure_inventory_product_columns(session: Session, inspector=None) -> None:
@@ -364,6 +365,8 @@ def _ensure_ticket_columns(session: Session, inspector=None) -> None:
             "ALTER TABLE tickets ADD COLUMN closed_by_crm_user_id UUID REFERENCES crm_users(crm_user_id)",
         ),
         ("closed_at", "ALTER TABLE tickets ADD COLUMN closed_at TIMESTAMPTZ"),
+        ("requires_arrival_comment", "ALTER TABLE tickets ADD COLUMN requires_arrival_comment BOOLEAN NOT NULL DEFAULT FALSE"),
+        ("arrival_registered_at", "ALTER TABLE tickets ADD COLUMN arrival_registered_at TIMESTAMPTZ"),
         ("updated_at", "ALTER TABLE tickets ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"),
         ("deleted_at", "ALTER TABLE tickets ADD COLUMN deleted_at TIMESTAMPTZ"),
     ]
@@ -378,6 +381,35 @@ def _ensure_ticket_columns(session: Session, inspector=None) -> None:
 
     if schema_changed:
         session.commit()
+
+    if "arrival_comment_id" not in ticket_columns:
+        if bind.dialect.name == "postgresql":
+            session.execute(text("ALTER TABLE tickets ADD COLUMN arrival_comment_id UUID"))
+        else:
+            session.execute(text("ALTER TABLE tickets ADD COLUMN arrival_comment_id VARCHAR(36)"))
+        ticket_columns.add("arrival_comment_id")
+        schema_changed = True
+
+    if schema_changed:
+        session.commit()
+
+    if bind.dialect.name == "postgresql" and "arrival_comment_id" in ticket_columns and "ticket_comments" in table_names:
+        fk_names = {
+            fk.get("name")
+            for fk in inspect(bind).get_foreign_keys("tickets")
+            if fk.get("name")
+        }
+        if "fk_tickets_arrival_comment" not in fk_names:
+            session.execute(
+                text(
+                    "ALTER TABLE tickets "
+                    "ADD CONSTRAINT fk_tickets_arrival_comment "
+                    "FOREIGN KEY (arrival_comment_id) "
+                    "REFERENCES ticket_comments(ticket_comment_id) "
+                    "ON DELETE SET NULL"
+                )
+            )
+            session.commit()
 
     # Migrate legacy title/description columns if this DB comes from an older ticket schema.
     if "ticket_title" in original_ticket_columns and "title" in ticket_columns:
@@ -448,6 +480,34 @@ def _ensure_ticket_columns(session: Session, inspector=None) -> None:
                 {"priority": mapped_priority, "ticket_id": ticket_id},
             )
 
+    if {"arrival_registered_at", "arrival_comment_id"}.issubset(ticket_columns) and "ticket_comments" in table_names:
+        legacy_arrival_rows = session.execute(
+            text(
+                "SELECT tc.ticket_id, tc.ticket_comment_id, tc.created_at "
+                "FROM ticket_comments tc "
+                "WHERE LOWER(tc.comment_type) = 'arrival_registration' "
+                "ORDER BY tc.created_at ASC"
+            )
+        ).fetchall()
+        seen_ticket_ids: set[str] = set()
+        for ticket_id, comment_id, created_at in legacy_arrival_rows:
+            if ticket_id in seen_ticket_ids:
+                continue
+            seen_ticket_ids.add(ticket_id)
+            session.execute(
+                text(
+                    "UPDATE tickets "
+                    "SET arrival_registered_at = COALESCE(arrival_registered_at, :created_at), "
+                    "    arrival_comment_id = COALESCE(arrival_comment_id, :comment_id) "
+                    "WHERE ticket_id = :ticket_id"
+                ),
+                {
+                    "ticket_id": ticket_id,
+                    "comment_id": comment_id,
+                    "created_at": created_at,
+                },
+            )
+
     # Backfill ticket_number in legacy rows when the column is newly introduced.
     # Use a portable query/update flow so this works on SQLite tests and PostgreSQL.
     missing_rows = session.execute(
@@ -471,9 +531,40 @@ def _ensure_ticket_columns(session: Session, inspector=None) -> None:
     session.execute(text("CREATE INDEX IF NOT EXISTS idx_tickets_assigned_role ON tickets(assigned_role_id)"))
     session.execute(text("CREATE INDEX IF NOT EXISTS idx_tickets_assigned_user ON tickets(assigned_user_id)"))
     session.execute(text("CREATE INDEX IF NOT EXISTS idx_tickets_updated_at ON tickets(updated_at)"))
+    session.execute(text("CREATE INDEX IF NOT EXISTS idx_tickets_requires_arrival_comment ON tickets(requires_arrival_comment)"))
+    session.execute(text("CREATE INDEX IF NOT EXISTS idx_tickets_arrival_comment_id ON tickets(arrival_comment_id)"))
 
     if "ticket_comments" in table_names:
         comment_columns = {column["name"] for column in active_inspector.get_columns("ticket_comments")}
         if "location_id" not in comment_columns:
             session.execute(text("ALTER TABLE ticket_comments ADD COLUMN location_id UUID REFERENCES locations(location_id)"))
     session.commit()
+
+
+def _ensure_satisfaction_columns(session: Session, inspector=None) -> None:
+    bind = session.get_bind()
+    active_inspector = inspector or inspect(bind)
+    table_names = set(active_inspector.get_table_names())
+    if "ticket_satisfaction_responses" not in table_names:
+        return
+
+    response_columns = {column["name"] for column in active_inspector.get_columns("ticket_satisfaction_responses")}
+    schema_changed = False
+
+    if "customer_name" not in response_columns:
+        session.execute(text("ALTER TABLE ticket_satisfaction_responses ADD COLUMN customer_name VARCHAR(255)"))
+        schema_changed = True
+
+    if "customer_company" not in response_columns:
+        session.execute(text("ALTER TABLE ticket_satisfaction_responses ADD COLUMN customer_company VARCHAR(255)"))
+        schema_changed = True
+
+    if schema_changed:
+        session.execute(
+            text(
+                "UPDATE ticket_satisfaction_responses "
+                "SET customer_name = COALESCE(NULLIF(customer_name, ''), 'Cliente'), "
+                "    customer_company = COALESCE(NULLIF(customer_company, ''), 'Empresa no indicada')"
+            )
+        )
+        session.commit()

@@ -26,6 +26,14 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Server
   },
   {
+    path: 'satisfaction/:token',
+    renderMode: RenderMode.Server
+  },
+  {
+    path: 'survey/:token',
+    renderMode: RenderMode.Server
+  },
+  {
     path: '**',
     renderMode: RenderMode.Prerender
   }

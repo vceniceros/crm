@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signa
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialogActions, MatDialogClose, MatDialogContent, MatDialogModule, MatDialogRef, MatDialogTitle } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -28,6 +29,7 @@ interface PriorityOption {
   standalone: true,
   imports: [
     MatButtonModule,
+    MatCheckboxModule,
     MatDialogActions,
     MatDialogClose,
     MatDialogContent,
@@ -83,6 +85,7 @@ export class CreateTicketDialogComponent {
       validators: [Validators.required],
       nonNullable: true
     }),
+    requires_arrival_comment: this.formBuilder.control(false, { nonNullable: true }),
     assigned_role_id: this.formBuilder.control<string | null>(null),
     assigned_user_id: this.formBuilder.control<string | null>(null),
     description: this.formBuilder.control('', {
@@ -300,6 +303,7 @@ export class CreateTicketDialogComponent {
       client_id: this.form.controls.client_id.getRawValue(),
       location_id: locationId,
       priority: this.form.controls.priority.getRawValue(),
+      requires_arrival_comment: this.form.controls.requires_arrival_comment.getRawValue(),
       assigned_role_id: this.form.controls.assigned_role_id.getRawValue(),
       assigned_user_id: this.form.controls.assigned_user_id.getRawValue()
     };

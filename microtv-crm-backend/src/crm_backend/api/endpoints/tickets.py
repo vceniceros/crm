@@ -1,5 +1,6 @@
 """HTTP endpoints for the ticket module."""
 
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Response, UploadFile, status
@@ -50,6 +51,36 @@ def _to_ticket_detail_response(
     setattr(ticket, "has_arrival_registered", ticket_service.has_arrival_registered(ticket))
     setattr(ticket, "can_register_arrival", ticket_service.can_register_arrival(actor, ticket))
     return TicketDetailResponse.model_validate(ticket)
+
+
+def _build_export_response(ticket, zip_bytes: bytes) -> StreamingResponse:
+    ticket_number = ticket.ticket_number or ticket.ticket_id
+    date_label = datetime.now(UTC).strftime("%Y%m%d")
+    filename = f"ticket_{ticket_number}_{date_label}.zip"
+    return StreamingResponse(
+        iter([zip_bytes]),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _generate_ticket_survey_response(
+    *,
+    actor: ResolvedCrmSession,
+    ticket_id: str,
+    ticket_service: TicketApplicationService,
+    sat_service: PublicSatisfactionFormService,
+) -> GenerateSatisfactionFormResponse:
+    ticket = ticket_service.get_ticket_detail(actor, ticket_id)
+    form, raw_token = sat_service.generate_form(actor, ticket)
+    return GenerateSatisfactionFormResponse(
+        form_id=form.form_id,
+        ticket_id=form.ticket_id,
+        public_link_token=raw_token,
+        survey_path=f"/survey/{raw_token}",
+        expires_at=form.expires_at,
+        status_label=form.status_label,
+    )
 
 
 @router.get(
@@ -342,6 +373,25 @@ def register_arrival(
 
 
 @router.post(
+    "/{ticket_id}/generate-survey",
+    response_model=GenerateSatisfactionFormResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
+)
+def generate_ticket_survey(
+    ticket_id: str,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
+    sat_service: PublicSatisfactionFormService = Depends(get_satisfaction_form_service),
+) -> GenerateSatisfactionFormResponse:
+    return _generate_ticket_survey_response(
+        actor=actor,
+        ticket_id=ticket_id,
+        ticket_service=ticket_service,
+        sat_service=sat_service,
+    )
+
+
+@router.post(
     "/{ticket_id}/satisfaction-form",
     response_model=GenerateSatisfactionFormResponse,
     responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
@@ -352,14 +402,11 @@ def generate_satisfaction_form(
     ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
     sat_service: PublicSatisfactionFormService = Depends(get_satisfaction_form_service),
 ) -> GenerateSatisfactionFormResponse:
-    ticket = ticket_service.get_ticket_detail(actor, ticket_id)
-    form, raw_token = sat_service.generate_form(actor, ticket)
-    return GenerateSatisfactionFormResponse(
-        form_id=form.form_id,
-        ticket_id=form.ticket_id,
-        public_link_token=raw_token,
-        expires_at=form.expires_at,
-        status_label=form.status_label,
+    return _generate_ticket_survey_response(
+        actor=actor,
+        ticket_id=ticket_id,
+        ticket_service=ticket_service,
+        sat_service=sat_service,
     )
 
 
@@ -414,19 +461,32 @@ def get_satisfaction_response(
     resp = sat_service.get_response_for_ticket(actor, ticket)
     if resp is None:
         raise SatisfactionFormNotFoundError()
-    return SatisfactionResponseDetailResponse(
-        response_id=resp.response_id,
-        ticket_id=resp.ticket_id,
-        rating=resp.rating,
-        comment=resp.comment,
-        submitted_at=resp.submitted_at,
-        media_count=len(resp.media or []),
-    )
+    return SatisfactionResponseDetailResponse.from_orm_response(resp)
 
 
 # ---------------------------------------------------------------------------
-# Export development (US-3)
+# Ticket history export
 # ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{ticket_id}/export",
+    responses={
+        200: {"content": {"application/zip": {}}, "description": "ZIP archive with PDF + multimedia"},
+        401: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+    },
+)
+def export_ticket_history(
+    ticket_id: str,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
+    export_service: TicketExportService = Depends(get_ticket_export_service),
+) -> StreamingResponse:
+    ticket = ticket_service.get_ticket_detail(actor, ticket_id)
+    zip_bytes = export_service.export_development_zip(actor, ticket)
+    return _build_export_response(ticket, zip_bytes)
 
 
 @router.get(
@@ -446,10 +506,4 @@ def export_ticket_development(
 ) -> StreamingResponse:
     ticket = ticket_service.get_ticket_detail(actor, ticket_id)
     zip_bytes = export_service.export_development_zip(actor, ticket)
-    ticket_number = ticket.ticket_number or ticket_id
-    filename = f"ticket_{ticket_number}.zip"
-    return StreamingResponse(
-        iter([zip_bytes]),
-        media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    return _build_export_response(ticket, zip_bytes)

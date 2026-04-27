@@ -123,7 +123,11 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.ticket-execution-page__unified-card {
+.ticket-execution-page__unified-card,
+.ticket-execution-page__summary-card,
+.ticket-execution-page__empty-card,
+.ticket-execution-page__operation-card,
+.ticket-execution-page__timeline-card {
   border: 1px solid rgba(23, 24, 26, 0.06);
   border-radius: 1.45rem;
   box-shadow: var(--shadow-panel);
@@ -163,13 +167,6 @@
   text-transform: uppercase;
 }
 
-.ticket-execution-page__summary-card,
-.ticket-execution-page__empty-card {
-  border: 1px solid rgba(23, 24, 26, 0.06);
-  border-radius: 1.45rem;
-  box-shadow: var(--shadow-panel);
-}
-
 .ticket-execution-page__summary-card mat-card-content {
   flex-direction: column;
   gap: 0.5rem;
@@ -199,13 +196,6 @@
   display: grid;
   gap: 1rem;
   grid-template-columns: minmax(0, 1.55fr) minmax(18rem, 0.95fr);
-}
-
-.ticket-execution-page__operation-card,
-.ticket-execution-page__timeline-card {
-  border: 1px solid rgba(23, 24, 26, 0.06);
-  border-radius: 1.45rem;
-  box-shadow: var(--shadow-panel);
 }
 
 .ticket-execution-page__operation-content {
@@ -308,7 +298,33 @@
   margin: 0;
 }
 
-.ticket-execution-page__readonly-banner p {
+.ticket-execution-page__arrival-status {
+  padding: 0.85rem 0.95rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(176, 120, 31, 0.28);
+  background: rgba(255, 247, 230, 0.92);
+  color: #7a5413;
+}
+
+.ticket-execution-page__arrival-status--done {
+  border-color: rgba(28, 123, 74, 0.24);
+  background: rgba(238, 250, 242, 0.92);
+  color: #1f6a45;
+}
+
+.ticket-execution-page__arrival-status strong,
+.ticket-execution-page__arrival-status p {
+  margin: 0;
+}
+
+.ticket-execution-page__arrival-status p {
+  margin-top: 0.35rem;
+  font-size: 0.84rem;
+}
+
+.ticket-execution-page__arrival-status a {
+  color: inherit;
+  font-weight: 700;
 }
 
 .ticket-execution-page__request-item {
@@ -320,18 +336,28 @@
   border-radius: 0.8rem;
 }
 
-.ticket-execution-page__request-item--reopen {
+.ticket-execution-page__request-item--reopen,
+.ticket-execution-page__request-item--post-close {
   display: grid;
   gap: 0.9rem;
+}
+
+.ticket-execution-page__request-item--reopen {
   background: rgba(255, 250, 245, 0.94);
   border-color: rgba(183, 28, 28, 0.2);
+}
+
+.ticket-execution-page__request-item--post-close {
+  background: rgba(238, 250, 242, 0.9);
+  border-color: rgba(28, 123, 74, 0.22);
 }
 
 .ticket-execution-page__operation-grid--reopen {
   gap: 0.25rem;
 }
 
-.ticket-execution-page__footer-actions--reopen {
+.ticket-execution-page__footer-actions--reopen,
+.ticket-execution-page__footer-actions--post-close {
   justify-content: flex-end;
 }
 
@@ -383,24 +409,36 @@
   text-decoration: none;
 }
 
-.ticket-execution-page__timeline-location-badge {
+.ticket-execution-page__timeline-location-badge,
+.ticket-execution-page__timeline-arrival-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  margin-top: 0.7rem;
+  margin-top: 0.65rem;
   padding: 0.3rem 0.6rem;
   border-radius: 999px;
+  font-size: 0.78rem;
+}
+
+.ticket-execution-page__timeline-location-badge {
   background: rgba(33, 150, 243, 0.08);
   border: 1px solid rgba(33, 150, 243, 0.25);
   color: #1565c0;
-  font-size: 0.78rem;
   font-weight: 600;
+}
 
-  mat-icon {
-    font-size: 0.85rem;
-    width: 0.85rem;
-    height: 0.85rem;
-  }
+.ticket-execution-page__timeline-arrival-badge {
+  background: rgba(28, 123, 74, 0.1);
+  border: 1px solid rgba(28, 123, 74, 0.25);
+  color: #1f6a45;
+  font-weight: 700;
+}
+
+.ticket-execution-page__timeline-location-badge mat-icon,
+.ticket-execution-page__timeline-arrival-badge mat-icon {
+  font-size: 0.85rem;
+  width: 0.85rem;
+  height: 0.85rem;
 }
 
 .ticket-execution-page__empty-text {

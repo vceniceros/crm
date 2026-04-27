@@ -13,6 +13,8 @@ from crm_backend.models import (
     TicketAttachment,
     TicketAuditEvent,
     TicketComment,
+    TicketSatisfactionForm,
+    TicketSatisfactionResponse,
     TicketStatus,
     TicketStatusTransition,
 )
@@ -35,7 +37,11 @@ class TicketRepository:
         return self.get_ticket_detail(ticket.ticket_id) or ticket
 
     def _summary_options(self):
-        return ()
+        return (
+            selectinload(Ticket.status_history),
+            selectinload(Ticket.audit_events),
+            selectinload(Ticket.satisfaction_forms).selectinload(TicketSatisfactionForm.response),
+        )
 
     def _detail_options(self):
         return (
@@ -44,6 +50,9 @@ class TicketRepository:
             selectinload(Ticket.status_history),
             selectinload(Ticket.assignment_history),
             selectinload(Ticket.audit_events),
+            selectinload(Ticket.satisfaction_forms)
+            .selectinload(TicketSatisfactionForm.response)
+            .selectinload(TicketSatisfactionResponse.media),
             selectinload(Ticket.inventory_requests)
             .selectinload(InventoryRequest.items)
             .selectinload(InventoryRequestItem.product),

@@ -8,6 +8,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatDialog } from '@angular/material/dialog';
 import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
@@ -38,6 +39,7 @@ import { LocationPickerService } from '../../../../shared/services/location-pick
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 import { StatusBadgeComponent } from '../../../../shared/ui/status-badge/status-badge.component';
 import { UserAvatarComponent } from '../../../../shared/ui/user-avatar/user-avatar.component';
+import { SurveyLinkDialogComponent } from '../survey-link-dialog/survey-link-dialog.component';
 import { TicketAttachmentsSectionComponent } from '../ticket-attachments-section/ticket-attachments-section.component';
 import { TicketDescriptionSectionComponent } from '../ticket-description-section/ticket-description-section.component';
 
@@ -59,11 +61,13 @@ type TicketDispatchDraftItem = {
 
 interface TicketTimelineEvent {
   id: string;
+  anchorId?: string;
   occurredAt: string;
   title: string;
   subtitle: string;
   body: string;
   kind: 'comment' | 'status' | 'assignment' | 'request' | 'dispatch' | 'receipt';
+  isArrivalComment?: boolean;
   attachments: TicketAttachment[];
   location?: AppLocation; // Location attached to comment
 }
@@ -97,6 +101,7 @@ export class TicketExecutionPageComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly activatedRoute = inject(ActivatedRoute);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
   private readonly snackBar = inject(MatSnackBar);
   private readonly authSessionService = inject(AuthSessionService);
@@ -125,6 +130,9 @@ export class TicketExecutionPageComponent {
   readonly selectedCommentLocation = signal<AppLocation | null>(null);
   readonly isResolvingCommentLocation = signal(false);
   readonly pendingRejectRequestId = signal<string | null>(null);
+  readonly exportingHistory = signal(false);
+  readonly generatingSurvey = signal(false);
+  readonly loadingSurveyStatus = signal(false);
 
   readonly commentForm = this.formBuilder.group({
     body: this.formBuilder.control('', { validators: [Validators.required], nonNullable: true })
@@ -219,6 +227,33 @@ export class TicketExecutionPageComponent {
     const ticket = this.ticket();
     return Boolean(ticket && ticket.status !== 'CLOSED' && this.canOperateTicket() && !this.pendingReceiptRequestForCurrentUser());
   });
+  readonly hasArrivalRegistered = computed(() => {
+    const ticket = this.ticket();
+    if (!ticket) {
+      return false;
+    }
+    if (ticket.arrival_registered_at) {
+      return true;
+    }
+    if (ticket.arrival_comment_id) {
+      return true;
+    }
+    if (typeof ticket.has_arrival_registered === 'boolean') {
+      return ticket.has_arrival_registered;
+    }
+    return false;
+  });
+  readonly isArrivalRequired = computed(() => Boolean(this.ticket()?.requires_arrival_comment));
+  readonly arrivalCommentAnchor = computed(() => {
+    const commentId = this.ticket()?.arrival_comment_id;
+    return commentId ? `#ticket-comment-${commentId}` : null;
+  });
+  readonly canCloseTicket = computed(() => {
+    return this.canCloseOrTransition() && (!this.isArrivalRequired() || this.hasArrivalRegistered());
+  });
+  readonly isCloseBlockedByArrivalRequirement = computed(() => {
+    return this.isArrivalRequired() && !this.hasArrivalRegistered() && this.canCloseOrTransition();
+  });
   readonly canApproveExecutiveClosure = computed(() => {
     const ticket = this.ticket();
     return Boolean(ticket && ticket.status === 'PENDING_APPROVAL' && (this.isAdmin() || this.isExecutive()));
@@ -232,6 +267,14 @@ export class TicketExecutionPageComponent {
     const currentUserId = this.currentUserId();
     return Boolean(this.isAdmin() || this.isExecutive() || (currentUserId && ticket.closed_by_crm_user_id === currentUserId));
   });
+  readonly canAccessPostClosureActions = computed(() => {
+    const ticket = this.ticket();
+    if (!ticket) {
+      return false;
+    }
+    return ticket.status === 'CLOSED' && Boolean(ticket.approved_by_executive) && (this.isAdmin() || this.isExecutive());
+  });
+  readonly hasGeneratedSurvey = computed(() => Boolean(this.ticket()?.survey_generated_at));
   readonly ticketRoles = signal<Array<{ crm_role_id: string; role_key: string; role_label: string }>>([]);
   readonly inventoryRequestsVm = computed<readonly TicketInventoryRequest[]>(() => {
     const ticket = this.ticket();
@@ -330,16 +373,21 @@ export class TicketExecutionPageComponent {
       return [];
     }
 
-    const commentEvents: TicketTimelineEvent[] = ticket.comments.map((comment) => ({
-      id: `comment-${comment.ticket_comment_id}`,
-      occurredAt: comment.created_at,
-      title: comment.author_display_name || 'Usuario CRM',
-      subtitle: this.timelineLabelByCommentType(comment.comment_type),
-      body: comment.body,
-      kind: 'comment',
-      attachments: comment.attachments,
-      location: comment.location || undefined
-    }));
+    const commentEvents: TicketTimelineEvent[] = ticket.comments.map((comment) => {
+      const isArrivalComment = Boolean(ticket.arrival_comment_id && ticket.arrival_comment_id === comment.ticket_comment_id);
+      return {
+        id: `comment-${comment.ticket_comment_id}`,
+        anchorId: `ticket-comment-${comment.ticket_comment_id}`,
+        occurredAt: comment.created_at,
+        title: comment.author_display_name || 'Usuario CRM',
+        subtitle: this.timelineLabelByCommentType(comment.comment_type),
+        body: comment.body,
+        kind: 'comment',
+        isArrivalComment,
+        attachments: comment.attachments,
+        location: comment.location || undefined
+      };
+    });
 
     const statusEvents: TicketTimelineEvent[] = ticket.status_history.map((statusEvent) => ({
       id: `status-${statusEvent.ticket_status_transition_id}`,
@@ -669,8 +717,22 @@ export class TicketExecutionPageComponent {
   closeTicket(): void {
     const ticket = this.ticket();
     const comment = this.primaryCommentValue();
-    if (!ticket || !comment || !this.canCloseOrTransition()) {
+    if (!ticket || !comment) {
       this.commentForm.markAllAsTouched();
+      return;
+    }
+
+    if (!this.hasPendingCloseVideoEvidence()) {
+      this.errorMessage.set('El cierre del ticket requiere adjuntar al menos un video de evidencia.');
+      return;
+    }
+
+    if (!this.canCloseTicket()) {
+      if (this.isCloseBlockedByArrivalRequirement()) {
+        this.errorMessage.set(
+          'Este ticket requiere registrar llegada antes de poder cerrarse. Agregá un comentario con multimedia y ubicación asociada.'
+        );
+      }
       return;
     }
 
@@ -889,6 +951,136 @@ export class TicketExecutionPageComponent {
       });
   }
 
+  exportTicketHistory(): void {
+    const ticket = this.ticket();
+    if (!ticket || !this.canAccessPostClosureActions() || this.exportingHistory()) {
+      return;
+    }
+
+    this.exportingHistory.set(true);
+    this.errorMessage.set(null);
+    this.ticketManagementService
+      .exportTicketHistory(ticket.ticket_id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (blob) => {
+          this.exportingHistory.set(false);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          const dateSuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+          a.download = `ticket_${ticket.ticket_number}_${dateSuffix}.zip`;
+          a.click();
+          URL.revokeObjectURL(url);
+          this.successMessage.set('Historial exportado correctamente.');
+        },
+        error: (error: Error) => {
+          this.exportingHistory.set(false);
+          this.errorMessage.set(error.message);
+        }
+      });
+  }
+
+  generateTicketSurvey(): void {
+    const ticket = this.ticket();
+    if (!ticket || !this.canAccessPostClosureActions() || this.generatingSurvey()) {
+      return;
+    }
+
+    this.generatingSurvey.set(true);
+    this.errorMessage.set(null);
+    this.ticketManagementService
+      .generateTicketSurvey(ticket.ticket_id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (response) => {
+          this.generatingSurvey.set(false);
+          const link = this.buildSurveyLink(response.survey_path, response.public_link_token);
+          this.dialog.open(SurveyLinkDialogComponent, {
+            autoFocus: false,
+            maxWidth: 'calc(100vw - 1.5rem)',
+            width: '34rem',
+            data: {
+              title: 'Encuesta generada correctamente',
+              message: 'Compartí este link seguro con el cliente.',
+              surveyUrl: link,
+              details: 'El link expira y no requiere login del cliente.',
+              copyEnabled: true
+            }
+          });
+          this.successMessage.set('Encuesta de satisfacción generada.');
+          this.refreshTicket();
+        },
+        error: (error: Error) => {
+          this.generatingSurvey.set(false);
+          this.errorMessage.set(error.message);
+        }
+      });
+  }
+
+  viewSurveyStatus(): void {
+    const ticket = this.ticket();
+    if (!ticket || !this.canAccessPostClosureActions() || this.loadingSurveyStatus()) {
+      return;
+    }
+
+    this.loadingSurveyStatus.set(true);
+    this.errorMessage.set(null);
+    this.ticketManagementService
+      .getSatisfactionFormStatus(ticket.ticket_id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (status) => {
+          if (status.has_response) {
+            this.ticketManagementService
+              .getSatisfactionResponse(ticket.ticket_id)
+              .pipe(takeUntilDestroyed(this.destroyRef))
+              .subscribe({
+                next: (response) => {
+                  this.loadingSurveyStatus.set(false);
+                  this.dialog.open(SurveyLinkDialogComponent, {
+                    autoFocus: false,
+                    maxWidth: 'calc(100vw - 1.5rem)',
+                    width: '42rem',
+                    data: {
+                      title: 'Respuesta de encuesta',
+                      message: 'Esta encuesta ya fue respondida por el cliente.',
+                      details: `Enviada: ${this.formatDate(response.submitted_at)}.`,
+                      surveyResponse: response,
+                      copyEnabled: false
+                    }
+                  });
+                },
+                error: (error: Error) => {
+                  this.loadingSurveyStatus.set(false);
+                  this.errorMessage.set(error.message);
+                }
+              });
+            return;
+          }
+
+          this.loadingSurveyStatus.set(false);
+          const statusLabel = status.status_label || 'desconocido';
+          const details = `Estado: ${statusLabel}. Expira: ${this.formatDate(status.expires_at)}.`;
+          this.dialog.open(SurveyLinkDialogComponent, {
+            autoFocus: false,
+            maxWidth: 'calc(100vw - 1.5rem)',
+            width: '34rem',
+            data: {
+              title: 'Estado de encuesta',
+              message: 'Esta encuesta ya fue generada para el ticket.',
+              details,
+              copyEnabled: false
+            }
+          });
+        },
+        error: (error: Error) => {
+          this.loadingSurveyStatus.set(false);
+          this.errorMessage.set(error.message);
+        }
+      });
+  }
+
   prepareDispatchForRequest(request: TicketInventoryRequest): void {
     if (!request.id || request.status !== 'approved_for_dispatch' || !this.canManageDispatch()) {
       return;
@@ -1069,7 +1261,7 @@ export class TicketExecutionPageComponent {
     }
 
     if (this.selectedPrimaryAction() === 'close') {
-      return this.canCloseOrTransition() && Boolean(this.primaryCommentValue());
+      return this.canCloseTicket() && Boolean(this.primaryCommentValue()) && this.hasPendingCloseVideoEvidence();
     }
 
     return Boolean(this.primaryCommentValue());
@@ -1391,6 +1583,15 @@ export class TicketExecutionPageComponent {
     return this.commentForm.controls.body.getRawValue().trim();
   }
 
+  private hasPendingCloseVideoEvidence(): boolean {
+    return this.pendingAttachments().some((attachment) => {
+      if (attachment.kind?.toLowerCase() === 'video') {
+        return true;
+      }
+      return attachment.fileType?.toLowerCase().startsWith('video/') ?? false;
+    });
+  }
+
   private toTicketRequestStatus(status: string): TicketInventoryRequestStatus {
     switch (status) {
       case 'PENDING_DISPATCH':
@@ -1452,75 +1653,32 @@ export class TicketExecutionPageComponent {
     return 'Comentario';
   }
 
-  readonly hasArrivalRegistered = computed(() => {
-    const ticket = this.ticket();
-    if (!ticket) return false;
-    if (typeof ticket.has_arrival_registered === 'boolean') {
-      return ticket.has_arrival_registered;
-    }
-    return ticket.comments.some(
-      (c) => (c as any).comment_type === 'arrival_registration'
-    );
-  });
-
-  readonly canRegisterArrival = computed(() => {
-    const ticket = this.ticket();
-    if (!ticket) return false;
-
-    // Keep UI resilient: if backend flag arrives false unexpectedly, preserve local
-    // operability fallback so the option is not blocked by stale/incomplete payloads.
-    const locallyAllowed = ticket.status !== 'CLOSED' && !this.hasArrivalRegistered() && this.canOperateTicket() && !this.isDeposito();
-
-    if (ticket.can_register_arrival === true) {
-      return true;
-    }
-
-    if (ticket.can_register_arrival === false) {
-      return locallyAllowed;
-    }
-
-    return locallyAllowed;
-  });
-
-  readonly arrivalForm = this.formBuilder.group({
-    body: this.formBuilder.control('', { validators: [Validators.required, Validators.minLength(1)], nonNullable: true })
-  });
-  readonly showArrivalPanel = signal(false);
-
-  onRegisterArrival(): void {
-    if (this.arrivalForm.invalid || this.isSaving()) return;
-    const body = this.arrivalForm.getRawValue().body.trim();
-    if (!body) return;
-
-    const attachmentIds = this.pendingAttachments().map((a) => a.id);
-    if (attachmentIds.length === 0) {
-      this.errorMessage.set('Adjuntá al menos un video de evidencia antes de registrar la llegada.');
-      return;
-    }
-
-    this.isSaving.set(true);
-    this.errorMessage.set(null);
-    this.ticketManagementService
-      .registerArrival(this.ticketId(), { body, attachment_ids: attachmentIds })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (ticket) => {
-          this.ticket.set(ticket);
-          this.pendingAttachments.set([]);
-          this.arrivalForm.reset();
-          this.showArrivalPanel.set(false);
-          this.isSaving.set(false);
-          this.snackBar.open('Llegada al sitio registrada con evidencia de video.', 'OK', { duration: 4000 });
-        },
-        error: (err) => {
-          this.isSaving.set(false);
-          this.errorMessage.set(err?.message ?? 'Error al registrar la llegada.');
-        }
-      });
-  }
-
   private hasRole(roleKey: string): boolean {
     return this.currentRoles().includes(roleKey);
+  }
+
+  private formatDate(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return date.toLocaleString('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  private buildSurveyLink(surveyPath: string | null | undefined, token: string): string {
+    const normalizedPath = (surveyPath || '').trim();
+    if (normalizedPath) {
+      const path = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
+      return `${window.location.origin}${path}`;
+    }
+    return `${window.location.origin}/survey/${token}`;
   }
 
   private ticketId(): string {

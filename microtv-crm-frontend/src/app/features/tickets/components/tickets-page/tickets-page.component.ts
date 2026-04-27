@@ -4,12 +4,10 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 
 import {
@@ -29,6 +27,7 @@ import { ListingSortDirection, ListingStatusOption, ListingControlsComponent } f
 import { ListingViewMode, ListingViewPreferenceService } from '../../../../shared/services/listing-view-preference.service';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 import { CreateTicketDialogComponent } from '../create-ticket-dialog/create-ticket-dialog.component';
+import { SurveyLinkDialogComponent } from '../survey-link-dialog/survey-link-dialog.component';
 import { TicketsTableComponent } from '../tickets-table/tickets-table.component';
 
 type TicketListContextId = 'assigned' | 'unassigned' | 'tracking' | 'history';
@@ -48,7 +47,6 @@ interface TicketListUiState {
     MatDialogModule,
     MatIconModule,
     MatProgressSpinnerModule,
-    MatSnackBarModule,
     MatTabsModule,
     ListingControlsComponent,
     PageTitleComponent,
@@ -66,7 +64,6 @@ export class TicketsPageComponent {
   private readonly authSessionService = inject(AuthSessionService);
   private readonly ticketManagementService = inject(TicketManagementService);
   private readonly listingViewPreferenceService = inject(ListingViewPreferenceService);
-  private readonly snackBar = inject(MatSnackBar);
 
   readonly isHandset = toSignal(
     this.breakpointObserver.observe([Breakpoints.Handset]).pipe(map((state) => state.matches)),
@@ -298,6 +295,10 @@ export class TicketsPageComponent {
       assignedUserId: ticket.assigned_user_id,
       assignedRoleId: ticket.assigned_role_id,
       assignedRoleKey: ticket.assigned_role_key,
+      isExecutiveApprovedClosed: ticket.status === 'CLOSED' && Boolean(ticket.approved_by_executive),
+      hasSurveyGenerated: Boolean(ticket.survey_generated_at),
+      surveyStatusLabel: ticket.survey_status_label ?? null,
+      surveyCompletedAt: ticket.survey_completed_at ?? null,
       selfAssignable: Boolean(options?.forUnassignedTab) && !ticket.assigned_user_id && Boolean(ticket.assigned_role_id),
       createdAtRaw: ticket.created_at,
       createdAt: this.formatDate(ticket.created_at),
@@ -368,7 +369,7 @@ export class TicketsPageComponent {
   }
 
   // -------------------------------------------------------------------------
-  // Satisfaction form (US-2) — history tab actions
+  // Survey generation — history tab actions
   // -------------------------------------------------------------------------
 
   readonly satisfactionFormGenerating = signal<string | null>(null); // ticketId
@@ -378,26 +379,32 @@ export class TicketsPageComponent {
     return roles.includes('admin') || roles.includes('ejecutivo');
   });
 
-  onGenerateSatisfactionForm(ticketId: string): void {
+  onGenerateTicketSurvey(ticketId: string): void {
     if (this.satisfactionFormGenerating()) return;
     this.satisfactionFormGenerating.set(ticketId);
     this.errorMessage.set(null);
 
     this.ticketManagementService
-      .generateSatisfactionForm(ticketId)
+      .generateTicketSurvey(ticketId)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response) => {
           this.satisfactionFormGenerating.set(null);
-          const token = response.public_link_token;
-          const link = `${window.location.origin}/satisfaction/${token}`;
-          // Copy to clipboard
-          navigator.clipboard?.writeText(link).catch(() => {/* ignore */});
-          this.snackBar.open(
-            `Formulario generado. Link copiado: ${link}`,
-            'OK',
-            { duration: 10000 }
-          );
+          const link = this.buildSurveyLink(response.survey_path, response.public_link_token);
+          this.dialog.open(SurveyLinkDialogComponent, {
+            autoFocus: false,
+            maxWidth: 'calc(100vw - 1.5rem)',
+            width: '34rem',
+            data: {
+              title: 'Encuesta generada correctamente',
+              message: 'Compartí este link seguro con el cliente.',
+              surveyUrl: link,
+              details: 'El link expira y no requiere login del cliente.',
+              copyEnabled: true
+            }
+          });
+          this.successMessage.set('Encuesta de satisfacción generada.');
+          this.refresh();
         },
         error: (err: Error) => {
           this.satisfactionFormGenerating.set(null);
@@ -406,19 +413,75 @@ export class TicketsPageComponent {
       });
   }
 
+  onViewSurvey(ticketId: string): void {
+    this.errorMessage.set(null);
+    this.ticketManagementService
+      .getSatisfactionFormStatus(ticketId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (status) => {
+          if (status.has_response) {
+            this.ticketManagementService
+              .getSatisfactionResponse(ticketId)
+              .pipe(takeUntilDestroyed(this.destroyRef))
+              .subscribe({
+                next: (response) => {
+                  this.dialog.open(SurveyLinkDialogComponent, {
+                    autoFocus: false,
+                    maxWidth: 'calc(100vw - 1.5rem)',
+                    width: '42rem',
+                    data: {
+                      title: 'Respuesta de encuesta',
+                      message: 'Esta encuesta ya fue respondida por el cliente.',
+                      details: `Enviada: ${this.formatDate(response.submitted_at)}.`,
+                      surveyResponse: response,
+                      copyEnabled: false
+                    }
+                  });
+                },
+                error: (err: Error) => {
+                  this.errorMessage.set(err.message ?? 'No se pudo cargar la respuesta de la encuesta.');
+                }
+              });
+            return;
+          }
+
+          const statusLabel = status.status_label || 'desconocido';
+          const expiresAt = this.formatDate(status.expires_at);
+          const details = status.has_response
+            ? `Estado: ${statusLabel}. La encuesta ya fue respondida.`
+            : `Estado: ${statusLabel}. Expira: ${expiresAt}.`;
+          this.dialog.open(SurveyLinkDialogComponent, {
+            autoFocus: false,
+            maxWidth: 'calc(100vw - 1.5rem)',
+            width: '34rem',
+            data: {
+              title: 'Estado de encuesta',
+              message: 'Esta encuesta ya fue generada para el ticket.',
+              details,
+              copyEnabled: false
+            }
+          });
+        },
+        error: (err: Error) => {
+          this.errorMessage.set(err.message ?? 'No se pudo consultar el estado de la encuesta.');
+        }
+      });
+  }
+
   // -------------------------------------------------------------------------
-  // Export development (US-3)
+  // Ticket history export
   // -------------------------------------------------------------------------
 
   readonly exportingTicketId = signal<string | null>(null);
 
-  onExportTicketDevelopment(ticketId: string): void {
+  onExportTicketHistory(ticketId: string): void {
     if (this.exportingTicketId()) return;
     this.exportingTicketId.set(ticketId);
     this.errorMessage.set(null);
 
     this.ticketManagementService
-      .exportTicketDevelopment(ticketId)
+      .exportTicketHistory(ticketId)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (blob) => {
@@ -427,14 +490,24 @@ export class TicketsPageComponent {
           const a = document.createElement('a');
           a.href = url;
           const ticket = this.historyTickets().find((t) => t.ticket_id === ticketId);
-          a.download = ticket ? `ticket_${ticket.ticket_number}.zip` : 'ticket_desarrollo.zip';
+          const dateSuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+          a.download = ticket ? `ticket_${ticket.ticket_number}_${dateSuffix}.zip` : `ticket_historial_${dateSuffix}.zip`;
           a.click();
           URL.revokeObjectURL(url);
         },
         error: (err: Error) => {
           this.exportingTicketId.set(null);
-          this.errorMessage.set(err.message ?? 'Error al exportar el desarrollo del ticket.');
+          this.errorMessage.set(err.message ?? 'Error al exportar el historial del ticket.');
         }
       });
+  }
+
+  private buildSurveyLink(surveyPath: string | null | undefined, token: string): string {
+    const normalizedPath = (surveyPath || '').trim();
+    if (normalizedPath) {
+      const path = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
+      return `${window.location.origin}${path}`;
+    }
+    return `${window.location.origin}/survey/${token}`;
   }
 }
