@@ -2,11 +2,20 @@
   <div class="login-page__content">
     <article class="login-page__hero">
       <p class="login-page__eyebrow">MicroTV CRM</p>
-      <h1 class="login-page__title">Entrá a la maqueta con autenticación real sobre auth.microtv.ar</h1>
+      <h1 class="login-page__title">Sistema interno de gestión operativa para MicroTV.</h1>
       <p class="login-page__description">
-        Este acceso inicial valida credenciales contra auth, sincroniza el contexto local del CRM y te deja dentro de la
-        interfaz actual sin romper la arquitectura por capas.
+        El CRM centraliza la administración de tickets, tareas técnicas y operaciones de depósito, permitiendo coordinar de
+        forma eficiente el trabajo entre campo, soporte y logística.
       </p>
+      <p class="login-page__description">
+        Está diseñado para entornos reales de operación, donde múltiples roles interactúan sobre un mismo flujo: desde la
+        detección de un incidente, su resolución en campo, hasta el seguimiento y validación final.
+      </p>
+      <p class="login-page__description">
+        El sistema prioriza trazabilidad, control y claridad operativa, asegurando que cada acción quede registrada y que
+        la información fluya correctamente entre las distintas áreas.
+      </p>
+      <p class="login-page__description login-page__description--compact">Gestión integral de operaciones técnicas y soporte en campo.</p>
 
       <div class="login-page__highlights">
         <div class="login-page__highlight">
@@ -39,7 +48,7 @@
       <div class="login-card__header">
         <p class="login-card__eyebrow">Acceso operativo</p>
         <h2 class="login-card__title">Iniciar sesión</h2>
-        <p class="login-card__subtitle">Probá con cualquiera de las cuentas seed del auth local.</p>
+        <p class="login-card__subtitle">{{ loginCardSubtitle }}</p>
       </div>
 
       <form class="login-card__form" [formGroup]="form" (ngSubmit)="submit()">
@@ -90,20 +99,22 @@
         </button>
       </form>
 
-      <div class="login-card__accounts">
-        <p class="login-card__accounts-title">Usuarios seed del auth local</p>
+      @if (showDevSeedAccounts && seedAccounts.length) {
+        <div class="login-card__accounts">
+          <p class="login-card__accounts-title">Usuarios seed del auth local</p>
 
-        @for (account of seedAccounts; track account.email) {
-          <button type="button" class="login-card__account" (click)="useSeedAccount(account)">
-            <div>
-              <strong>{{ account.label }}</strong>
-              <span>{{ account.email }}</span>
-              <small>{{ account.roleLabel }}</small>
-            </div>
-            <code>{{ account.password }}</code>
-          </button>
-        }
-      </div>
+          @for (account of seedAccounts; track account.email) {
+            <button type="button" class="login-card__account" (click)="useSeedAccount(account)">
+              <div>
+                <strong>{{ account.label }}</strong>
+                <span>{{ account.email }}</span>
+                <small>{{ account.roleLabel }}</small>
+              </div>
+              <code>{{ account.password }}</code>
+            </button>
+          }
+        </div>
+      }
     </mat-card>
   </div>
 </section>

@@ -284,6 +284,132 @@ def test_non_admin_reassignment_is_limited_to_same_role(client, db_session) -> N
     assert body["assigned_user_id"] == tech_user_2.crm_user_id
 
 
+def test_tecnico_can_escalate_ticket_to_admin_role(client, db_session) -> None:
+    tech_user = _seed_local_role_user(
+        db_session,
+        role_key="tecnico_campo",
+        auth_user_id="auth-tech",
+        email="tecnico.crm@yccbrothers.com",
+        display_name="Tecnico Campo",
+    )
+    admin_user = _seed_local_role_user(
+        db_session,
+        role_key="admin_crm",
+        auth_user_id="auth-admin",
+        email="admin.crm@microtv.com",
+        display_name="Admin CRM",
+    )
+    client_entity, location = _seed_client_with_location(db_session)
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeTicketAuthAdapter()
+
+    created = client.post(
+        "/tickets",
+        headers=_auth_header("admin-token"),
+        json={
+            "title": "Escalamiento tecnico",
+            "description": "Incidencia requiere escalamiento a administrador.",
+            "client_id": client_entity.client_id,
+            "location_id": location.location_id,
+            "priority": "HIGH",
+            "assigned_role_id": tech_user.assigned_roles[0].crm_role_id,
+            "assigned_user_id": tech_user.crm_user_id,
+        },
+    )
+    assert created.status_code == 200, created.text
+    ticket_id = created.json()["ticket_id"]
+
+    escalated = client.patch(
+        f"/tickets/{ticket_id}/assignment",
+        headers=_auth_header("tech-token"),
+        json={
+            "assigned_role_id": admin_user.assigned_roles[0].crm_role_id,
+            "assigned_user_id": None,
+            "notes": "Escalamiento tecnico a administrador",
+        },
+    )
+    assert escalated.status_code == 200, escalated.text
+    body = escalated.json()
+    assert body["assigned_role_id"] == admin_user.assigned_roles[0].crm_role_id
+    assert body["assigned_role_key"] == "admin"
+
+
+def test_deposito_can_escalate_ticket_to_admin_role(client, db_session) -> None:
+    deposito_user = _seed_local_role_user(
+        db_session,
+        role_key="encargado_deposito",
+        auth_user_id="auth-deposito",
+        email="deposito.crm@yccbrothers.com",
+        display_name="Encargado Deposito",
+    )
+    admin_user = _seed_local_role_user(
+        db_session,
+        role_key="admin_crm",
+        auth_user_id="auth-admin",
+        email="admin.crm@microtv.com",
+        display_name="Admin CRM",
+    )
+    client_entity, location = _seed_client_with_location(db_session)
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeTicketAuthAdapter()
+
+    created = client.post(
+        "/tickets",
+        headers=_auth_header("admin-token"),
+        json={
+            "title": "Escalamiento deposito",
+            "description": "Incidencia operativa para escalar a administrador.",
+            "client_id": client_entity.client_id,
+            "location_id": location.location_id,
+            "priority": "MEDIUM",
+            "assigned_role_id": deposito_user.assigned_roles[0].crm_role_id,
+            "assigned_user_id": deposito_user.crm_user_id,
+        },
+    )
+    assert created.status_code == 200, created.text
+    ticket_id = created.json()["ticket_id"]
+
+    escalated = client.patch(
+        f"/tickets/{ticket_id}/assignment",
+        headers=_auth_header("deposito-token"),
+        json={
+            "assigned_role_id": admin_user.assigned_roles[0].crm_role_id,
+            "assigned_user_id": None,
+            "notes": "Escalamiento operativo a administrador",
+        },
+    )
+    assert escalated.status_code == 200, escalated.text
+    body = escalated.json()
+    assert body["assigned_role_id"] == admin_user.assigned_roles[0].crm_role_id
+    assert body["assigned_role_key"] == "admin"
+
+
+def test_role_catalog_includes_admin_for_tecnico_and_deposito(client, db_session) -> None:
+    _seed_local_role_user(
+        db_session,
+        role_key="tecnico_campo",
+        auth_user_id="auth-tech",
+        email="tecnico.crm@yccbrothers.com",
+        display_name="Tecnico Campo",
+    )
+    _seed_local_role_user(
+        db_session,
+        role_key="encargado_deposito",
+        auth_user_id="auth-deposito",
+        email="deposito.crm@yccbrothers.com",
+        display_name="Encargado Deposito",
+    )
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeTicketAuthAdapter()
+
+    tech_roles_response = client.get("/tickets/roles", headers=_auth_header("tech-token"))
+    assert tech_roles_response.status_code == 200, tech_roles_response.text
+    tech_role_keys = {item["role_key"] for item in tech_roles_response.json()}
+    assert "admin_crm" in tech_role_keys
+
+    deposito_roles_response = client.get("/tickets/roles", headers=_auth_header("deposito-token"))
+    assert deposito_roles_response.status_code == 200, deposito_roles_response.text
+    deposito_role_keys = {item["role_key"] for item in deposito_roles_response.json()}
+    assert "admin_crm" in deposito_role_keys
+
+
 def test_ticket_comment_can_link_uploaded_attachment(client, db_session) -> None:
     tech_user = _seed_local_role_user(
         db_session,

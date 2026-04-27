@@ -25,7 +25,7 @@ Este deploy levanta una instancia **independiente** de autenticación para CRM Y
     nginx/
 ```
 
-Usuario sugerido para deploy: `ycc` (sudoer).
+Usuario sugerido para runtime: `ycc` (sin sudo, home en `/opt/ycc`).
 
 ## 3) Puertos internos recomendados
 
@@ -41,20 +41,33 @@ Nota: si ya existe otra instancia de auth en 8001, usar otro puerto interno para
 
 ```bash
 sudo apt update
-sudo apt install -y git python3.12 python3.12-venv python3-pip nodejs npm nginx postgresql postgresql-contrib
+sudo apt install -y git python3.12 python3.12-venv python3-pip nodejs npm nginx postgresql postgresql-contrib gettext-base
 ```
 
 ## 5) Clonado y estructura
 
 ```bash
+# como root o usuario con sudo
+sudo mkdir -p /opt/ycc
+
+# crea usuario de sistema sin privilegios sudo y con home /opt/ycc
+if ! id -u ycc >/dev/null 2>&1; then
+  sudo useradd --home-dir /opt/ycc --shell /bin/bash --create-home ycc
+fi
+sudo usermod --home /opt/ycc ycc
+sudo gpasswd -d ycc sudo 2>/dev/null || true
+
 sudo mkdir -p /opt/ycc/crm /opt/ycc/logs/{crm-backend,crm-auth,nginx}
 sudo chown -R ycc:ycc /opt/ycc
+sudo chmod 750 /opt/ycc
 
 sudo -iu ycc
 cd /opt/ycc/crm
 git clone <URL_REPO_CRM> microtv-crm-ycc
 cd microtv-crm-ycc
 ```
+
+Desde este punto, ejecutar pasos de aplicación como `ycc`. Mantener `sudo` solo para tareas de sistema (systemd, Nginx, paquetes, usuarios).
 
 ## 6) PostgreSQL (dos bases separadas)
 
@@ -69,10 +82,18 @@ CREATE DATABASE crm_auth_prod OWNER crm_auth_user;
 
 ## 7) Variables de entorno
 
+Todos los puertos de ejecución se definen por `.env` y luego son consumidos por `systemd`/`nginx`:
+- Auth interno: `HOST`, `PORT`
+- Backend CRM: `HOST`, `PORT`
+- Frontend en producción: `FRONTEND_PORT` (puerto de Nginx). El frontend Angular compilado es estático y no abre puerto propio.
+
 ### 7.1 Auth interno CRM
 Archivo: `/opt/ycc/crm/microtv-crm-ycc/auth.microtv.ar/backend/.env`
 
 ```env
+HOST=127.0.0.1
+PORT=8001
+
 DATABASE_URL=postgresql+psycopg://crm_auth_user:<CAMBIAR_AUTH_DB_PASSWORD>@127.0.0.1:5434/crm_auth_prod
 ENVIRONMENT=production
 
@@ -100,7 +121,7 @@ Archivo: `/opt/ycc/crm/microtv-crm-ycc/microtv-crm-backend/.env`
 ```env
 APP_NAME=MicroTV CRM Backend
 ENVIRONMENT=production
-HOST=0.0.0.0
+HOST=127.0.0.1
 PORT=8010
 
 DATABASE_URL=postgresql+psycopg://crm_prod_user:<CAMBIAR_CRM_DB_PASSWORD>@127.0.0.1:5433/crm_prod
@@ -122,10 +143,14 @@ DEFAULT_DEPOSITO_AUTH_ROLES=operador_deposito,company_operator
 DEFAULT_TECH_AUTH_ROLES=tecnico_campo
 ```
 
+Importante: si cambias el `PORT` del auth en su `.env`, actualizar `AUTH_BASE_URL` para apuntar al nuevo puerto.
+
 ### 7.3 Frontend CRM
 Archivo: `/opt/ycc/crm/microtv-crm-ycc/microtv-crm-frontend/.env`
 
 ```env
+SERVER_NAME=crm.tu-dominio.com
+FRONTEND_PORT=80
 CRM_API_BASE_URL=https://crm.tu-dominio.com/api
 ```
 
@@ -191,8 +216,9 @@ Type=simple
 User=ycc
 Group=ycc
 WorkingDirectory=/opt/ycc/crm/microtv-crm-ycc/auth.microtv.ar/backend
+EnvironmentFile=/opt/ycc/crm/microtv-crm-ycc/auth.microtv.ar/backend/.env
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/opt/ycc/crm/microtv-crm-ycc/auth.microtv.ar/backend/.venv/bin/uvicorn src.main:app --host 127.0.0.1 --port 8001
+ExecStart=/bin/bash -lc '/opt/ycc/crm/microtv-crm-ycc/auth.microtv.ar/backend/.venv/bin/uvicorn src.main:app --host "${HOST:-127.0.0.1}" --port "${PORT:-8001}"'
 Restart=always
 RestartSec=3
 StandardOutput=append:/opt/ycc/logs/crm-auth/auth.log
@@ -217,8 +243,9 @@ Type=simple
 User=ycc
 Group=ycc
 WorkingDirectory=/opt/ycc/crm/microtv-crm-ycc/microtv-crm-backend
+EnvironmentFile=/opt/ycc/crm/microtv-crm-ycc/microtv-crm-backend/.env
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/opt/ycc/crm/microtv-crm-ycc/microtv-crm-backend/.venv/bin/uvicorn crm_backend.main:app --host 127.0.0.1 --port 8010
+ExecStart=/bin/bash -lc '/opt/ycc/crm/microtv-crm-ycc/microtv-crm-backend/.venv/bin/uvicorn crm_backend.main:app --host "${HOST:-127.0.0.1}" --port "${PORT:-8010}"'
 Restart=always
 RestartSec=3
 StandardOutput=append:/opt/ycc/logs/crm-backend/backend.log
@@ -238,18 +265,18 @@ sudo systemctl restart ycc-crm-auth ycc-crm-backend
 
 ## 11) Nginx / reverse proxy
 
-Archivo: `/etc/nginx/sites-available/crm-ycc.conf`
+Archivo plantilla: `/etc/nginx/sites-available/crm-ycc.conf.template`
 
 ```nginx
 server {
-    listen 80;
-    server_name crm.tu-dominio.com;
+  listen ${FRONTEND_PORT};
+  server_name ${SERVER_NAME};
 
     root /opt/ycc/crm/microtv-crm-ycc/microtv-crm-frontend/dist/microtv-crm-frontend/browser;
     index index.html;
 
     location /api/ {
-        proxy_pass http://127.0.0.1:8010/;
+    proxy_pass http://127.0.0.1:${BACKEND_PORT}/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -268,6 +295,21 @@ server {
 ```
 
 ```bash
+# carga puertos/host desde .env
+set -a
+source /opt/ycc/crm/microtv-crm-ycc/microtv-crm-backend/.env
+BACKEND_PORT="$PORT"
+source /opt/ycc/crm/microtv-crm-ycc/microtv-crm-frontend/.env
+set +a
+
+: "${BACKEND_PORT:=8010}"
+: "${FRONTEND_PORT:=80}"
+: "${SERVER_NAME:=crm.tu-dominio.com}"
+
+sudo envsubst '${FRONTEND_PORT} ${SERVER_NAME} ${BACKEND_PORT}' \
+  < /etc/nginx/sites-available/crm-ycc.conf.template \
+  > /etc/nginx/sites-available/crm-ycc.conf
+
 sudo ln -sf /etc/nginx/sites-available/crm-ycc.conf /etc/nginx/sites-enabled/crm-ycc.conf
 sudo nginx -t
 sudo systemctl reload nginx
@@ -276,17 +318,21 @@ sudo systemctl reload nginx
 ## 12) Verificación con curl
 
 ```bash
+AUTH_PORT=$(grep '^PORT=' /opt/ycc/crm/microtv-crm-ycc/auth.microtv.ar/backend/.env | cut -d= -f2)
+BACKEND_PORT=$(grep '^PORT=' /opt/ycc/crm/microtv-crm-ycc/microtv-crm-backend/.env | cut -d= -f2)
+FRONTEND_PORT=$(grep '^FRONTEND_PORT=' /opt/ycc/crm/microtv-crm-ycc/microtv-crm-frontend/.env | cut -d= -f2)
+
 # auth interno
-curl -sS http://127.0.0.1:8001/health
+curl -sS http://127.0.0.1:${AUTH_PORT}/health
 
 # backend CRM
-curl -sS http://127.0.0.1:8010/health
+curl -sS http://127.0.0.1:${BACKEND_PORT}/health
 
 # nginx
-curl -I http://127.0.0.1/nginx-health
+curl -I http://127.0.0.1:${FRONTEND_PORT}/nginx-health
 
 # login admin interno
-curl -sS -X POST http://127.0.0.1:8010/auth/login \
+curl -sS -X POST http://127.0.0.1:${BACKEND_PORT}/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@ycc.local","password":"<PASSWORD_INICIAL>"}'
 ```

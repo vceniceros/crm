@@ -11,14 +11,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
-import { crmApiConfig } from '../../../../core/config/crm-api.config';
-
-interface SeedLoginAccount {
-  label: string;
-  email: string;
-  password: string;
-  roleLabel: string;
-}
+import { crmApiConfig, crmRuntimeConfig } from '../../../../core/config/crm-api.config';
+import type { CrmRuntimeSeedLoginAccount } from '../../../../core/config/crm-api.config';
 
 @Component({
   selector: 'app-login-page',
@@ -40,38 +34,11 @@ export class LoginPageComponent {
   private readonly router = inject(Router);
   private readonly activatedRoute = inject(ActivatedRoute);
 
-  readonly seedAccounts: SeedLoginAccount[] = [
-    {
-      label: 'Admin MicroTV',
-      email: 'admin@ycc.com.ar',
-      password: 'b5249a47fc73f4b5618d7b77b9fbe86f1278a96b139d7ee18ba34be181a3809f',
-      roleLabel: 'platform_admin -> admin'
-    },
-    {
-      label: 'Operador YCC Brothers',
-      email: 'operador.crm@yccbrothers.com',
-      password: 'Passw0rd!',
-      roleLabel: 'company_operator -> deposito'
-    },
-    {
-      label: 'Auxiliar Depósito YCC',
-      email: 'deposito.aux@yccbrothers.com',
-      password: 'Passw0rd!',
-      roleLabel: 'company_operator -> deposito'
-    },
-    {
-      label: 'Ejecutivo YCC Brothers',
-      email: 'ejecutivo.crm@yccbrothers.com',
-      password: 'Passw0rd!',
-      roleLabel: 'ejecutivo -> ejecutivo'
-    },
-    {
-      label: 'Técnico de Campo YCC',
-      email: 'tecnico.campo@yccbrothers.com',
-      password: 'Passw0rd!',
-      roleLabel: 'company_operator + rol local tecnico_campo -> tecnico'
-    }
-  ];
+  readonly showDevSeedAccounts = crmRuntimeConfig.devMode;
+  readonly seedAccounts: CrmRuntimeSeedLoginAccount[] = crmRuntimeConfig.devLoginAccounts;
+  readonly loginCardSubtitle = this.showDevSeedAccounts
+    ? 'Probá con cualquiera de las cuentas seed del auth local.'
+    : 'Ingresá con un usuario habilitado en auth.microtv.ar para operar el CRM.';
 
   readonly isSubmitting = signal(false);
   readonly feedbackMessage = signal<string | null>(null);
@@ -130,7 +97,7 @@ export class LoginPageComponent {
     this.showPassword.update((currentValue) => !currentValue);
   }
 
-  useSeedAccount(account: SeedLoginAccount): void {
+  useSeedAccount(account: CrmRuntimeSeedLoginAccount): void {
     this.form.setValue({
       email: account.email,
       password: account.password

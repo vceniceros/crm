@@ -173,6 +173,7 @@ export class TicketExecutionPageComponent {
 
   readonly currentRoles = computed(() => this.authSessionService.sessionSnapshot()?.user.role_keys ?? []);
   readonly currentUserId = computed(() => this.authSessionService.sessionSnapshot()?.user.crm_user_id ?? null);
+  readonly actorRoleIds = computed(() => this.resolveActorRoleIds());
   readonly isDeposito = computed(() => this.hasRole('deposito'));
   readonly isTecnico = computed(() => this.hasRole('tecnico'));
   readonly isAdmin = computed(() => this.hasRole('admin'));
@@ -199,7 +200,7 @@ export class TicketExecutionPageComponent {
     }
 
     if (!ticket.assigned_user_id && ticket.assigned_role_id) {
-      const roleIds = this.ticketRoles().map((role) => role.crm_role_id);
+      const roleIds = this.actorRoleIds();
       return roleIds.includes(ticket.assigned_role_id);
     }
 
@@ -217,7 +218,7 @@ export class TicketExecutionPageComponent {
     }
 
     if (ticket.assigned_role_id) {
-      const roleIds = this.ticketRoles().map((role) => role.crm_role_id);
+      const roleIds = this.actorRoleIds();
       return roleIds.includes(ticket.assigned_role_id);
     }
 
@@ -1655,6 +1656,33 @@ export class TicketExecutionPageComponent {
 
   private hasRole(roleKey: string): boolean {
     return this.currentRoles().includes(roleKey);
+  }
+
+  private resolveActorRoleIds(): string[] {
+    const actorRoles = new Set(this.currentRoles());
+    return this.ticketRoles()
+      .filter((role) => {
+        const normalizedRole = this.normalizeRoleKey(role.role_key);
+        return normalizedRole !== null && actorRoles.has(normalizedRole);
+      })
+      .map((role) => role.crm_role_id);
+  }
+
+  private normalizeRoleKey(roleKey: string | null | undefined): string | null {
+    if (typeof roleKey !== 'string') {
+      return null;
+    }
+
+    if (roleKey === 'admin_crm') {
+      return 'admin';
+    }
+    if (roleKey === 'tecnico_campo') {
+      return 'tecnico';
+    }
+    if (roleKey === 'encargado_deposito') {
+      return 'deposito';
+    }
+    return roleKey;
   }
 
   private formatDate(value: string): string {

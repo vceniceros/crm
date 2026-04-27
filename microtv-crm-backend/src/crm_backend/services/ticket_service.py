@@ -188,6 +188,10 @@ class TicketApplicationService:
             return roles
 
         actor_role_ids = self._actor_role_ids(actor)
+        if {"tecnico", "deposito"}.intersection(actor.role_keys):
+            for role in roles:
+                if self._normalize_role_key(role.role_key) == "admin":
+                    actor_role_ids.add(role.crm_role_id)
         return [role for role in roles if role.crm_role_id in actor_role_ids]
 
     def add_comment(
@@ -1116,7 +1120,7 @@ class TicketApplicationService:
         if not actor_role_ids:
             raise TicketAccessDeniedError("El usuario no tiene roles válidos para reasignar tickets.")
 
-        if role is not None and role.crm_role_id not in actor_role_ids:
+        if role is not None and role.crm_role_id not in actor_role_ids and not self._can_escalate_to_admin(actor, role):
             raise TicketAccessDeniedError("Solo podés asignar tickets dentro de tus propios roles.")
 
         if ticket.assigned_role_id is not None and ticket.assigned_role_id not in actor_role_ids:
@@ -1124,6 +1128,9 @@ class TicketApplicationService:
 
         if ticket.assigned_role_id is None and ticket.assigned_user_id != actor.crm_user.crm_user_id:
             raise TicketAccessDeniedError("No podés reasignar un ticket fuera de tu ámbito de rol.")
+
+    def _can_escalate_to_admin(self, actor: ResolvedCrmSession, role: CrmRole) -> bool:
+        return self._normalize_role_key(role.role_key) == "admin" and bool({"tecnico", "deposito"}.intersection(actor.role_keys))
 
     def _can_view_ticket(self, actor: ResolvedCrmSession, ticket: Ticket) -> bool:
         if {"admin", "ejecutivo"}.intersection(actor.role_keys):
