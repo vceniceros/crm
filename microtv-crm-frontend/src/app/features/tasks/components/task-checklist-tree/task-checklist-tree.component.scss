@@ -1,0 +1,84 @@
+.task-checklist-tree {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.task-checklist-tree__level {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.task-checklist-tree__item {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.task-checklist-tree__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-left: calc(var(--task-depth, 0) * 1.35rem);
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.task-checklist-tree__row--completed {
+  border-color: rgba(45, 139, 87, 0.18);
+  background: rgba(45, 139, 87, 0.07);
+}
+
+.task-checklist-tree__row--blocked {
+  border-style: dashed;
+  background: rgba(95, 102, 114, 0.06);
+}
+
+.task-checklist-tree__checkbox {
+  flex: 1 1 auto;
+}
+
+.task-checklist-tree__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.task-checklist-tree__status mat-icon {
+  width: 1rem;
+  height: 1rem;
+  font-size: 1rem;
+}
+
+.task-checklist-tree__children {
+  display: grid;
+  gap: 0.7rem;
+}
+
+@media (max-width: 720px) {
+  .task-checklist-tree__row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .task-checklist-tree__status {
+    margin-left: 2.85rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .task-checklist-tree__row {
+    margin-left: calc(var(--task-depth, 0) * 0.85rem);
+    padding: 0.8rem 0.85rem;
+  }
+
+  .task-checklist-tree__status {
+    margin-left: 0;
+  }
+}

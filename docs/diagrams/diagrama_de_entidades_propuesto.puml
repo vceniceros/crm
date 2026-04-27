@@ -1,0 +1,457 @@
+@startuml MicroTV_CRM_Database_Schema
+
+' =====================================================
+' MicroTV CRM - Diagrama de Entidades Simplificado
+' Versión: 1.0
+' Fecha: Abril 2026
+' =====================================================
+
+!define TABLE(name,desc) class name as "desc" << (T,#FFAAAA) >>
+!define ENTITY(name,desc) class name as "desc" << (E,#ADD8E6) >>
+
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor<<master>> LightBlue
+    BackgroundColor<<detail>> LightYellow
+    BackgroundColor<<catalog>> LightGreen
+    BackgroundColor<<junction>> LightGray
+}
+
+package "USUARIOS Y SEGURIDAD" {
+    class roles <<catalog>> {
+        + role_id: UUID
+        --
+        role_key: VARCHAR(50) UK
+        role_label: VARCHAR(100)
+        is_active: BOOLEAN
+    }
+    
+    class users <<master>> {
+        + user_id: UUID
+        --
+        email: VARCHAR(255) UK
+        password_hash: VARCHAR(255)
+        full_name: VARCHAR(255)
+        initials: VARCHAR(10)
+        is_active: BOOLEAN
+        last_login_at: TIMESTAMPTZ
+    }
+    
+    class user_roles <<junction>> {
+        + user_role_id: UUID
+        --
+        user_id: UUID FK
+        role_id: UUID FK
+    }
+    
+    class user_sessions <<detail>> {
+        + session_id: UUID
+        --
+        user_id: UUID FK
+        token_jti: VARCHAR(255) UK
+        expires_at: TIMESTAMPTZ
+        revoked_at: TIMESTAMPTZ
+    }
+}
+
+package "CLIENTES Y GEOGRAFÍA" {
+    class clients <<master>> {
+        + client_id: UUID
+        --
+        business_name: VARCHAR(255)
+        tax_id: VARCHAR(50) UK
+        email: VARCHAR(255)
+        phone: VARCHAR(50)
+        is_active: BOOLEAN
+    }
+    
+    class locations <<master>> {
+        + location_id: UUID
+        --
+        latitude: DECIMAL(10,8)
+        longitude: DECIMAL(11,8)
+        address_label: VARCHAR(500)
+        formatted_address: TEXT
+    }
+    
+    class client_locations <<junction>> {
+        + client_location_id: UUID
+        --
+        client_id: UUID FK
+        location_id: UUID FK
+        location_label: VARCHAR(255)
+        is_primary: BOOLEAN
+    }
+}
+
+package "INVENTARIO" {
+    class inventory_categories <<catalog>> {
+        + category_id: UUID
+        --
+        category_name: VARCHAR(255) UK
+        parent_category_id: UUID FK
+        is_active: BOOLEAN
+    }
+    
+    class inventory_products <<master>> {
+        + product_id: UUID
+        --
+        category_id: UUID FK
+        product_name: VARCHAR(255)
+        product_code: VARCHAR(100) UK
+        barcode: VARCHAR(255)
+        unit_of_measure: VARCHAR(50)
+        image_url: VARCHAR(500)
+        is_active: BOOLEAN
+    }
+    
+    class inventory_stock <<detail>> {
+        + stock_id: UUID
+        --
+        product_id: UUID FK
+        warehouse_id: UUID
+        quantity_available: DECIMAL(12,3)
+        quantity_reserved: DECIMAL(12,3)
+        minimum_stock: DECIMAL(12,3)
+    }
+    
+    class inventory_movements <<detail>> {
+        + movement_id: UUID
+        --
+        product_id: UUID FK
+        movement_type: VARCHAR(50)
+        quantity: DECIMAL(12,3)
+        reference_entity_type: VARCHAR(50)
+        reference_entity_id: UUID
+        performed_by_user_id: UUID FK
+        performed_at: TIMESTAMPTZ
+    }
+    
+    class stock_devices <<master>> {
+        + device_id: UUID
+        --
+        device_type: VARCHAR(100)
+        brand: VARCHAR(100)
+        model: VARCHAR(100)
+        serial_number: VARCHAR(255) UK
+    }
+    
+    class client_devices <<junction>> {
+        + client_device_id: UUID
+        --
+        client_id: UUID FK
+        device_id: UUID FK
+        location_id: UUID FK
+        installation_date: DATE
+        is_active: BOOLEAN
+    }
+}
+
+package "TEMPLATES DE TAREAS" {
+    class task_templates <<master>> {
+        + template_id: UUID
+        --
+        template_name: VARCHAR(255)
+        description: TEXT
+        estimated_duration_hours: DECIMAL(6,2)
+        is_active: BOOLEAN
+        created_by_user_id: UUID FK
+    }
+    
+    class template_subtasks <<detail>> {
+        + template_subtask_id: UUID
+        --
+        template_id: UUID FK
+        parent_template_subtask_id: UUID FK
+        subtask_title: VARCHAR(255)
+        order_index: INT
+        estimated_duration_minutes: INT
+        is_required: BOOLEAN
+    }
+    
+    class template_materials <<junction>> {
+        + template_material_id: UUID
+        --
+        template_id: UUID FK
+        product_id: UUID FK
+        quantity_required: DECIMAL(12,3)
+    }
+}
+
+package "TAREAS (TASKS)" {
+    class tasks <<master>> {
+        + task_id: UUID
+        --
+        task_title: VARCHAR(255)
+        task_description: TEXT
+        client_id: UUID FK
+        location_id: UUID FK
+        template_id: UUID FK
+        current_assigned_user_id: UUID FK
+        priority: VARCHAR(50)
+        status: VARCHAR(50)
+        is_finalized: BOOLEAN
+        finalized_at: TIMESTAMPTZ
+        created_by_user_id: UUID FK
+    }
+    
+    class subtasks <<detail>> {
+        + subtask_id: UUID
+        --
+        task_id: UUID FK
+        parent_subtask_id: UUID FK
+        template_subtask_id: UUID FK
+        subtask_title: VARCHAR(255)
+        order_index: INT
+        current_assigned_user_id: UUID FK
+        is_required: BOOLEAN
+        is_completed: BOOLEAN
+        completed_at: TIMESTAMPTZ
+        completion_notes: TEXT
+    }
+    
+    class subtask_checklist_items <<detail>> {
+        + checklist_item_id: UUID
+        --
+        subtask_id: UUID FK
+        item_label: VARCHAR(500)
+        item_order: INT
+        is_required: BOOLEAN
+    }
+    
+    class subtask_checklist_progress <<detail>> {
+        + progress_id: UUID
+        --
+        checklist_item_id: UUID FK
+        is_checked: BOOLEAN
+        checked_at: TIMESTAMPTZ
+        checked_by_user_id: UUID FK
+    }
+    
+    class subtask_assignments <<detail>> {
+        + assignment_id: UUID
+        --
+        subtask_id: UUID FK
+        assigned_user_id: UUID FK
+        assigned_at: TIMESTAMPTZ
+        assigned_by_user_id: UUID FK
+        unassigned_at: TIMESTAMPTZ
+    }
+    
+    class task_attachments <<detail>> {
+        + attachment_id: UUID
+        --
+        task_id: UUID FK
+        subtask_id: UUID FK
+        file_name: VARCHAR(500)
+        file_url: VARCHAR(1000)
+        file_size_bytes: BIGINT
+        mime_type: VARCHAR(100)
+        attachment_type: VARCHAR(50)
+        uploaded_by_user_id: UUID FK
+        uploaded_at: TIMESTAMPTZ
+    }
+}
+
+package "TICKETS" {
+    class ticket_categories <<catalog>> {
+        + category_id: UUID
+        --
+        category_name: VARCHAR(100) UK
+        is_active: BOOLEAN
+    }
+    
+    class ticket_statuses <<catalog>> {
+        + status_id: UUID
+        --
+        status_key: VARCHAR(50) UK
+        status_label: VARCHAR(100)
+        status_order: INT
+        is_final: BOOLEAN
+    }
+    
+    class ticket_priorities <<catalog>> {
+        + priority_id: UUID
+        --
+        priority_key: VARCHAR(50) UK
+        priority_label: VARCHAR(100)
+        priority_level: INT
+    }
+    
+    class tickets <<master>> {
+        + ticket_id: UUID
+        --
+        ticket_title: VARCHAR(255)
+        ticket_description: TEXT
+        client_id: UUID FK
+        location_id: UUID FK
+        category_id: UUID FK
+        priority_id: UUID FK
+        status_id: UUID FK
+        affected_device_id: UUID FK
+        current_technician_id: UUID FK
+        current_warehouse_user_id: UUID FK
+        resolved_at: TIMESTAMPTZ
+        closed_at: TIMESTAMPTZ
+        created_by_user_id: UUID FK
+    }
+    
+    class ticket_assignments <<detail>> {
+        + assignment_id: UUID
+        --
+        ticket_id: UUID FK
+        assignment_type: VARCHAR(50)
+        assigned_user_id: UUID FK
+        assigned_at: TIMESTAMPTZ
+        assigned_by_user_id: UUID FK
+        unassigned_at: TIMESTAMPTZ
+    }
+    
+    class ticket_resolution_notes <<detail>> {
+        + note_id: UUID
+        --
+        ticket_id: UUID FK
+        note_text: TEXT
+        created_by_user_id: UUID FK
+    }
+    
+    class ticket_attachments <<detail>> {
+        + attachment_id: UUID
+        --
+        ticket_id: UUID FK
+        file_name: VARCHAR(500)
+        file_url: VARCHAR(1000)
+        attachment_type: VARCHAR(50)
+        uploaded_by_user_id: UUID FK
+        uploaded_at: TIMESTAMPTZ
+    }
+    
+    class ticket_inventory_requests <<detail>> {
+        + request_id: UUID
+        --
+        ticket_id: UUID FK
+        request_status: VARCHAR(50)
+        requested_by_user_id: UUID FK
+        requested_at: TIMESTAMPTZ
+        reviewed_by_user_id: UUID FK
+        reviewed_at: TIMESTAMPTZ
+        review_notes: TEXT
+    }
+    
+    class ticket_inventory_request_items <<detail>> {
+        + request_item_id: UUID
+        --
+        request_id: UUID FK
+        product_id: UUID FK
+        quantity_requested: DECIMAL(12,3)
+    }
+    
+    class ticket_dispatches <<detail>> {
+        + dispatch_id: UUID
+        --
+        ticket_id: UUID FK
+        request_id: UUID FK
+        dispatched_by_user_id: UUID FK
+        dispatched_at: TIMESTAMPTZ
+        dispatch_notes: TEXT
+    }
+    
+    class ticket_dispatch_items <<detail>> {
+        + dispatch_item_id: UUID
+        --
+        dispatch_id: UUID FK
+        product_id: UUID FK
+        quantity_dispatched: DECIMAL(12,3)
+    }
+}
+
+' =====================================================
+' RELACIONES PRINCIPALES
+' =====================================================
+
+' Usuarios y Roles
+users "1" -- "*" user_roles
+roles "1" -- "*" user_roles
+users "1" -- "*" user_sessions
+
+' Clientes y Ubicaciones
+clients "1" -- "*" client_locations
+locations "1" -- "*" client_locations
+clients "1" -- "*" client_devices
+stock_devices "1" -- "*" client_devices
+client_devices "*" -- "0..1" locations
+
+' Inventario
+inventory_categories "1" -- "*" inventory_products
+inventory_products "1" -- "*" inventory_stock
+inventory_products "1" -- "*" inventory_movements
+users "*" -- "*" inventory_movements : performed_by
+
+' Templates
+task_templates "1" -- "*" template_subtasks
+template_subtasks "0..1" -- "*" template_subtasks : parent
+task_templates "1" -- "*" template_materials
+inventory_products "1" -- "*" template_materials
+users "*" -- "*" task_templates : created_by
+
+' Tareas
+clients "1" -- "*" tasks
+locations "0..1" -- "*" tasks
+task_templates "0..1" -- "*" tasks : based_on
+users "*" -- "*" tasks : assigned_to
+users "*" -- "*" tasks : created_by
+
+tasks "1" -- "*" subtasks
+subtasks "0..1" -- "*" subtasks : parent
+template_subtasks "0..1" -- "*" subtasks : based_on
+users "*" -- "*" subtasks : current_assigned
+
+subtasks "1" -- "*" subtask_checklist_items
+subtask_checklist_items "1" -- "0..1" subtask_checklist_progress
+users "*" -- "*" subtask_checklist_progress : checked_by
+
+subtasks "1" -- "*" subtask_assignments
+users "1" -- "*" subtask_assignments : assigned_to
+users "0..1" -- "*" subtask_assignments : assigned_by
+
+tasks "1" -- "*" task_attachments
+subtasks "0..1" -- "*" task_attachments
+users "*" -- "*" task_attachments : uploaded_by
+
+' Tickets
+clients "1" -- "*" tickets
+locations "0..1" -- "*" tickets
+ticket_categories "0..1" -- "*" tickets
+ticket_statuses "1" -- "*" tickets
+ticket_priorities "1" -- "*" tickets
+stock_devices "0..1" -- "*" tickets : affected
+users "*" -- "*" tickets : technician
+users "*" -- "*" tickets : warehouse_user
+users "*" -- "*" tickets : created_by
+
+tickets "1" -- "*" ticket_assignments
+users "1" -- "*" ticket_assignments : assigned_to
+users "0..1" -- "*" ticket_assignments : assigned_by
+
+tickets "1" -- "*" ticket_resolution_notes
+users "1" -- "*" ticket_resolution_notes : created_by
+
+tickets "1" -- "*" ticket_attachments
+users "*" -- "*" ticket_attachments : uploaded_by
+
+tickets "1" -- "*" ticket_inventory_requests
+users "1" -- "*" ticket_inventory_requests : requested_by
+users "0..1" -- "*" ticket_inventory_requests : reviewed_by
+
+ticket_inventory_requests "1" -- "*" ticket_inventory_request_items
+inventory_products "1" -- "*" ticket_inventory_request_items
+
+tickets "1" -- "*" ticket_dispatches
+ticket_inventory_requests "0..1" -- "*" ticket_dispatches : related_to
+users "1" -- "*" ticket_dispatches : dispatched_by
+
+ticket_dispatches "1" -- "*" ticket_dispatch_items
+inventory_products "1" -- "*" ticket_dispatch_items
+
+@enduml

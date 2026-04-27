@@ -1,0 +1,617 @@
+<section class="ticket-execution-page">
+  <div class="ticket-execution-page__topbar">
+    <a mat-stroked-button routerLink="/tickets" class="ticket-execution-page__back-link">
+      <mat-icon>arrow_back</mat-icon>
+      <span>Volver al listado</span>
+    </a>
+  </div>
+
+  @if (errorMessage(); as errorMessage) {
+    <div class="ticket-execution-page__alert ticket-execution-page__alert--error">{{ errorMessage }}</div>
+  }
+
+  @if (successMessage(); as successMessage) {
+    <div class="ticket-execution-page__alert ticket-execution-page__alert--success">{{ successMessage }}</div>
+  }
+
+  @if (isLoading()) {
+    <div class="ticket-execution-page__loading">
+      <mat-spinner diameter="42" />
+      <p>Cargando ticket...</p>
+    </div>
+  } @else if (ticket(); as ticket) {
+    <div class="ticket-execution-page__header">
+      <app-page-title eyebrow="Ejecución de ticket" [title]="ticket.title" [subtitle]="'Ticket ' + ticket.ticket_number" />
+
+      <div class="ticket-execution-page__header-side">
+        <app-status-badge [label]="formatTicketStatus(ticket.status)" [tone]="toTicketStatusTone(ticket.status)" />
+
+        @if (ticket.status === 'CLOSED' && ticket.approved_by_executive) {
+          <app-status-badge label="Cerrado y aprobado" tone="success" />
+        }
+
+        <div
+          class="ticket-execution-page__assignee"
+          [class.ticket-execution-page__assignee--action]="canOpenAssigneeMenu()"
+          [matMenuTriggerFor]="canOpenAssigneeMenu() ? assigneeMenu : null"
+          #assigneeMenuTrigger="matMenuTrigger"
+          (menuOpened)="prepareAssigneeMenu()"
+        >
+          <app-user-avatar [initials]="(ticket.assigned_user_display_name || ticket.assigned_role_label || 'SA').slice(0, 2).toUpperCase()" [size]="40" />
+          <div>
+            <p class="ticket-execution-page__meta-label">Asignado a</p>
+            <p class="ticket-execution-page__meta-value">{{ ticket.assigned_user_display_name || 'Sin usuario asignado' }}</p>
+          </div>
+          <div>
+            <p class="ticket-execution-page__meta-label">Rol</p>
+            <p class="ticket-execution-page__meta-value">{{ ticket.assigned_role_label || 'Sin rol asignado' }}</p>
+          </div>
+          @if (canOpenAssigneeMenu()) {
+            <mat-icon class="ticket-execution-page__assignee-caret">arrow_drop_down</mat-icon>
+          }
+        </div>
+
+        <mat-menu #assigneeMenu="matMenu" xPosition="before">
+          <div class="ticket-execution-page__assignee-menu" [formGroup]="assignmentForm" (click)="$event.stopPropagation()">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Rol asignado</mat-label>
+              <mat-select formControlName="assigned_role_id">
+                <mat-option [value]="null">Sin rol</mat-option>
+                @for (role of ticketRoles(); track role.crm_role_id) {
+                  <mat-option [value]="role.crm_role_id">{{ role.role_label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Usuario asignado</mat-label>
+              <mat-select formControlName="assigned_user_id">
+                <mat-option [value]="null">Sin usuario</mat-option>
+                @for (user of assignableUsers(); track user.crm_user_id) {
+                  <mat-option [value]="user.crm_user_id">{{ user.display_name || user.email || 'Usuario CRM' }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Nota de reasignación</mat-label>
+              <input matInput formControlName="notes" />
+            </mat-form-field>
+
+            <div class="ticket-execution-page__assignee-menu-actions">
+              <button mat-flat-button color="primary" type="button" (click)="assignFromAssigneeMenu(assigneeMenuTrigger)" [disabled]="isSaving() || !canReassign()">
+                Aplicar asignación
+              </button>
+            </div>
+          </div>
+        </mat-menu>
+      </div>
+    </div>
+
+    <app-ticket-description-section [ticket]="ticket" />
+
+    <mat-card class="ticket-execution-page__unified-card">
+      <mat-card-header>
+        <mat-card-title>Acciones del ticket</mat-card-title>
+        <mat-card-subtitle>Timeline, comentario y operación depósito en una sola sección.</mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content class="ticket-execution-page__unified-content">
+        <section class="ticket-execution-page__timeline-panel">
+          <h3>Timeline</h3>
+          @if (timelineEvents().length) {
+            <div class="ticket-execution-page__timeline-list">
+              @for (event of timelineEvents(); track timelineTrackBy($index, event)) {
+                <article class="ticket-execution-page__timeline-item" [attr.id]="event.anchorId || null">
+                  <div class="ticket-execution-page__timeline-head">
+                    <div>
+                      <p class="ticket-execution-page__timeline-author">{{ event.title }}</p>
+                      <p class="ticket-execution-page__timeline-meta">{{ event.subtitle }} · {{ event.occurredAt | date: 'dd/MM/yyyy HH:mm' }}</p>
+                    </div>
+                    <app-status-badge [label]="event.subtitle" [tone]="timelineTone(event)" />
+                  </div>
+
+                  @if (event.isArrivalComment) {
+                    <div class="ticket-execution-page__timeline-arrival-badge">
+                      <mat-icon>place</mat-icon>
+                      <span>Comentario de llegada</span>
+                    </div>
+                  }
+
+                  <p class="ticket-execution-page__timeline-body">{{ event.body }}</p>
+
+                  @if (event.location) {
+                    <div class="ticket-execution-page__timeline-location-badge">
+                      <mat-icon>location_on</mat-icon>
+                      <span>Ubicación adjuntada</span>
+                    </div>
+                  }
+
+                  @if (event.attachments.length) {
+                    <div class="ticket-execution-page__timeline-attachments">
+                      @for (attachment of event.attachments; track attachment.id) {
+                        <a [href]="attachment.previewUrl || attachment.publicUrl" target="_blank" rel="noopener noreferrer">{{ attachment.fileName }}</a>
+                      }
+                    </div>
+                  }
+                </article>
+              }
+            </div>
+          } @else {
+            <p class="ticket-execution-page__empty-text">Aún no hay movimientos para este ticket.</p>
+          }
+        </section>
+
+        <section class="ticket-execution-page__composer-panel">
+          <h3>Nuevo comentario</h3>
+
+          @if (ticket.requires_arrival_comment) {
+            <div class="ticket-execution-page__arrival-status" [class.ticket-execution-page__arrival-status--done]="hasArrivalRegistered()">
+              @if (hasArrivalRegistered()) {
+                <strong>Llegada registrada</strong>
+                <p>
+                  {{ ticket.arrival_registered_at | date: 'dd/MM/yyyy HH:mm' }}
+                  @if (arrivalCommentAnchor()) {
+                    · <a [href]="arrivalCommentAnchor()">Ver comentario</a>
+                  }
+                </p>
+              } @else {
+                <strong>Llegada pendiente</strong>
+                <p>Este ticket requiere un comentario con multimedia y ubicación antes de cerrarse.</p>
+              }
+            </div>
+          }
+
+          @if (blockingRequestForCurrentUser(); as blockingRequest) {
+            <div class="ticket-execution-page__readonly-banner">
+              <div>
+                <strong>{{ inventoryRequestStatusLabel(blockingRequest.status) }}</strong>
+                <p>{{ blockingInventoryRequestMessage() }}</p>
+              </div>
+            </div>
+          }
+
+          @if (pendingReceiptRequestForCurrentUser()) {
+            <div class="ticket-execution-page__readonly-banner">
+              <div>
+                <strong>Pendiente de confirmación de recepción</strong>
+                <p>Podés seguir comentando, pero no cambiar estado ni cerrar hasta confirmar la recepción del despacho.</p>
+              </div>
+            </div>
+          }
+
+          <form [formGroup]="commentForm" class="ticket-execution-page__comment-form">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>{{ commentFieldLabel() }}</mat-label>
+              <textarea matInput rows="4" formControlName="body" [placeholder]="commentFieldPlaceholder()" [disabled]="!canOperateTicket()"></textarea>
+            </mat-form-field>
+          </form>
+
+          <div class="ticket-execution-page__composer-actions">
+            <button mat-stroked-button type="button" (click)="captureCurrentCommentLocation()" [disabled]="!canOperateTicket() || isSaving() || isResolvingCommentLocation()">
+              <mat-icon>my_location</mat-icon>
+              <span>{{ isResolvingCommentLocation() ? 'Ubicando...' : 'Usar ubicación actual' }}</span>
+            </button>
+
+            <button mat-stroked-button type="button" (click)="openCommentLocationPicker()" [disabled]="!canOperateTicket() || isSaving()">
+              <mat-icon>pin_drop</mat-icon>
+              <span>Elegir en mapa</span>
+            </button>
+
+            @if (selectedCommentLocation()) {
+              <button mat-stroked-button type="button" (click)="openCommentLocationInMaps()" [disabled]="!canOpenCommentLocationInMaps()">
+                <mat-icon>map</mat-icon>
+                <span>Abrir ubicación</span>
+              </button>
+
+              <button mat-stroked-button type="button" (click)="clearCommentLocation()" [disabled]="isSaving()">
+                <mat-icon>close</mat-icon>
+                <span>Quitar ubicación</span>
+              </button>
+            }
+          </div>
+
+          @if (selectedCommentLocation()) {
+            <p class="ticket-execution-page__summary-caption">{{ selectedCommentLocationLabel() }}</p>
+          }
+
+          <app-ticket-attachments-section
+            [attachments]="pendingAttachments()"
+            [canEdit]="canOperateTicket()"
+            (attachmentsSelected)="addAttachments($event)"
+            (attachmentRemoved)="removeAttachment($event)"
+          />
+
+          @if (selectedPrimaryAction() === 'transition') {
+            <form class="ticket-execution-page__operation-grid" [formGroup]="statusForm">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Estado destino</mat-label>
+                <mat-select formControlName="to_status" [disabled]="!canCloseOrTransition()">
+                  @for (transition of availableTransitions(); track transition.toStatus) {
+                    <mat-option [value]="transition.toStatus">{{ transition.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </form>
+          }
+
+          <div class="ticket-execution-page__composer-actions">
+            <div class="ticket-execution-page__split-button">
+              <button mat-flat-button color="primary" type="button" (click)="executePrimaryAction()" [disabled]="!canExecutePrimaryAction()">
+                {{ primaryActionLabel() }}
+              </button>
+              <button mat-icon-button type="button" [matMenuTriggerFor]="primaryActionMenu" aria-label="Elegir acción principal" [disabled]="!canOperateTicket()">
+                <mat-icon>arrow_drop_down</mat-icon>
+              </button>
+            </div>
+
+            <mat-menu #primaryActionMenu="matMenu" xPosition="after">
+              <button mat-menu-item type="button" (click)="selectPrimaryAction('comment')">
+                <mat-icon>chat</mat-icon>
+                <span>Comentar</span>
+              </button>
+              <button mat-menu-item type="button" (click)="selectPrimaryAction('transition')" [disabled]="!canCloseOrTransition()">
+                <mat-icon>sync</mat-icon>
+                <span>Cambiar estado</span>
+              </button>
+              <button mat-menu-item type="button" (click)="selectPrimaryAction('close')" [disabled]="!canCloseTicket()">
+                <mat-icon>task_alt</mat-icon>
+                <span>Cerrar ticket</span>
+              </button>
+            </mat-menu>
+
+            <button mat-stroked-button type="button" (click)="toggleInventoryRequestDrawer()" [disabled]="!canCreateInventoryRequest() || isSaving()">
+              Hacer solicitud a depósito
+            </button>
+
+          </div>
+
+          @if (selectedPrimaryAction() === 'close' && isCloseBlockedByArrivalRequirement()) {
+            <p class="ticket-execution-page__summary-caption">
+              Este ticket requiere registrar llegada antes de poder cerrarse. Agregá un comentario con multimedia y ubicación asociada.
+            </p>
+          }
+
+          @if (showInventoryRequestDrawer()) {
+            <section class="ticket-execution-page__request-drawer" [formGroup]="inventoryRequestForm">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Item</mat-label>
+                <mat-select formControlName="inventoryItemId">
+                  @for (item of inventoryOptions(); track item.id) {
+                    <mat-option [value]="item.id">{{ item.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Cantidad</mat-label>
+                <input matInput type="number" min="1" formControlName="quantity" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="ticket-execution-page__operation-grid--wide">
+                <mat-label>Observación</mat-label>
+                <input matInput formControlName="notes" />
+              </mat-form-field>
+
+              <div class="ticket-execution-page__drawer-actions">
+                <button mat-flat-button color="primary" type="button" (click)="submitInventoryRequestFromDrawer()" [disabled]="isSaving()">Enviar solicitud</button>
+              </div>
+            </section>
+          }
+
+          @if (!canOperateTicket() && !blockingRequestForCurrentUser()) {
+            <p class="ticket-execution-page__empty-text">Solo lectura. El ticket está asignado a otro usuario o rol operativo.</p>
+          }
+        </section>
+
+        <section class="ticket-execution-page__advanced-panel">
+          <h3>Acciones avanzadas</h3>
+
+          @if (pendingReceiptRequestForCurrentUser(); as pendingReceipt) {
+            <article class="ticket-execution-page__request-item">
+              <div class="ticket-execution-page__request-head">
+                <div>
+                  <p class="ticket-execution-page__timeline-author">Despacho recibido pendiente de confirmación</p>
+                  <p class="ticket-execution-page__timeline-meta">Solicitud {{ pendingReceipt.id }} · {{ pendingReceipt.requestedAt | date: 'dd/MM/yyyy HH:mm' }}</p>
+                </div>
+                <app-status-badge label="Pendiente de recepción técnica" tone="warning" />
+              </div>
+
+              @if (pendingReceiptDispatchItems().length) {
+                <div class="ticket-execution-page__dispatch-list">
+                  @for (item of pendingReceiptDispatchItems(); track item.inventoryDispatchItemId) {
+                    <article class="ticket-execution-page__request-item ticket-execution-page__request-item--draft">
+                      <div>
+                        <strong>{{ item.inventoryItemName }}</strong>
+                        <span>Cantidad: {{ item.quantity }}</span>
+                        @if (item.serialNumber || item.barcodeValue) {
+                          <span>{{ item.serialNumber ? 'Serial: ' + item.serialNumber : 'Codigo de barras: ' + item.barcodeValue }}</span>
+                        }
+                      </div>
+                    </article>
+                  }
+                </div>
+              }
+
+              <mat-form-field appearance="outline" class="ticket-execution-page__operation-grid--wide">
+                <mat-label>Comentario opcional de recepción</mat-label>
+                <textarea matInput rows="2" [formControl]="receiptConfirmationForm.controls.comment"></textarea>
+              </mat-form-field>
+
+              <div class="ticket-execution-page__footer-actions">
+                <button
+                  mat-flat-button
+                  color="primary"
+                  type="button"
+                  (click)="confirmPendingReceipt()"
+                  [disabled]="isSaving() || !canOperateTicket() || !pendingReceiptDispatchItems().length"
+                >
+                  Confirmar recepción
+                </button>
+              </div>
+            </article>
+          }
+
+          @if (canApproveExecutiveClosure()) {
+            <article class="ticket-execution-page__request-item">
+              <div class="ticket-execution-page__request-head">
+                <div>
+                  <p class="ticket-execution-page__timeline-author">Aprobación ejecutiva pendiente</p>
+                  <p class="ticket-execution-page__timeline-meta">El cierre técnico ya fue enviado. Podés aprobarlo o rechazarlo reabriendo el ticket.</p>
+                </div>
+                <app-status-badge label="Pendiente de aprobación" tone="warning" />
+              </div>
+
+              <form [formGroup]="rejectTicketApprovalForm" class="ticket-execution-page__operation-grid">
+                <mat-form-field appearance="outline" class="ticket-execution-page__operation-grid--wide">
+                  <mat-label>Motivo del rechazo</mat-label>
+                  <textarea matInput rows="2" formControlName="comment"></textarea>
+                </mat-form-field>
+              </form>
+
+              <div class="ticket-execution-page__footer-actions">
+                <button mat-stroked-button type="button" (click)="rejectTicketApproval()" [disabled]="isSaving()">
+                  Rechazar cierre
+                </button>
+                <button mat-flat-button color="primary" type="button" (click)="approveTicket()" [disabled]="isSaving()">
+                  Aprobar cierre
+                </button>
+              </div>
+            </article>
+          }
+
+          @if (canReopenClosedTicket()) {
+            <article class="ticket-execution-page__request-item ticket-execution-page__request-item--reopen">
+              <div class="ticket-execution-page__request-head">
+                <div>
+                  <p class="ticket-execution-page__timeline-author">Reapertura de ticket cerrado</p>
+                  <p class="ticket-execution-page__timeline-meta">Requiere comentario obligatorio con el motivo de reapertura.</p>
+                </div>
+                <app-status-badge label="Ticket cerrado" tone="neutral" />
+              </div>
+
+              <form [formGroup]="reopenForm" class="ticket-execution-page__operation-grid ticket-execution-page__operation-grid--reopen">
+                <mat-form-field appearance="outline" class="ticket-execution-page__operation-grid--wide">
+                  <mat-label>Motivo de reapertura</mat-label>
+                  <textarea matInput rows="4" formControlName="comment"></textarea>
+                  <mat-hint>Describí el motivo y el contexto para facilitar la reasignación operativa.</mat-hint>
+                </mat-form-field>
+              </form>
+
+              <div class="ticket-execution-page__footer-actions ticket-execution-page__footer-actions--reopen">
+                <button mat-flat-button color="primary" type="button" (click)="reopenTicket()" [disabled]="isSaving()">
+                  Reabrir ticket
+                </button>
+              </div>
+            </article>
+          }
+
+          @if (canAccessPostClosureActions()) {
+            <article class="ticket-execution-page__request-item ticket-execution-page__request-item--post-close">
+              <div class="ticket-execution-page__request-head">
+                <div>
+                  <p class="ticket-execution-page__timeline-author">Acciones post-cierre</p>
+                  <p class="ticket-execution-page__timeline-meta">Disponibles solo para tickets cerrados y aprobados por ejecutivo.</p>
+                </div>
+                <app-status-badge label="Cerrado y aprobado" tone="success" />
+              </div>
+
+              <div class="ticket-execution-page__footer-actions ticket-execution-page__footer-actions--post-close">
+                <button mat-stroked-button type="button" (click)="exportTicketHistory()" [disabled]="isSaving() || exportingHistory()">
+                  {{ exportingHistory() ? 'Exportando...' : 'Exportar historial' }}
+                </button>
+
+                @if (hasGeneratedSurvey()) {
+                  <button mat-stroked-button type="button" (click)="viewSurveyStatus()" [disabled]="isSaving() || loadingSurveyStatus()">
+                    {{ loadingSurveyStatus() ? 'Cargando...' : 'Ver encuesta' }}
+                  </button>
+                } @else {
+                  <button mat-flat-button color="primary" type="button" (click)="generateTicketSurvey()" [disabled]="isSaving() || generatingSurvey()">
+                    {{ generatingSurvey() ? 'Generando...' : 'Generar encuesta' }}
+                  </button>
+                }
+              </div>
+            </article>
+          }
+
+          <div class="ticket-execution-page__requests-list">
+            @for (request of inventoryRequestsVm(); track request.id) {
+              <article class="ticket-execution-page__request-item">
+                <div>
+                  <div class="ticket-execution-page__request-head">
+                    <div>
+                      <p class="ticket-execution-page__timeline-author">{{ requestCardTitle(request) }}</p>
+                      <p class="ticket-execution-page__timeline-meta">{{ request.requestedByUserName }} · {{ request.requestedAt | date: 'dd/MM/yyyy HH:mm' }}</p>
+                    </div>
+                    <app-status-badge [label]="inventoryRequestStatusLabel(request.status)" [tone]="inventoryRequestStatusTone(request.status)" />
+                  </div>
+                  <p class="ticket-execution-page__timeline-body">{{ request.items.length }} item(s)</p>
+                </div>
+
+                @if (canReviewRequests() && request.status === 'pending_deposit_review') {
+                  <div class="ticket-execution-page__request-actions">
+                    <button mat-stroked-button type="button" (click)="openRejectInventoryRequest(request.id)" [disabled]="isSaving()">Rechazar</button>
+                    <button mat-flat-button color="primary" type="button" (click)="decideInventoryRequest(request.id, 'approved_for_dispatch', '')" [disabled]="isSaving()">Autorizar</button>
+                  </div>
+                }
+
+                @if (pendingRejectRequestId() === request.id) {
+                  <section class="ticket-execution-page__request-drawer" [formGroup]="rejectRequestForm">
+                    <mat-form-field appearance="outline" class="ticket-execution-page__operation-grid--wide">
+                      <mat-label>Motivo de rechazo (obligatorio)</mat-label>
+                      <textarea matInput rows="2" formControlName="comment"></textarea>
+                    </mat-form-field>
+
+                    <div class="ticket-execution-page__drawer-actions">
+                      <button mat-stroked-button type="button" (click)="cancelRejectInventoryRequest()" [disabled]="isSaving()">Cancelar</button>
+                      <button mat-flat-button color="primary" type="button" (click)="confirmRejectInventoryRequest(request.id)" [disabled]="isSaving()">Confirmar rechazo</button>
+                    </div>
+                  </section>
+                }
+
+                @if (request.depositDecisionComment) {
+                  <p class="ticket-execution-page__timeline-body">Motivo depósito: {{ request.depositDecisionComment }}</p>
+                }
+
+                @if (request.status === 'approved_for_dispatch') {
+                  <div class="ticket-execution-page__request-actions">
+                    <button mat-flat-button color="primary" type="button" (click)="prepareDispatchForRequest(request)" [disabled]="isSaving() || !canManageDispatch()">
+                      Preparar despacho
+                    </button>
+                  </div>
+                }
+              </article>
+            }
+          </div>
+
+          @if (showDispatchComposer()) {
+            <section class="ticket-execution-page__dispatch-composer" [formGroup]="dispatchComposerForm">
+              <div class="ticket-execution-page__dispatch-composer-head">
+                <div>
+                  <h4 class="ticket-execution-page__dispatch-title">Registrar despacho</h4>
+                  <p class="ticket-execution-page__empty-text">Usá el mismo patrón operativo que en tareas: solicitud, item, identificador, observación y confirmación.</p>
+                </div>
+                <button mat-stroked-button type="button" (click)="closeDispatchComposer()" [disabled]="isSaving()">Cancelar</button>
+              </div>
+
+              <div class="ticket-execution-page__operation-grid">
+                <mat-form-field appearance="outline">
+                  <mat-label>Solicitud pendiente de despacho asociada</mat-label>
+                  <mat-select formControlName="request_id">
+                    @for (request of dispatchableRequests(); track request.id) {
+                      <mat-option [value]="request.id">{{ requestOptionLabel(request) }} · {{ request.requestedAt | date: 'dd/MM/yyyy HH:mm' }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Producto</mat-label>
+                  <mat-select formControlName="product_id" (selectionChange)="onDispatchProductChanged()">
+                    @for (product of inventoryProducts(); track product.productId) {
+                      <mat-option [value]="product.productId">{{ product.productName }} · {{ product.productCode }}{{ product.requiresTracking ? ' · tracking unitario' : '' }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Identificador</mat-label>
+                  <mat-select formControlName="identifier_type">
+                    <mat-option value="none">Sin identificador</mat-option>
+                    <mat-option value="serial">Serial</mat-option>
+                    <mat-option value="barcode">Código de barras</mat-option>
+                  </mat-select>
+                </mat-form-field>
+
+                @if (dispatchComposerForm.controls.identifier_type.getRawValue() !== 'none') {
+                  <mat-form-field appearance="outline">
+                    <mat-label>Valor del identificador</mat-label>
+                    <input matInput formControlName="identifier_value" />
+                    <mat-hint>
+                      {{ dispatchComposerForm.controls.identifier_type.getRawValue() === 'serial' ? 'Ejemplo: VACRON-001' : 'Ejemplo: 7791234567890' }}
+                    </mat-hint>
+                  </mat-form-field>
+                }
+
+                <mat-form-field appearance="outline" class="ticket-execution-page__operation-grid--wide">
+                  <mat-label>Observación del item</mat-label>
+                  <input matInput formControlName="notes" />
+                </mat-form-field>
+              </div>
+
+              @if (selectedDispatchProduct(); as selectedDispatchProduct) {
+                <p class="ticket-execution-page__summary-caption">
+                  {{ selectedDispatchProduct.requiresTracking ? 'Producto con tracking unitario: cada alta del listado representa 1 unidad e incluye serial o código de barras.' : 'Cada alta del listado representa 1 unidad de despacho.' }}
+                </p>
+              }
+
+              <button mat-stroked-button type="button" (click)="addDispatchDraftItem()" [disabled]="isSaving() || !canManageDispatch()">
+                <mat-icon>playlist_add</mat-icon>
+                <span>Agregar al despacho</span>
+              </button>
+
+              @if (dispatchDraftItems().length) {
+                <div class="ticket-execution-page__requests-list">
+                  @for (item of dispatchDraftItems(); track item.draft_id) {
+                    <article class="ticket-execution-page__request-item ticket-execution-page__request-item--draft">
+                      <div>
+                        <strong>{{ item.product_name }}</strong>
+                        <span>x1{{ item.requires_tracking ? ' · tracking unitario' : '' }}</span>
+                        <span>{{ dispatchDraftTrackingLabel(item) }}</span>
+                      </div>
+                      <button mat-icon-button type="button" (click)="removeDispatchDraftItem(item.draft_id)">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </article>
+                  }
+                </div>
+
+                <mat-form-field appearance="outline" class="ticket-execution-page__operation-grid--wide">
+                  <mat-label>Observación general del despacho</mat-label>
+                  <textarea matInput rows="2" formControlName="dispatch_notes"></textarea>
+                </mat-form-field>
+
+                <div class="ticket-execution-page__footer-actions">
+                  <button mat-flat-button color="primary" type="button" (click)="submitDispatch()" [disabled]="isSaving() || !canManageDispatch()">
+                    <mat-icon>local_shipping</mat-icon>
+                    <span>Confirmar despacho</span>
+                  </button>
+                </div>
+              }
+            </section>
+          }
+
+          @if (canViewDispatchedHistory()) {
+            <h4 class="ticket-execution-page__dispatch-title">Items despachados</h4>
+
+            <div class="ticket-execution-page__dispatch-list">
+              @if (dispatchedItemsVm().length) {
+                @for (dispatch of dispatchedItemsVm(); track dispatch.inventoryItemId + '-' + dispatch.dispatchedAt + '-' + $index) {
+                  <article class="ticket-execution-page__request-item">
+                    <div>
+                      <p class="ticket-execution-page__timeline-author">Despacho: {{ dispatch.inventoryItemName }}</p>
+                      <p class="ticket-execution-page__timeline-meta">{{ dispatch.dispatchedAt | date: 'dd/MM/yyyy HH:mm' }}</p>
+                      <p class="ticket-execution-page__timeline-body">Cantidad: {{ dispatch.quantity }}</p>
+                    </div>
+                  </article>
+                }
+              } @else {
+                <p class="ticket-execution-page__empty-text">No hay items despachados registrados todavía.</p>
+              }
+            </div>
+          }
+        </section>
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    <section class="ticket-execution-page ticket-execution-page--empty">
+      <mat-card class="ticket-execution-page__empty-card">
+        <mat-card-content>
+          <mat-icon>confirmation_number</mat-icon>
+          <h2>Ticket no disponible</h2>
+          <p>No se pudo cargar el ticket o no tienes permisos para verlo.</p>
+          <a mat-flat-button color="primary" routerLink="/tickets">Volver a tickets</a>
+        </mat-card-content>
+      </mat-card>
+    </section>
+  }
+</section>

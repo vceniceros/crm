@@ -1,0 +1,13 @@
+<section class="clients-grid" aria-label="Listado de clientes">
+  @for (client of clients(); track client.id) {
+    <app-client-card
+      [client]="client"
+      [canEdit]="canEdit()"
+      [canDelete]="canDelete()"
+      (editClient)="editClient.emit($event)"
+      (deleteClient)="deleteClient.emit($event)"
+      (openLocation)="openLocation.emit($event)"
+      (openExternalMaps)="openExternalMaps.emit($event)"
+    />
+  }
+</section>

@@ -1,0 +1,389 @@
+<section class="tasks-page">
+  <div class="tasks-page__header">
+    <app-page-title
+      eyebrow="Operación diaria"
+      title="Tareas operativas"
+      subtitle="Seguimiento real de tareas, subtareas sin asignar por rol y creación de nuevas instancias desde templates activos."
+    />
+
+    <div class="tasks-page__actions">
+      @if (isAdmin()) {
+        <a mat-stroked-button type="button" class="tasks-page__action tasks-page__action--secondary" routerLink="/tasks/templates">
+          <mat-icon>schema</mat-icon>
+          <span>Templates</span>
+        </a>
+
+        <a mat-flat-button color="primary" type="button" class="tasks-page__action" routerLink="/tasks/templates/new">
+          <mat-icon>add_box</mat-icon>
+          <span>Nuevo template</span>
+        </a>
+      }
+    </div>
+  </div>
+
+  @if (errorMessage(); as errorMessage) {
+    <mat-card class="tasks-page__message tasks-page__message--error">
+      <mat-card-content>
+        <mat-icon>error</mat-icon>
+        <p>{{ errorMessage }}</p>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  @if (successMessage(); as successMessage) {
+    <mat-card class="tasks-page__message tasks-page__message--success">
+      <mat-card-content>
+        <mat-icon>check_circle</mat-icon>
+        <p>{{ successMessage }}</p>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  @if (isAdminOrExecutive()) {
+    <mat-card class="tasks-page__create-card">
+      <mat-card-header>
+        <mat-card-title>Crear tarea desde template</mat-card-title>
+        <mat-card-subtitle>Instanciá una tarea real asociando cliente y datos iniciales obligatorios.</mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <form class="tasks-page__create-form" [formGroup]="taskCreationForm" (ngSubmit)="createTask()">
+          <mat-form-field appearance="outline">
+            <mat-label>Template</mat-label>
+            <mat-select formControlName="template_id">
+              @for (template of templates(); track template.template_id) {
+                <mat-option [value]="template.template_id">{{ template.template_name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Cliente</mat-label>
+            <mat-select formControlName="client_id">
+              @for (client of clients(); track client.client_id) {
+                <mat-option [value]="client.client_id">{{ client.business_name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Título de la tarea</mat-label>
+            <input matInput formControlName="task_title" />
+          </mat-form-field>
+
+          <div class="tasks-page__create-form-full tasks-page__location-panel">
+            <div class="tasks-page__location-header">
+              <div>
+                <p class="tasks-page__label">Ubicación operativa</p>
+                <h3>{{ selectedLocationLabel() }}</h3>
+                <p class="tasks-page__location-caption">Seleccioná el punto real en mapa. El sistema persiste la ubicación y usa su `location_id` automáticamente.</p>
+              </div>
+
+              <div class="tasks-page__location-actions">
+                <button mat-stroked-button type="button" (click)="openLocationPicker()">
+                  <mat-icon>location_on</mat-icon>
+                  <span>{{ hasValidSelectedLocation() ? 'Editar ubicación' : 'Seleccionar en mapa' }}</span>
+                </button>
+
+                @if (hasValidSelectedLocation()) {
+                  <button mat-stroked-button type="button" (click)="openSelectedLocationInMaps()">
+                    <mat-icon>map</mat-icon>
+                    <span>Abrir en Maps</span>
+                  </button>
+
+                  <button mat-button type="button" (click)="clearSelectedLocation()">
+                    <mat-icon>close</mat-icon>
+                    <span>Quitar</span>
+                  </button>
+                }
+              </div>
+            </div>
+
+            @if (hasValidSelectedLocation()) {
+              <app-location-map [location]="selectedLocation()" title="Ubicación de la tarea"></app-location-map>
+            }
+          </div>
+
+          <mat-form-field appearance="outline" class="tasks-page__create-form-full">
+            <mat-label>Descripción inicial</mat-label>
+            <textarea matInput rows="2" formControlName="task_description"></textarea>
+          </mat-form-field>
+
+          @if (selectedTemplate(); as selectedTemplate) {
+            <div class="tasks-page__create-form-full tasks-page__template-materials">
+              <p class="tasks-page__label">Materiales heredados del template</p>
+              @if (selectedTemplate.required_materials.length) {
+                <div class="tasks-page__task-meta">
+                  @for (material of selectedTemplate.required_materials; track material.required_material_id) {
+                    <span>
+                      {{ material.product_name }} x{{ material.quantity_required }}{{ material.requires_tracking ? ' · tracking unitario' : '' }}
+                    </span>
+                  }
+                </div>
+              } @else {
+                <p>El template seleccionado no define productos mínimos.</p>
+              }
+            </div>
+          }
+
+          <div class="tasks-page__create-actions">
+            <button mat-flat-button color="primary" type="submit" [disabled]="isCreatingTask()">
+              <mat-icon>{{ isCreatingTask() ? 'hourglass_top' : 'task_alt' }}</mat-icon>
+              <span>{{ isCreatingTask() ? 'Creando...' : 'Crear tarea' }}</span>
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  @if (isLoading()) {
+    <mat-card class="tasks-page__message">
+      <mat-card-content>
+        <mat-spinner diameter="32"></mat-spinner>
+        <p>Cargando tablero real de tareas...</p>
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    <mat-tab-group class="tasks-page__tabs" [selectedIndex]="initialTabIndex()" [dynamicHeight]="isHandset()" [mat-stretch-tabs]="!isHandset()">
+      <mat-tab [label]="isHandset() ? 'Asignadas' : 'Asignadas a mí'">
+        <div class="tasks-page__tab-content">
+          <app-listing-controls
+            [searchValue]="listState('assigned').search"
+            searchPlaceholder="Buscar por id, cliente o titulo"
+            [selectedStatus]="listState('assigned').status"
+            [statusOptions]="taskStatusOptions"
+            [sortDirection]="listState('assigned').sortDirection"
+            [viewMode]="listState('assigned').viewMode"
+            (searchChanged)="onListSearchChanged('assigned', $event)"
+            (statusChanged)="onListStatusChanged('assigned', $event)"
+            (sortDirectionChanged)="onListSortDirectionChanged('assigned', $event)"
+            (viewModeChanged)="onListViewModeChanged('assigned', $event)"
+          />
+
+          @if (!assignedVisibleTasks().length) {
+            <mat-card class="tasks-page__message">
+              <mat-card-content>
+                <mat-icon>assignment_ind</mat-icon>
+                <p>No tenés tareas asignadas en este momento.</p>
+              </mat-card-content>
+            </mat-card>
+          } @else if (listState('assigned').viewMode === 'table') {
+            <app-tasks-table [block]="assignedTableBlock()" [viewMode]="listState('assigned').viewMode" />
+          } @else {
+            <div class="tasks-page__task-grid">
+              @for (task of assignedVisibleTasks(); track task.task_id) {
+                <mat-card class="tasks-page__task-card">
+                  <mat-card-content>
+                    <div class="tasks-page__task-top">
+                      <div>
+                        <p class="tasks-page__label">Tarea</p>
+                        <h2>{{ task.task_title }}</h2>
+                      </div>
+                      <app-status-badge [label]="taskStatusLabel(task)" [tone]="toTaskTone(task.status)" />
+                    </div>
+
+                    <div class="tasks-page__task-meta">
+                      <span>Cliente: {{ task.client_name }}</span>
+                      <span>Template: {{ task.template_name }}</span>
+                      <span>Subtarea actual: {{ currentSubtask(task)?.subtask_title || 'Sin subtarea activa' }}</span>
+                      <span>Rol responsable: {{ formatRoleKey(currentSubtask(task)?.responsible_role_key) }}</span>
+                    </div>
+
+                    <div class="tasks-page__task-progress">
+                      <strong>{{ completedSubtasks(task) }} / {{ task.subtasks.length }}</strong>
+                      <span>subtareas completadas</span>
+                    </div>
+                  </mat-card-content>
+
+                  <mat-card-actions align="end">
+                    <a mat-flat-button color="primary" [routerLink]="['/tasks', task.task_id]">Continuar</a>
+                  </mat-card-actions>
+                </mat-card>
+              }
+            </div>
+          }
+        </div>
+      </mat-tab>
+
+      <mat-tab [label]="isHandset() ? 'Sin asignar' : 'Sin asignar de mi rol'">
+        <div class="tasks-page__tab-content">
+          <app-listing-controls
+            [searchValue]="listState('unassigned').search"
+            searchPlaceholder="Buscar por id, cliente o titulo"
+            [selectedStatus]="listState('unassigned').status"
+            [statusOptions]="taskStatusOptions"
+            [sortDirection]="listState('unassigned').sortDirection"
+            [viewMode]="listState('unassigned').viewMode"
+            (searchChanged)="onListSearchChanged('unassigned', $event)"
+            (statusChanged)="onListStatusChanged('unassigned', $event)"
+            (sortDirectionChanged)="onListSortDirectionChanged('unassigned', $event)"
+            (viewModeChanged)="onListViewModeChanged('unassigned', $event)"
+          />
+
+          @if (!unassignedVisibleSubtasks().length) {
+            <mat-card class="tasks-page__message">
+              <mat-card-content>
+                <mat-icon>inbox</mat-icon>
+                <p>No hay subtareas pendientes de asignación para tus roles.</p>
+              </mat-card-content>
+            </mat-card>
+          } @else if (listState('unassigned').viewMode === 'table') {
+            <app-tasks-table
+              [block]="unassignedTableBlock()"
+              [viewMode]="listState('unassigned').viewMode"
+              [rowActionRequested]="claimSubtaskFromRow.bind(this)"
+            />
+          } @else {
+            <div class="tasks-page__task-grid">
+              @for (queueItem of unassignedVisibleSubtasks(); track queueItem.subtask_id) {
+                <mat-card class="tasks-page__task-card">
+                  <mat-card-content>
+                    <div class="tasks-page__task-top">
+                      <div>
+                        <p class="tasks-page__label">Subtarea</p>
+                        <h2>{{ queueItem.subtask_title }}</h2>
+                      </div>
+                      <app-status-badge [label]="formatTaskStatus(queueItem.status)" [tone]="toTaskTone(queueItem.status)" />
+                    </div>
+
+                    <div class="tasks-page__task-meta">
+                      <span>Tarea: {{ queueItem.task_title }}</span>
+                      <span>Cliente: {{ queueItem.client_name }}</span>
+                      <span>Template: {{ queueItem.template_name }}</span>
+                      <span>Rol: {{ formatRoleKey(queueItem.responsible_role_key) }}</span>
+                    </div>
+                  </mat-card-content>
+
+                  <mat-card-actions align="end">
+                    <button mat-flat-button color="primary" type="button" (click)="claimSubtask(queueItem.subtask_id)">Tomar subtarea</button>
+                  </mat-card-actions>
+                </mat-card>
+              }
+            </div>
+          }
+        </div>
+      </mat-tab>
+
+      @if (canTrackGeneral()) {
+        <mat-tab [label]="isHandset() ? 'General' : 'Seguimiento general'">
+          <div class="tasks-page__tab-content">
+            <app-listing-controls
+              [searchValue]="listState('tracking').search"
+              searchPlaceholder="Buscar por id, cliente o titulo"
+              [selectedStatus]="listState('tracking').status"
+              [statusOptions]="taskStatusOptions"
+              [sortDirection]="listState('tracking').sortDirection"
+              [viewMode]="listState('tracking').viewMode"
+              (searchChanged)="onListSearchChanged('tracking', $event)"
+              (statusChanged)="onListStatusChanged('tracking', $event)"
+              (sortDirectionChanged)="onListSortDirectionChanged('tracking', $event)"
+              (viewModeChanged)="onListViewModeChanged('tracking', $event)"
+            />
+
+            @if (!trackingVisibleTasks().length) {
+              <mat-card class="tasks-page__message">
+                <mat-card-content>
+                  <mat-icon>visibility</mat-icon>
+                  <p>No hay tareas para seguimiento general.</p>
+                </mat-card-content>
+              </mat-card>
+            } @else if (listState('tracking').viewMode === 'table') {
+              <app-tasks-table [block]="trackingTableBlock()" [viewMode]="listState('tracking').viewMode" [rowActionRequested]="approveTask.bind(this)" />
+            } @else {
+              <div class="tasks-page__task-grid">
+                @for (task of trackingVisibleTasks(); track task.task_id) {
+                  <mat-card class="tasks-page__task-card">
+                    <mat-card-content>
+                      <div class="tasks-page__task-top">
+                        <div>
+                          <p class="tasks-page__label">Tarea</p>
+                          <h2>{{ task.task_title }}</h2>
+                        </div>
+                        <app-status-badge [label]="taskStatusLabel(task)" [tone]="toTaskTone(task.status)" />
+                      </div>
+
+                      <div class="tasks-page__task-meta">
+                        <span>Cliente: {{ task.client_name }}</span>
+                        <span>Template: {{ task.template_name }}</span>
+                        <span>Asignado a: {{ assigneeLabel(task) }}</span>
+                        <span>Subtarea actual: {{ currentSubtask(task)?.subtask_title || 'Sin subtarea activa' }}</span>
+                        <span>{{ isReadOnly(task) ? 'Solo lectura' : 'Editable para vos' }}</span>
+                      </div>
+                    </mat-card-content>
+
+                    <mat-card-actions align="end">
+                      @if (canApproveTask(task)) {
+                        <button mat-stroked-button type="button" (click)="rejectTask(task.task_id)">Rechazar cierre</button>
+                        <button mat-flat-button color="primary" type="button" (click)="approveTask(task.task_id)">Aprobar tarea</button>
+                      }
+                      <a mat-button [routerLink]="['/tasks', task.task_id]">Ver detalle</a>
+                    </mat-card-actions>
+                  </mat-card>
+                }
+              </div>
+            }
+          </div>
+        </mat-tab>
+      }
+
+      @if (isAdminOrExecutive()) {
+        <mat-tab [label]="isHandset() ? 'Historial' : 'Historial de tareas'">
+          <div class="tasks-page__tab-content">
+            <app-listing-controls
+              [searchValue]="listState('history').search"
+              searchPlaceholder="Buscar por id, cliente o titulo"
+              [selectedStatus]="listState('history').status"
+              [statusOptions]="taskStatusOptions"
+              [sortDirection]="listState('history').sortDirection"
+              [viewMode]="listState('history').viewMode"
+              (searchChanged)="onListSearchChanged('history', $event)"
+              (statusChanged)="onListStatusChanged('history', $event)"
+              (sortDirectionChanged)="onListSortDirectionChanged('history', $event)"
+              (viewModeChanged)="onListViewModeChanged('history', $event)"
+            />
+
+            @if (!historyVisibleTasks().length) {
+              <mat-card class="tasks-page__message">
+                <mat-card-content>
+                  <mat-icon>history</mat-icon>
+                  <p>No hay tareas aprobadas en el historial.</p>
+                </mat-card-content>
+              </mat-card>
+            } @else if (listState('history').viewMode === 'table') {
+              <app-tasks-table [block]="historyTableBlock()" [viewMode]="listState('history').viewMode" />
+            } @else {
+              <div class="tasks-page__task-grid">
+                @for (task of historyVisibleTasks(); track task.task_id) {
+                  <mat-card class="tasks-page__task-card" [class.tasks-page__task-card--highlighted]="highlightedHistoryTaskId() === task.task_id">
+                    <mat-card-content>
+                      <div class="tasks-page__task-top">
+                        <div>
+                          <p class="tasks-page__label">Tarea</p>
+                          <h2>{{ task.task_title }}</h2>
+                        </div>
+                        <app-status-badge [label]="taskStatusLabel(task)" [tone]="toTaskTone(task.status)" />
+                      </div>
+
+                      <div class="tasks-page__task-meta">
+                        <span>ID: {{ task.task_id }}</span>
+                        <span>Cliente: {{ task.client_name }}</span>
+                        <span>Template: {{ task.template_name }}</span>
+                        <span>Aprobada por: {{ task.finalized_by_display_name || 'N/D' }}</span>
+                        <span>Fecha: {{ task.finalized_at ? (task.finalized_at | date: 'dd/MM/yyyy HH:mm') : 'N/D' }}</span>
+                      </div>
+                    </mat-card-content>
+
+                    <mat-card-actions align="end">
+                      <a mat-button [routerLink]="['/tasks', task.task_id]">Ver historial completo</a>
+                    </mat-card-actions>
+                  </mat-card>
+                }
+              </div>
+            }
+          </div>
+        </mat-tab>
+      }
+    </mat-tab-group>
+  }
+</section>

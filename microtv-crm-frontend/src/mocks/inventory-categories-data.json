@@ -1,0 +1,12 @@
+{
+  "categories": [
+    { "id": 1, "name": "Audio y video" },
+    { "id": 2, "name": "Reparados" },
+    { "id": 3, "name": "Cargadores" },
+    { "id": 4, "name": "Visualizacion" },
+    { "id": 5, "name": "Sistemas Android" },
+    { "id": 6, "name": "Sistemas TAMO" },
+    { "id": 7, "name": "Repuestos de monitores" },
+    { "id": 8, "name": "Varios" }
+  ]
+}

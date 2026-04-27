@@ -1,0 +1,129 @@
+{
+  "execution": [
+    {
+      "ticketId": "TK-3201",
+      "resolutionComment": "Se verificó el monitor y la falla aparece luego de varios minutos de uso. Aún no se reemplazó componente, pero se documentó el comportamiento para avanzar con pedido a depósito.",
+      "resolutionUpdatedAt": "2026-04-08T09:12:00.000Z",
+      "attachments": [],
+      "inventoryRequests": [
+        {
+          "id": "TK-3201-req-1",
+          "requestedByUserId": 3,
+          "requestedByUserName": "Luis F.",
+          "requestedAt": "2026-04-08T09:18:00.000Z",
+          "status": "pending",
+          "items": [
+            {
+              "inventoryItemId": 3,
+              "inventoryItemName": "Fuente 12V 2A",
+              "quantity": 1
+            }
+          ]
+        }
+      ],
+      "dispatchedItems": [],
+      "updatedAt": "2026-04-08T09:18:00.000Z"
+    },
+    {
+      "ticketId": "TK-3198",
+      "resolutionComment": "Se midió estabilidad del enlace y se descartó corte general. Se pidió material de recambio preventivo para la visita de seguimiento.",
+      "resolutionUpdatedAt": "2026-04-07T18:25:00.000Z",
+      "attachments": [
+        {
+          "id": "seed-tk3198-1",
+          "fileName": "onu-leds.jpg",
+          "fileType": "image/jpeg",
+          "kind": "image",
+          "previewUrl": null,
+          "size": 198245
+        }
+      ],
+      "inventoryRequests": [
+        {
+          "id": "TK-3198-req-1",
+          "requestedByUserId": 3,
+          "requestedByUserName": "Luis F.",
+          "requestedAt": "2026-04-07T18:31:00.000Z",
+          "status": "approved",
+          "items": [
+            {
+              "inventoryItemId": 2,
+              "inventoryItemName": "Conector RJ45",
+              "quantity": 6
+            },
+            {
+              "inventoryItemId": 1,
+              "inventoryItemName": "Cable UTP Cat6",
+              "quantity": 25
+            }
+          ],
+          "depositDecisionComment": "Autorizado para visita correctiva. Preparar kit de conectividad completo."
+        }
+      ],
+      "dispatchedItems": [
+        {
+          "inventoryItemId": 2,
+          "inventoryItemName": "Conector RJ45",
+          "quantity": 6
+        }
+      ],
+      "updatedAt": "2026-04-07T19:05:00.000Z"
+    },
+    {
+      "ticketId": "TK-3194",
+      "resolutionComment": "Se detectó caída de tensión en la fuente. Se elevó pedido de reemplazo, pero depósito rechazó por requerir revisión previa del equipo en banco.",
+      "resolutionUpdatedAt": "2026-04-07T12:10:00.000Z",
+      "attachments": [],
+      "inventoryRequests": [
+        {
+          "id": "TK-3194-req-1",
+          "requestedByUserId": 3,
+          "requestedByUserName": "Luis F.",
+          "requestedAt": "2026-04-07T12:18:00.000Z",
+          "status": "rejected",
+          "items": [
+            {
+              "inventoryItemId": 3,
+              "inventoryItemName": "Fuente 12V 2A",
+              "quantity": 1
+            }
+          ],
+          "depositDecisionComment": "Rechazado hasta confirmar modelo exacto y consumo del equipo afectado."
+        }
+      ],
+      "dispatchedItems": [],
+      "updatedAt": "2026-04-07T12:40:00.000Z"
+    },
+    {
+      "ticketId": "TK-3187",
+      "resolutionComment": "Se restauró el servicio, se validó grabación y se dejó reemplazado el accesorio comprometido. Caso listo para cierre administrativo.",
+      "resolutionUpdatedAt": "2026-04-06T10:20:00.000Z",
+      "attachments": [],
+      "inventoryRequests": [
+        {
+          "id": "TK-3187-req-1",
+          "requestedByUserId": 3,
+          "requestedByUserName": "Luis F.",
+          "requestedAt": "2026-04-06T09:55:00.000Z",
+          "status": "approved",
+          "items": [
+            {
+              "inventoryItemId": 5,
+              "inventoryItemName": "Ficha DC macho",
+              "quantity": 2
+            }
+          ],
+          "depositDecisionComment": "Autorizado y separado para entrega inmediata."
+        }
+      ],
+      "dispatchedItems": [
+        {
+          "inventoryItemId": 5,
+          "inventoryItemName": "Ficha DC macho",
+          "quantity": 2
+        }
+      ],
+      "updatedAt": "2026-04-06T10:22:00.000Z"
+    }
+  ]
+}

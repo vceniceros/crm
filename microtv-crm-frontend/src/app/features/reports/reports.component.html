@@ -1,0 +1,20 @@
+<section class="reports-page">
+  <app-page-title
+    title="Reportes"
+    subtitle="Vista analítica operativa con filtros, KPIs, gráfico y detalle tabular."
+  />
+
+  <nav class="reports-tabs" aria-label="Categorías de reportes">
+    @for (tab of tabs; track tab.key) {
+      <a
+        class="reports-tabs__item"
+        [routerLink]="['/reports', tab.key]"
+        routerLinkActive="reports-tabs__item--active"
+      >
+        {{ tab.label }}
+      </a>
+    }
+  </nav>
+
+  <router-outlet />
+</section>

@@ -1,0 +1,131 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1.25rem 1rem 1rem;
+}
+
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0 0.35rem 1rem;
+}
+
+.sidebar__brand-mark {
+  display: grid;
+  place-items: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, var(--brand-red) 0%, #560505 100%);
+  color: var(--text-inverse);
+  font-size: 1.15rem;
+  font-weight: 800;
+  box-shadow: 0 14px 22px rgba(183, 28, 28, 0.3);
+}
+
+.sidebar__brand-name,
+.sidebar__brand-subtitle,
+.sidebar__section-title,
+.sidebar__footer-name,
+.sidebar__footer-role {
+  margin: 0;
+}
+
+.sidebar__brand-name {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.sidebar__brand-subtitle {
+  margin-top: 0.15rem;
+  color: rgba(245, 247, 250, 0.64);
+  font-size: 0.78rem;
+}
+
+.sidebar__nav {
+  flex: 1;
+  padding: 1.1rem 0.2rem;
+  overflow: auto;
+}
+
+.sidebar__section + .sidebar__section {
+  margin-top: 1.2rem;
+}
+
+.sidebar__section-title {
+  margin-bottom: 0.6rem;
+  padding-inline: 0.45rem;
+  color: rgba(245, 247, 250, 0.5);
+  font-size: 0.73rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sidebar__items {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.sidebar__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  width: 100%;
+  border: 0;
+  border-radius: 1rem;
+  background: transparent;
+  padding: 0.8rem 0.75rem;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.sidebar__item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateX(2px);
+}
+
+.sidebar__item--active {
+  background: linear-gradient(135deg, rgba(183, 28, 28, 0.94), rgba(104, 15, 15, 0.96));
+  box-shadow: 0 16px 30px rgba(104, 15, 15, 0.3);
+}
+
+.sidebar__item-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.sidebar__item-main mat-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: 1.25rem;
+}
+
+.sidebar__badge {
+  min-width: 1.8rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.sidebar__footer {
+  margin-top: auto;
+}

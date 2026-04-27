@@ -1,0 +1,66 @@
+{
+  "templates": [
+    {
+      "id": "TPL-INST-BASE",
+      "title": "Instalación estándar de monitoreo",
+      "description": "Template base para instalaciones técnicas con validación de sitio, montaje, pruebas y cierre operativo.",
+      "subtasks": [
+        {
+          "id": "sub-1",
+          "title": "Verificar condiciones del sitio",
+          "children": [
+            {
+              "id": "sub-1-1",
+              "title": "Confirmar energía y conectividad",
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "sub-2",
+          "title": "Instalar equipamiento principal",
+          "children": []
+        }
+      ],
+      "requiredMaterials": [
+        {
+          "materialId": 1,
+          "name": "Cable UTP Cat6",
+          "quantity": 60,
+          "unit": "mts"
+        },
+        {
+          "materialId": 2,
+          "name": "Conector RJ45",
+          "quantity": 12,
+          "unit": "un"
+        }
+      ]
+    },
+    {
+      "id": "TPL-MANT-PREV",
+      "title": "Mantenimiento preventivo técnico",
+      "description": "Recorrido base para chequeo preventivo, limpieza y pruebas funcionales de equipamiento instalado.",
+      "subtasks": [
+        {
+          "id": "sub-3",
+          "title": "Relevar estado general del sistema",
+          "children": []
+        },
+        {
+          "id": "sub-4",
+          "title": "Registrar observaciones y acciones recomendadas",
+          "children": []
+        }
+      ],
+      "requiredMaterials": [
+        {
+          "materialId": 3,
+          "name": "Precinto plástico",
+          "quantity": 20,
+          "unit": "un"
+        }
+      ]
+    }
+  ]
+}

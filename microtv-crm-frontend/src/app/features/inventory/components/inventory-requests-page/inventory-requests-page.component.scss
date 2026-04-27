@@ -1,0 +1,67 @@
+.inventory-requests-page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.inventory-requests-page__list {
+  display: grid;
+  gap: 1rem;
+}
+
+.inventory-requests-page__card,
+.inventory-requests-page__message {
+  border-radius: 1.25rem;
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  box-shadow: var(--shadow-panel);
+}
+
+.inventory-requests-page__top,
+.inventory-requests-page__item,
+.inventory-requests-page__actions,
+.inventory-requests-page__message mat-card-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.inventory-requests-page__eyebrow,
+.inventory-requests-page__meta,
+.inventory-requests-page__reason,
+.inventory-requests-page__item span,
+.inventory-requests-page__message p,
+.inventory-requests-page__top h2 {
+  margin: 0;
+}
+
+.inventory-requests-page__eyebrow,
+.inventory-requests-page__meta {
+  color: var(--text-secondary);
+}
+
+.inventory-requests-page__items {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.inventory-requests-page__item {
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  background: rgba(23, 24, 26, 0.03);
+}
+
+.inventory-requests-page__actions {
+  margin-top: 1rem;
+  justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+  .inventory-requests-page__top,
+  .inventory-requests-page__item,
+  .inventory-requests-page__actions,
+  .inventory-requests-page__message mat-card-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

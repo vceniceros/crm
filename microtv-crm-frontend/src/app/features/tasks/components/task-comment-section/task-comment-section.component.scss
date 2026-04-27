@@ -1,0 +1,18 @@
+.task-comment-section {
+  border: 1px solid rgba(23, 24, 26, 0.06);
+  border-radius: 1.4rem;
+  box-shadow: var(--shadow-panel);
+}
+
+.task-comment-section mat-card-header,
+.task-comment-section mat-card-content {
+  padding-inline: 1.25rem;
+}
+
+.task-comment-section mat-card-header {
+  padding-top: 1.15rem;
+}
+
+.task-comment-section__field {
+  width: 100%;
+}

@@ -1,0 +1,87 @@
+:host {
+  display: block;
+}
+
+.create-task-dialog__form {
+  display: grid;
+  gap: 1rem;
+  min-width: min(100%, 34rem);
+  padding-top: 0.25rem;
+}
+
+.create-task-dialog__template-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+}
+
+.create-task-dialog__template-option small {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.create-task-dialog__template-summary {
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(183, 28, 28, 0.04), rgba(255, 255, 255, 0.9));
+  padding: 1rem;
+}
+
+.create-task-dialog__template-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.create-task-dialog__template-header mat-icon {
+  color: var(--brand-red);
+}
+
+.create-task-dialog__template-title,
+.create-task-dialog__template-meta,
+.create-task-dialog__template-description {
+  margin: 0;
+}
+
+.create-task-dialog__template-title {
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.create-task-dialog__template-meta {
+  margin-top: 0.15rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.create-task-dialog__template-description {
+  margin-top: 0.85rem;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+mat-dialog-content {
+  padding-top: 0.25rem;
+}
+
+mat-dialog-actions {
+  padding: 0;
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 640px) {
+  .create-task-dialog__form {
+    min-width: 0;
+  }
+
+  .create-task-dialog__template-option {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+}

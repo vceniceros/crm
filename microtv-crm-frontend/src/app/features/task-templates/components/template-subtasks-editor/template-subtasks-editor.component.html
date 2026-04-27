@@ -1,0 +1,59 @@
+<section class="template-subtasks-editor">
+  <div class="template-subtasks-editor__header">
+    <div>
+      <p class="template-subtasks-editor__title">Subtareas del template</p>
+      <p class="template-subtasks-editor__subtitle">Definí la estructura base con subtareas raíz e hijas vinculadas.</p>
+    </div>
+
+    <button mat-stroked-button type="button" (click)="addRootSubtask()">
+      <mat-icon>add</mat-icon>
+      <span>Agregar subtarea</span>
+    </button>
+  </div>
+
+  <ng-template #subtaskTree let-items let-depth="depth">
+    <div class="template-subtasks-editor__list">
+      @for (subtask of items.controls; track trackSubtask(subtask)) {
+        <article class="template-subtasks-editor__item" [style.marginLeft.rem]="depth * 1.1">
+          <div class="template-subtasks-editor__item-row">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="template-subtasks-editor__field">
+              <mat-label>Título de subtarea</mat-label>
+              <input matInput [formControl]="subtask.controls.title" placeholder="Ej. Validar conectividad del sitio" />
+              @if (subtask.controls.title.hasError('required') && subtask.controls.title.touched) {
+                <mat-error>El título es obligatorio.</mat-error>
+              }
+            </mat-form-field>
+
+            <div class="template-subtasks-editor__actions">
+              <button mat-icon-button type="button" (click)="addChildSubtask(subtask)" aria-label="Agregar subtarea hija">
+                <mat-icon>subdirectory_arrow_right</mat-icon>
+              </button>
+
+              <button mat-icon-button type="button" (click)="removeSubtask(items, $index)" aria-label="Eliminar subtarea">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          </div>
+
+          @if (childrenOf(subtask).length) {
+            <div class="template-subtasks-editor__children">
+              <ng-container
+                [ngTemplateOutlet]="subtaskTree"
+                [ngTemplateOutletContext]="{ $implicit: childrenOf(subtask), depth: depth + 1 }"
+              ></ng-container>
+            </div>
+          }
+        </article>
+      }
+    </div>
+  </ng-template>
+
+  @if (subtasks().length) {
+    <ng-container [ngTemplateOutlet]="subtaskTree" [ngTemplateOutletContext]="{ $implicit: subtasks(), depth: 0 }"></ng-container>
+  } @else {
+    <div class="template-subtasks-editor__empty">
+      <mat-icon>list_alt</mat-icon>
+      <p>Todavía no agregaste subtareas a este template.</p>
+    </div>
+  }
+</section>

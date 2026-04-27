@@ -1,0 +1,124 @@
+:host {
+  display: block;
+}
+
+.sidebar-user-switcher {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.95rem 0.4rem 0.2rem;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar-user-switcher:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sidebar-user-switcher__copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.sidebar-user-switcher__name,
+.sidebar-user-switcher__role,
+.sidebar-user-switcher__menu-name,
+.sidebar-user-switcher__menu-role {
+  margin: 0;
+}
+
+.sidebar-user-switcher__name {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.sidebar-user-switcher__role {
+  margin-top: 0.2rem;
+  color: rgba(245, 247, 250, 0.58);
+  font-size: 0.8rem;
+}
+
+.sidebar-user-switcher__icon {
+  color: rgba(245, 247, 250, 0.72);
+}
+
+.sidebar-user-switcher__menu {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.7rem;
+  min-width: 19rem;
+  background: #17181b;
+}
+
+.sidebar-user-switcher__account-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.85rem;
+  align-items: center;
+  border-radius: 0.95rem;
+  padding: 0.35rem;
+  color: #f5f7fa;
+}
+
+.sidebar-user-switcher__menu-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.sidebar-user-switcher__menu-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.sidebar-user-switcher__menu-role {
+  margin-top: 0.16rem;
+  color: rgba(245, 247, 250, 0.72);
+  font-size: 0.78rem;
+}
+
+.sidebar-user-switcher__menu-email {
+  margin-top: 0.2rem;
+  color: rgba(245, 247, 250, 0.58);
+  font-size: 0.76rem;
+}
+
+.sidebar-user-switcher__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.sidebar-user-switcher__chip {
+  padding: 0.38rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(245, 247, 250, 0.88);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sidebar-user-switcher__logout {
+  min-height: 3rem;
+  border-radius: 0.95rem;
+  color: #f5f7fa;
+}
+
+.sidebar-user-switcher__logout:hover,
+.sidebar-user-switcher__logout.cdk-program-focused,
+.sidebar-user-switcher__logout.cdk-keyboard-focused {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+@media (max-width: 959px) {
+  .sidebar-user-switcher__menu {
+    min-width: 17rem;
+  }
+}

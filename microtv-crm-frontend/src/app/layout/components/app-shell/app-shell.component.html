@@ -1,0 +1,28 @@
+@if (layoutData$ | async; as layoutData) {
+  <mat-sidenav-container class="app-shell">
+    <mat-sidenav
+      #drawer
+      class="app-shell__sidenav"
+      [mode]="isCompact() ? 'over' : 'side'"
+      [opened]="!isCompact()"
+    >
+      <app-sidebar
+        [brand]="layoutData.brand"
+        [navigation]="layoutData.navigation"
+        (itemSelected)="closeIfCompact(drawer)"
+      />
+    </mat-sidenav>
+
+    <mat-sidenav-content class="app-shell__content">
+      <app-topbar
+        [title]="routeTitle()"
+        [showMenuButton]="isCompact()"
+        (menuToggle)="drawer.toggle()"
+      />
+
+      <main class="app-shell__main">
+        <router-outlet />
+      </main>
+    </mat-sidenav-content>
+  </mat-sidenav-container>
+}

@@ -1,0 +1,72 @@
+.tickets-table {
+  min-width: 0;
+  border-radius: 1.6rem;
+  border: 1px solid rgba(23, 24, 26, 0.06);
+  box-shadow: var(--shadow-panel);
+}
+
+.tickets-table mat-card-header,
+.tickets-table mat-card-content {
+  padding-inline: 1.3rem;
+}
+
+.tickets-table mat-card-header {
+  padding-top: 1.2rem;
+}
+
+.tickets-table__scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.tickets-table__table {
+  width: 100%;
+  min-width: 720px;
+}
+
+.tickets-table__subject {
+  font-weight: 700;
+}
+
+.tickets-table__row {
+  cursor: pointer;
+}
+
+.tickets-table__row:hover td {
+  background: rgba(37, 99, 235, 0.04);
+}
+
+.tickets-table__assignee {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-weight: 600;
+}
+
+.mdc-data-table__header-cell,
+.mdc-data-table__cell {
+  border-bottom-color: rgba(23, 24, 26, 0.08);
+}
+
+th.mat-mdc-header-cell {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+td.mat-mdc-cell {
+  color: var(--text-primary);
+}
+
+@media (max-width: 640px) {
+  .tickets-table mat-card-header,
+  .tickets-table mat-card-content {
+    padding-inline: 1rem;
+  }
+
+  .tickets-table__table {
+    min-width: 640px;
+  }
+}

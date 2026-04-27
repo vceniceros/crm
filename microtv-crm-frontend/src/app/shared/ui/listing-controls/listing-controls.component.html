@@ -1,0 +1,45 @@
+<section class="listing-controls" aria-label="Controles de listado">
+  <mat-form-field appearance="outline" class="listing-controls__search">
+    <mat-label>{{ searchPlaceholder() }}</mat-label>
+    <input matInput [value]="searchValue()" (input)="onSearchInput(($any($event.target).value || '').trimStart())" />
+    <mat-icon matSuffix>search</mat-icon>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="listing-controls__status">
+    <mat-label>Estado</mat-label>
+    <mat-select [value]="selectedStatus()" (valueChange)="onStatusSelect($event)">
+      @for (option of statusOptions(); track option.value) {
+        <mat-option [value]="option.value">{{ option.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <div class="listing-controls__actions">
+    <button mat-stroked-button type="button" (click)="toggleSortDirection()">
+      <mat-icon>{{ sortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+      <span>{{ sortDirection() === 'asc' ? 'Más antiguo primero' : 'Más reciente primero' }}</span>
+    </button>
+
+    <div class="listing-controls__view-toggle" role="group" aria-label="Modo de vista">
+      <button
+        mat-stroked-button
+        type="button"
+        [class.listing-controls__view-toggle-button--active]="viewMode() === 'table'"
+        (click)="setViewMode('table')"
+      >
+        <mat-icon>table_rows</mat-icon>
+        <span>Tabla</span>
+      </button>
+
+      <button
+        mat-stroked-button
+        type="button"
+        [class.listing-controls__view-toggle-button--active]="viewMode() === 'cards'"
+        (click)="setViewMode('cards')"
+      >
+        <mat-icon>view_agenda</mat-icon>
+        <span>Tarjetas</span>
+      </button>
+    </div>
+  </div>
+</section>

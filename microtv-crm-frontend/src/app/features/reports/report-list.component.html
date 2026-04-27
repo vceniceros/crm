@@ -1,0 +1,26 @@
+@if (vm$ | async; as vm) {
+  @if (vm.category === 'saved') {
+    <section class="reports-placeholder">
+      <h2>Mis Reportes</h2>
+      <p>Reportes guardados próximamente.</p>
+    </section>
+  } @else {
+    <section class="reports-grid">
+      @for (card of vm.cards; track trackById($index, card)) {
+        @if (card.enabled) {
+          <a class="report-card" [routerLink]="['/reports', vm.category, card.id]">
+            <h3>{{ card.title }}</h3>
+            <p>{{ card.description }}</p>
+            <span class="report-card__cta">Abrir reporte</span>
+          </a>
+        } @else {
+          <article class="report-card report-card--disabled">
+            <h3>{{ card.title }}</h3>
+            <p>{{ card.description }}</p>
+            <span class="report-card__tag">Próximamente</span>
+          </article>
+        }
+      }
+    </section>
+  }
+}

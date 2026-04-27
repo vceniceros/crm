@@ -1,0 +1,60 @@
+<mat-card class="tickets-table">
+  <mat-card-header>
+    <mat-card-title>{{ block().title }}</mat-card-title>
+  </mat-card-header>
+
+  <mat-card-content>
+    <div class="tickets-table__scroll">
+      <table mat-table [dataSource]="block().items" class="tickets-table__table">
+        <ng-container matColumnDef="id">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('id') }}</th>
+          <td mat-cell *matCellDef="let ticket">{{ ticket.id }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="subject">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('subject') }}</th>
+          <td mat-cell *matCellDef="let ticket">
+            <div class="tickets-table__subject">{{ ticket.subject }}</div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="client">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('client') }}</th>
+          <td mat-cell *matCellDef="let ticket">{{ ticket.client }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="priority">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('priority') }}</th>
+          <td mat-cell *matCellDef="let ticket">
+            <app-priority-indicator [label]="ticket.priority" [tone]="ticket.priorityTone" />
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('status') }}</th>
+          <td mat-cell *matCellDef="let ticket">
+            <app-status-badge [label]="ticket.status" [tone]="ticket.statusTone" />
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="assignedTo">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('assignedTo') }}</th>
+          <td mat-cell *matCellDef="let ticket">
+            <div class="tickets-table__assignee">
+              <app-user-avatar [initials]="ticket.assignedInitials" [size]="32" />
+              <span>{{ ticket.assignedTo }}</span>
+            </div>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayedColumns"
+          class="tickets-table__row"
+          (click)="navigateToTicket(row.targetRoute)"
+        ></tr>
+      </table>
+    </div>
+  </mat-card-content>
+</mat-card>

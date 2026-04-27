@@ -1,0 +1,642 @@
+<section class="task-execution-page">
+  <div class="task-execution-page__topbar">
+    <a mat-stroked-button routerLink="/tasks" class="task-execution-page__back-link">
+      <mat-icon>arrow_back</mat-icon>
+      <span>Volver a tareas</span>
+    </a>
+  </div>
+
+  @if (isLoading()) {
+    <mat-card class="task-execution-page__empty-card">
+      <mat-card-content>
+        <mat-spinner diameter="32"></mat-spinner>
+        <p>Cargando tarea real...</p>
+      </mat-card-content>
+    </mat-card>
+  } @else if (task(); as task) {
+    @if (pageError(); as pageError) {
+      <mat-card class="task-execution-page__flash task-execution-page__flash--error">
+        <mat-card-content>
+          <mat-icon>error</mat-icon>
+          <p>{{ pageError }}</p>
+        </mat-card-content>
+      </mat-card>
+    }
+
+    <div class="task-execution-page__header">
+      <app-page-title
+        eyebrow="Ejecución de tarea"
+        [title]="task.task_title"
+        [subtitle]="task.task_description || 'Seguimiento operativo real de la tarea y sus subtareas.'"
+      />
+
+      <div class="task-execution-page__header-side">
+        <app-status-badge [label]="taskExecutionStatusLabel(task)" [tone]="toTaskTone(task.status)" />
+
+        <div
+          class="task-execution-page__assignee"
+          [class.task-execution-page__assignee--action]="canOpenHeaderAssigneeMenu()"
+          [matMenuTriggerFor]="canOpenHeaderAssigneeMenu() ? assigneeMenu : null"
+          #assigneeMenuTrigger="matMenuTrigger"
+          (menuOpened)="prepareHeaderAssigneeMenu()"
+        >
+          <app-user-avatar [initials]="buildInitials(task.current_assigned_user_display_name, 'NA')" [size]="40" />
+          <div>
+            <p class="task-execution-page__meta-label">Asignado a</p>
+            <p class="task-execution-page__meta-value">{{ task.current_assigned_user_display_name || 'Sin usuario asignado' }}</p>
+          </div>
+          @if (canOpenHeaderAssigneeMenu()) {
+            <mat-icon class="task-execution-page__assignee-caret">arrow_drop_down</mat-icon>
+          }
+        </div>
+
+        <mat-menu #assigneeMenu="matMenu" xPosition="before">
+          <div class="task-execution-page__assignee-menu" [formGroup]="adminAssignmentForm" (click)="$event.stopPropagation()">
+            <p class="task-execution-page__summary-caption">Reasignar subtarea actual del rol {{ formatRoleKey(currentAssignableSubtask()?.responsible_role_key) }}.</p>
+
+            <mat-form-field appearance="outline" class="task-execution-page__comment-field">
+              <mat-label>Usuario destino</mat-label>
+              <mat-select formControlName="assigned_crm_user_id" [disabled]="isSaving()">
+                <mat-option [value]="null">Seleccionar usuario</mat-option>
+                @for (option of subtaskAssigneeOptions(); track option.crm_user_id) {
+                  <mat-option [value]="option.crm_user_id">{{ nextAssigneeLabel(option) }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="task-execution-page__comment-field">
+              <mat-label>Nota de asignación (opcional)</mat-label>
+              <input matInput formControlName="notes" [disabled]="isSaving()" />
+            </mat-form-field>
+
+            <div class="task-execution-page__assignee-menu-actions">
+              <button
+                mat-flat-button
+                color="primary"
+                type="button"
+                (click)="assignFromHeaderAssigneeMenu(assigneeMenuTrigger)"
+                [disabled]="isSaving() || adminAssignmentForm.invalid || !subtaskAssigneeOptions().length || !currentAssignableSubtask()"
+              >
+                <mat-icon>manage_accounts</mat-icon>
+                <span>{{ currentAssignableSubtask() ? adminAssignActionLabel(currentAssignableSubtask()!) : 'Reasignar subtarea' }}</span>
+              </button>
+            </div>
+          </div>
+        </mat-menu>
+      </div>
+    </div>
+
+    @if (successMessage(); as successMessage) {
+      <mat-card class="task-execution-page__flash task-execution-page__flash--success">
+        <mat-card-content>
+          <mat-icon>check_circle</mat-icon>
+          <p>{{ successMessage }}</p>
+        </mat-card-content>
+      </mat-card>
+    }
+
+    <details class="task-execution-page__mobile-collapse" [class.task-execution-page__mobile-collapse--interactive]="shouldCollapseNonSubtaskSections()" [open]="nonSubtaskSectionsExpanded()" (toggle)="onNonSubtaskSectionsToggled($any($event.target).open)">
+      <summary class="task-execution-page__mobile-collapse-summary">Resumen, materiales y logística</summary>
+
+      @if (!isFieldTechnician()) {
+      <div class="task-execution-page__summary-grid">
+        <mat-card class="task-execution-page__summary-card">
+          <mat-card-content>
+            <p class="task-execution-page__summary-label">Cliente</p>
+            <p class="task-execution-page__summary-value">{{ task.client_name }}</p>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="task-execution-page__summary-card">
+          <mat-card-content>
+            <p class="task-execution-page__summary-label">Template origen</p>
+            <p class="task-execution-page__summary-value">{{ task.template_name }}</p>
+            <p class="task-execution-page__summary-caption">Ubicación: {{ taskLocationLabel() }}</p>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="task-execution-page__summary-card">
+          <mat-card-content>
+            <p class="task-execution-page__summary-label">Finalización</p>
+            <p class="task-execution-page__summary-value">{{ task.finalized_at ? (task.finalized_at | date: 'dd/MM/yyyy HH:mm') : 'Aún no finalizada' }}</p>
+            <p class="task-execution-page__summary-caption">Actor final: {{ task.finalized_by_display_name || 'N/D' }}</p>
+          </mat-card-content>
+        </mat-card>
+      </div>
+      }
+
+      @if (hasTaskLocation()) {
+        <mat-card class="task-execution-page__location-card">
+          <mat-card-content>
+            <div class="task-execution-page__location-header">
+              <div>
+                <p class="task-execution-page__summary-label">Ubicación operativa</p>
+                <p class="task-execution-page__summary-value">{{ taskLocationLabel() }}</p>
+                <p class="task-execution-page__summary-caption">La tarea usa la ubicación real persistida para navegación y contexto operativo.</p>
+              </div>
+
+              <button mat-stroked-button type="button" (click)="openTaskLocationInMaps()">
+                <mat-icon>map</mat-icon>
+                <span>Abrir en Maps</span>
+              </button>
+            </div>
+
+            <app-location-map [location]="taskLocation()" title="Ubicación de la tarea"></app-location-map>
+          </mat-card-content>
+        </mat-card>
+      }
+
+      <div class="task-execution-page__materials-grid">
+      @if (!isFieldTechnician()) {
+      <mat-card class="task-execution-page__execution-card">
+        <mat-card-header>
+          <mat-card-title>Materiales requeridos</mat-card-title>
+          <mat-card-subtitle>Comparación real entre lo mínimo del template y lo ya despachado.</mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+          @if (task.required_materials.length) {
+            <div class="task-execution-page__material-list">
+              @for (material of task.required_materials; track material.required_material_id) {
+                <article class="task-execution-page__material-row">
+                  <div>
+                    <strong>{{ material.product_name }}</strong>
+                    <span>{{ material.product_code }}{{ material.requires_tracking ? ' · tracking unitario' : '' }}</span>
+                  </div>
+                  <div>
+                    <strong>{{ totalDispatchedFor(material) }} / {{ material.quantity_required }}</strong>
+                    <span>{{ totalDispatchedFor(material) >= material.quantity_required ? 'Cubierto' : 'Pendiente' }}</span>
+                  </div>
+                </article>
+              }
+            </div>
+          } @else {
+            <p class="task-execution-page__summary-caption">Esta tarea no tiene productos mínimos heredados.</p>
+          }
+        </mat-card-content>
+      </mat-card>
+      }
+
+      @if (canViewDispatchSection()) {
+      <mat-card class="task-execution-page__execution-card">
+        <mat-card-header>
+          <mat-card-title>Despachos reales</mat-card-title>
+          <mat-card-subtitle>Depósito registra equipos/materiales con serial o barcode cuando corresponde.</mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+          @if (isDeposito()) {
+            <section class="task-execution-page__composer" [formGroup]="dispatchComposerForm">
+              <div class="task-execution-page__composer-grid">
+                <mat-form-field appearance="outline">
+                  <mat-label>Solicitud pendiente de despacho asociada</mat-label>
+                  <mat-select formControlName="request_id">
+                    <mat-option [value]="null">Sin solicitud asociada</mat-option>
+                    @for (request of approvedRequests; track request.inventory_request_id) {
+                      <mat-option [value]="request.inventory_request_id">{{ requestOptionLabel(request) }} · {{ request.requested_at | date: 'dd/MM/yyyy HH:mm' }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Producto</mat-label>
+                  <mat-select formControlName="product_id" (selectionChange)="onDispatchProductChanged()">
+                    @for (product of inventoryProducts(); track product.productId) {
+                      <mat-option [value]="product.productId">{{ product.productName }} · {{ product.productCode }}{{ product.requiresTracking ? ' · tracking unitario' : '' }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Identificador</mat-label>
+                  <mat-select formControlName="identifier_type">
+                    <mat-option value="none">Sin identificador</mat-option>
+                    <mat-option value="serial">Serial</mat-option>
+                    <mat-option value="barcode">Código de barras</mat-option>
+                  </mat-select>
+                </mat-form-field>
+
+                @if (dispatchComposerForm.controls.identifier_type.getRawValue() !== 'none') {
+                  <mat-form-field appearance="outline">
+                    <mat-label>Valor del identificador</mat-label>
+                    <input matInput formControlName="identifier_value" />
+                    <mat-hint>
+                      {{ dispatchComposerForm.controls.identifier_type.getRawValue() === 'serial' ? 'Ejemplo: VACRON-001' : 'Ejemplo: 7791234567890' }}
+                    </mat-hint>
+                  </mat-form-field>
+                }
+
+                <mat-form-field appearance="outline" class="task-execution-page__full-width-field">
+                  <mat-label>Observación del item</mat-label>
+                  <input matInput formControlName="notes" />
+                </mat-form-field>
+              </div>
+
+              @if (selectedDispatchProduct(); as selectedDispatchProduct) {
+                <p class="task-execution-page__summary-caption">
+                  {{ selectedDispatchProduct.requiresTracking ? 'Producto con tracking unitario: cada alta del listado representa 1 unidad e incluye serial o código de barras.' : 'Cada alta del listado representa 1 unidad de despacho.' }}
+                </p>
+              }
+
+              <button mat-stroked-button type="button" (click)="addDispatchDraftItem()" [disabled]="isSaving() || !canManageDispatch()">
+                <mat-icon>playlist_add</mat-icon>
+                <span>Agregar al despacho</span>
+              </button>
+
+              @if (dispatchDraftItems().length) {
+                <div class="task-execution-page__draft-list">
+                  @for (item of dispatchDraftItems(); track item.draft_id) {
+                    <article class="task-execution-page__material-row">
+                      <div>
+                        <strong>{{ item.product_name }}</strong>
+                        <span>x1{{ item.requires_tracking ? ' · tracking unitario' : '' }}</span>
+                        <span>{{ dispatchDraftTrackingLabel(item) }}</span>
+                      </div>
+                      <button mat-icon-button type="button" (click)="removeDispatchDraftItem(item.draft_id)">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </article>
+                  }
+                </div>
+
+                <mat-form-field appearance="outline" class="task-execution-page__full-width-field">
+                  <mat-label>Observación general del despacho</mat-label>
+                  <textarea matInput rows="2" formControlName="dispatch_notes"></textarea>
+                </mat-form-field>
+
+                <div class="task-execution-page__footer-actions">
+                  <button mat-flat-button color="primary" type="button" (click)="submitDispatch()" [disabled]="isSaving() || !canManageDispatch()">
+                    <mat-icon>local_shipping</mat-icon>
+                    <span>Confirmar despacho</span>
+                  </button>
+                </div>
+              }
+            </section>
+          }
+
+          @if (!canManageDispatch() && isDeposito()) {
+            <p class="task-execution-page__readonly-banner">Solo lectura. El despacho solo puede operarlo el usuario asignado a la tarea.</p>
+          }
+
+          @if (task.dispatches.length) {
+            <div class="task-execution-page__dispatch-list">
+              @for (dispatch of task.dispatches; track dispatch.inventory_dispatch_id) {
+                <article class="task-execution-page__dispatch-card">
+                  <div class="task-execution-page__material-row">
+                    <div>
+                      <strong>{{ dispatchCardTitle(dispatch) }}</strong>
+                      <span>{{ dispatch.created_at | date: 'dd/MM/yyyy HH:mm' }} · {{ dispatch.request_id ? 'asociado a solicitud' : 'despacho directo' }}</span>
+                    </div>
+                    <span>{{ dispatch.dispatched_by_display_name || 'Depósito' }}</span>
+                  </div>
+
+                  @for (item of dispatch.items; track item.inventory_dispatch_item_id) {
+                    <div class="task-execution-page__material-row task-execution-page__material-row--nested">
+                      <div>
+                        <strong>{{ item.product_name }}</strong>
+                        <span>x{{ item.quantity_dispatched }} · {{ item.serial_number || item.barcode_value || 'Sin serial/barcode' }}</span>
+                        <span>{{ item.notes || 'Sin observaciones' }}</span>
+                      </div>
+                      <div class="task-execution-page__confirmations">
+                        <button mat-stroked-button type="button" (click)="confirmDispatchItem(item, 'received')" [disabled]="!canConfirmDispatchItem() || isSaving() || !!item.received_confirmed_at">{{ item.received_confirmed_at ? 'Recibido' : 'Marcar recibido' }}</button>
+                        <button mat-stroked-button type="button" (click)="confirmDispatchItem(item, 'delivered')" [disabled]="!canConfirmDispatchItem() || isSaving() || !!item.delivered_confirmed_at">{{ item.delivered_confirmed_at ? 'Entregado' : 'Marcar entregado' }}</button>
+                        <button mat-stroked-button type="button" (click)="confirmDispatchItem(item, 'installed')" [disabled]="!canConfirmDispatchItem() || isSaving() || !!item.installed_confirmed_at">{{ item.installed_confirmed_at ? 'Instalado' : 'Marcar instalado' }}</button>
+                      </div>
+                    </div>
+                  }
+                </article>
+              }
+            </div>
+          } @else {
+            <p class="task-execution-page__summary-caption">Todavía no hay despachos registrados para esta tarea.</p>
+          }
+        </mat-card-content>
+      </mat-card>
+      }
+
+      @if (canViewRequestsSection()) {
+      <mat-card class="task-execution-page__execution-card">
+        <mat-card-header>
+          <mat-card-title>Solicitudes adicionales</mat-card-title>
+          <mat-card-subtitle>{{ isFieldTechnician() ? 'Generá solicitudes de faltantes para depósito.' : 'El técnico puede pedir faltantes y depósito puede aprobar o rechazar desde la tarea.' }}</mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+          @if (isTecnico()) {
+            <section class="task-execution-page__composer" [formGroup]="requestComposerForm">
+              <div class="task-execution-page__composer-grid">
+                <mat-form-field appearance="outline">
+                  <mat-label>Producto</mat-label>
+                  <mat-select formControlName="product_id">
+                    @for (product of inventoryProducts(); track product.productId) {
+                      <mat-option [value]="product.productId">{{ product.productName }} · {{ product.productCode }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Cantidad</mat-label>
+                  <input matInput type="number" min="1" formControlName="quantity_requested" />
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="task-execution-page__full-width-field">
+                  <mat-label>Motivo general</mat-label>
+                  <input matInput formControlName="request_reason" />
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="task-execution-page__full-width-field">
+                  <mat-label>Observación del item</mat-label>
+                  <input matInput formControlName="notes" />
+                </mat-form-field>
+              </div>
+
+              <button mat-stroked-button type="button" (click)="addRequestDraftItem()" [disabled]="isSaving() || !canCreateInventoryRequest()">
+                <mat-icon>playlist_add</mat-icon>
+                <span>Agregar item</span>
+              </button>
+
+              @if (requestDraftItems().length) {
+                <div class="task-execution-page__draft-list">
+                  @for (item of requestDraftItems(); track item.product_id) {
+                    <article class="task-execution-page__material-row">
+                      <div>
+                        <strong>{{ item.product_name }}</strong>
+                        <span>x{{ item.quantity_requested }}</span>
+                        <span>{{ item.notes || 'Sin observación' }}</span>
+                      </div>
+                      <button mat-icon-button type="button" (click)="removeRequestDraftItem(item.product_id)">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </article>
+                  }
+                </div>
+
+                <div class="task-execution-page__footer-actions">
+                  <button mat-flat-button color="primary" type="button" (click)="submitInventoryRequest()" [disabled]="isSaving() || !canCreateInventoryRequest()">
+                    <mat-icon>send</mat-icon>
+                    <span>Enviar solicitud</span>
+                  </button>
+                </div>
+              }
+            </section>
+          }
+
+          @if (!canCreateInventoryRequest() && isTecnico()) {
+            <p class="task-execution-page__readonly-banner">Solo lectura. Solo el técnico asignado puede pedir materiales adicionales desde esta tarea.</p>
+          }
+
+          @if (!isFieldTechnician() && task.inventory_requests.length) {
+            <div class="task-execution-page__dispatch-list">
+              @for (request of task.inventory_requests; track request.inventory_request_id) {
+                <article class="task-execution-page__dispatch-card">
+                  <div class="task-execution-page__material-row">
+                    <div>
+                      <strong>{{ requestCardTitle(request) }}</strong>
+                      <span>{{ formatInventoryRequestStatus(request.request_status) }} · {{ request.requested_at | date: 'dd/MM/yyyy HH:mm' }}</span>
+                    </div>
+                    <span>{{ request.requested_by_display_name || 'Solicitante CRM' }}</span>
+                  </div>
+
+                  @for (item of request.items; track item.inventory_request_item_id) {
+                    <div class="task-execution-page__material-row task-execution-page__material-row--nested">
+                      <div>
+                        <strong>{{ item.product_name }}</strong>
+                        <span>x{{ item.quantity_requested }}</span>
+                        <span>{{ item.notes || 'Sin observación' }}</span>
+                      </div>
+                    </div>
+                  }
+
+                  @if (canManageDispatch() && request.request_status === 'PENDING') {
+                    <div class="task-execution-page__confirmations">
+                      <button mat-stroked-button type="button" (click)="reviewInventoryRequest(request.inventory_request_id, 'REJECTED')" [disabled]="isSaving()">Rechazar</button>
+                      <button mat-flat-button color="primary" type="button" (click)="reviewInventoryRequest(request.inventory_request_id, 'APPROVED')" [disabled]="isSaving()">Aprobar</button>
+                    </div>
+                  }
+
+                  @if (canDispatchRequestedMaterial(request)) {
+                    <div class="task-execution-page__confirmations">
+                      <button mat-flat-button color="primary" type="button" (click)="prepareDispatchForRequest(request)" [disabled]="isSaving()">
+                        Confirmar despacho
+                      </button>
+                    </div>
+                  }
+
+                  @if (canConfirmRequestReceipt(request)) {
+                    <div class="task-execution-page__confirmations">
+                      <button mat-flat-button color="primary" type="button" (click)="confirmRequestReceipt(request)" [disabled]="isSaving()">
+                        Confirmar recibimiento
+                      </button>
+                    </div>
+                  }
+                </article>
+              }
+            </div>
+          } @else if (!isFieldTechnician()) {
+            <p class="task-execution-page__summary-caption">No hay solicitudes adicionales para esta tarea.</p>
+          }
+        </mat-card-content>
+      </mat-card>
+      }
+      </div>
+    </details>
+
+    <div class="task-execution-page__content">
+      <mat-card class="task-execution-page__timeline-card">
+        <mat-card-header>
+          <mat-card-title>Subtareas del flujo</mat-card-title>
+          <mat-card-subtitle>Mostramos el estado real de cada etapa y destacamos la subtarea activa.</mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+          <div class="task-execution-page__subtasks-list">
+            @for (subtask of task.subtasks; track subtask.subtask_id) {
+              <button type="button" class="task-execution-page__subtask-entry" [class.task-execution-page__subtask-entry--active]="selectedSubtask()?.subtask_id === subtask.subtask_id" (click)="selectSubtask(subtask.subtask_id)">
+                <div>
+                  <p class="task-execution-page__meta-label">Subtarea {{ subtask.order_index + 1 }}</p>
+                  <strong>{{ subtask.subtask_title }}</strong>
+                  <span>{{ formatRoleKey(subtask.responsible_role_key) }}</span>
+                </div>
+
+                <app-status-badge [label]="formatTaskStatus(subtask.status)" [tone]="timelineTone(subtask.status)" />
+              </button>
+            }
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      @if (selectedSubtask(); as selectedSubtask) {
+        <mat-card class="task-execution-page__execution-card">
+          <mat-card-header>
+            <mat-card-title>{{ selectedSubtask.subtask_title }}</mat-card-title>
+            <mat-card-subtitle>{{ selectedSubtask.subtask_description || 'Sin descripción operativa.' }}</mat-card-subtitle>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="task-execution-page__execution-meta">
+              <span>Rol: {{ formatRoleKey(selectedSubtask.responsible_role_key) }}</span>
+              <span>Estado: {{ formatTaskStatus(selectedSubtask.status) }}</span>
+              <span>Asignado a: {{ selectedSubtaskAssignee() }}</span>
+              <span>Asignación siguiente: {{ formatAssignmentPolicy(selectedSubtask.next_assignment_policy) }}</span>
+              <span>Comentario obligatorio: {{ selectedSubtask.close_comment_required ? 'Sí' : 'No' }}</span>
+            </div>
+
+            @if (isReadOnlySubtask(selectedSubtask)) {
+              <p class="task-execution-page__readonly-banner">{{ readOnlyMessage(selectedSubtask) }}</p>
+            }
+
+            @if (hasBlockingInventoryRequests()) {
+              <p class="task-execution-page__readonly-banner">{{ blockingInventoryRequestMessage() }}</p>
+            }
+
+            @if (selectedSubtask.status === 'pending_assignment') {
+              <div class="task-execution-page__claim-box">
+                <p>Esta subtarea está sin asignar para el rol {{ formatRoleKey(selectedSubtask.responsible_role_key) }}.</p>
+                <button mat-flat-button color="primary" type="button" [disabled]="isSaving() || !canClaimSubtask(selectedSubtask)" (click)="claimSelectedSubtask()">
+                  <mat-icon>assignment_ind</mat-icon>
+                  <span>Tomar subtarea</span>
+                </button>
+              </div>
+            }
+
+            <form class="task-execution-page__form" [formGroup]="operationForm">
+              <div formArrayName="items" class="task-execution-page__items">
+                @for (item of itemControls.controls; track $index; let itemIndex = $index) {
+                  <div class="task-execution-page__item-row" [formGroupName]="itemIndex">
+                    <div class="task-execution-page__item-info">
+                      <strong>{{ item.get('item_label')?.value }}</strong>
+                      <span>{{ item.get('is_required')?.value ? 'Obligatorio' : 'Opcional' }} · {{ item.get('item_type')?.value === 'checkbox' ? 'Checkbox' : 'Texto' }}</span>
+                    </div>
+
+                    @if (item.get('item_type')?.value === 'checkbox') {
+                      <label class="task-execution-page__checkbox-label">
+                        <input type="checkbox" formControlName="checkbox_value" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()" (change)="onChecklistCheckboxChanged(itemIndex, $event)" />
+                        <span>Completado</span>
+                      </label>
+                    } @else {
+                      <mat-form-field appearance="outline" class="task-execution-page__item-input">
+                        <mat-label>Valor de texto</mat-label>
+                        <textarea matInput rows="2" formControlName="text_value" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()" (input)="onChecklistTextChanged(itemIndex, $event)"></textarea>
+                      </mat-form-field>
+                    }
+                  </div>
+                }
+              </div>
+
+              <div class="task-execution-page__comment-box">
+                <mat-form-field appearance="outline" class="task-execution-page__comment-field">
+                  <mat-label>Comentario de cierre y/o observaciones</mat-label>
+                  <textarea matInput rows="4" formControlName="comment" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()" placeholder="Comentario de cierre y/o observaciones"></textarea>
+                </mat-form-field>
+
+                @if (selectedSubtask.next_assignment_policy === 'manual_required') {
+                  <mat-form-field appearance="outline" class="task-execution-page__comment-field">
+                    <mat-label>Siguiente usuario</mat-label>
+                    <mat-select formControlName="next_assigned_crm_user_id" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()">
+                      <mat-option [value]="null">Seleccionar usuario</mat-option>
+                      @for (option of nextAssigneeOptions(); track option.crm_user_id) {
+                        <mat-option [value]="option.crm_user_id">{{ nextAssigneeLabel(option) }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                }
+              </div>
+
+              @if (subtaskCanBeOperated(selectedSubtask)) {
+                <app-task-attachments-section
+                  [taskId]="task.task_id"
+                  [subtaskId]="selectedSubtask.subtask_id"
+                  [attachments]="pendingAttachments()"
+                  [disabled]="isSaving()"
+                  (attachmentsSelected)="addAttachments($event)"
+                  (attachmentRemoved)="removeAttachment($event)"
+                />
+              } @else {
+                <app-task-attachments-section
+                  [taskId]="task.task_id"
+                  [subtaskId]="selectedSubtask.subtask_id"
+                  [attachments]="selectedSubtaskAttachments()"
+                  [disabled]="true"
+                />
+              }
+
+              @if (errorMessage(); as operationError) {
+                <p class="task-execution-page__operation-error">{{ operationError }}</p>
+              }
+
+              <div class="task-execution-page__footer-actions">
+                <button mat-stroked-button type="button" (click)="saveProgress()" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()">
+                  <mat-icon>save</mat-icon>
+                  <span>Guardar progreso</span>
+                </button>
+
+                <button mat-flat-button color="primary" type="button" [matMenuTriggerFor]="actionsMenu" [disabled]="!canExecuteFinalAction(selectedSubtask)">
+                  <mat-icon>play_circle</mat-icon>
+                  <span>Ejecutar acción final</span>
+                </button>
+                <mat-menu #actionsMenu="matMenu">
+                  @for (action of actionOptions; track action.value) {
+                    <button mat-menu-item type="button" (click)="executeAction(action.value)" [disabled]="!canExecuteFinalAction(selectedSubtask)">
+                      <mat-icon>{{ action.icon }}</mat-icon>
+                      <span>{{ action.label }}</span>
+                    </button>
+                  }
+                </mat-menu>
+              </div>
+
+            </form>
+
+            @if (selectedSubtask.transitions.length) {
+              <div class="task-execution-page__history">
+                <h3>Transiciones</h3>
+                @for (transition of selectedSubtask.transitions; track transition.subtask_transition_id) {
+                  <article>
+                    <strong>{{ formatTaskStatus(transition.from_status) }} → {{ formatTaskStatus(transition.to_status) }}</strong>
+                    <span>{{ transition.action }} · {{ transition.performed_by_display_name || 'Usuario CRM' }} · {{ transition.created_at | date: 'dd/MM/yyyy HH:mm' }}</span>
+                  </article>
+                }
+              </div>
+            }
+
+            @if (selectedSubtaskComments().length) {
+              <div class="task-execution-page__history">
+                <h3>Comentarios y adjuntos</h3>
+                @for (comment of selectedSubtaskComments(); track comment.task_comment_id) {
+                  <article>
+                    <strong>{{ comment.author_display_name || 'Usuario CRM' }} · {{ comment.comment_type }} · {{ comment.created_at | date: 'dd/MM/yyyy HH:mm' }}</strong>
+                    <span>{{ comment.body }}</span>
+                  </article>
+                }
+              </div>
+            }
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+
+    @if (canApproveCurrentTask()) {
+      <div class="task-execution-page__task-close-actions">
+        <mat-form-field appearance="outline">
+          <mat-label>Motivo del rechazo</mat-label>
+          <textarea matInput rows="2" [formControl]="rejectTaskApprovalForm.controls.comment"></textarea>
+        </mat-form-field>
+        <button mat-stroked-button type="button" (click)="rejectCurrentTaskApproval()" [disabled]="isSaving()">
+          <mat-icon>cancel</mat-icon>
+          <span>Rechazar cierre</span>
+        </button>
+        <button mat-flat-button color="primary" type="button" (click)="approveCurrentTask()" [disabled]="isSaving()">
+          <mat-icon>task_alt</mat-icon>
+          <span>Cerrar tarea</span>
+        </button>
+      </div>
+    }
+  } @else if (pageError(); as pageError) {
+    <mat-card class="task-execution-page__empty-card">
+      <mat-card-content>
+        <mat-icon>error</mat-icon>
+        <h2>Tarea no disponible</h2>
+        <p>{{ pageError }}</p>
+      </mat-card-content>
+    </mat-card>
+  }
+</section>

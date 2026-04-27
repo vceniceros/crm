@@ -1,0 +1,30 @@
+@if (!hasValidLocation()) {
+  <section class="location-map__message">
+    <mat-icon>location_off</mat-icon>
+    <div>
+      <p class="location-map__message-title">Ubicación no disponible</p>
+      <p class="location-map__message-copy">No hay coordenadas válidas para mostrar en el mapa.</p>
+    </div>
+  </section>
+} @else {
+  <section class="location-map__shell">
+    <div #mapCanvas class="location-map__canvas" aria-label="Mapa de ubicación"></div>
+
+    @if (state() === 'loading' || state() === 'idle') {
+      <div class="location-map__overlay" aria-live="polite">
+        <mat-progress-spinner diameter="40" mode="indeterminate"></mat-progress-spinner>
+        <p>Cargando mapa...</p>
+      </div>
+    }
+
+    @if (state() === 'error') {
+      <div class="location-map__overlay location-map__overlay--error" aria-live="polite">
+        <mat-icon>warning</mat-icon>
+        <div>
+          <p class="location-map__message-title">No se pudo cargar el mapa</p>
+          <p class="location-map__message-copy">{{ errorMessage() }}</p>
+        </div>
+      </div>
+    }
+  </section>
+}

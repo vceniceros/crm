@@ -1,0 +1,405 @@
+.task-execution-page {
+  display: grid;
+  gap: 1.35rem;
+  min-width: 0;
+}
+
+.task-execution-page__mobile-collapse {
+  display: grid;
+  gap: 1rem;
+}
+
+.task-execution-page__mobile-collapse-summary {
+  display: none;
+}
+
+.task-execution-page__mobile-collapse--interactive {
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  border-radius: 1rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.task-execution-page__mobile-collapse--interactive .task-execution-page__mobile-collapse-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  list-style: none;
+  cursor: pointer;
+  padding: 0.65rem 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.task-execution-page__mobile-collapse--interactive .task-execution-page__mobile-collapse-summary::-webkit-details-marker {
+  display: none;
+}
+
+.task-execution-page__topbar,
+.task-execution-page__header,
+.task-execution-page__assignee,
+.task-execution-page__summary-card mat-card-content,
+.task-execution-page__flash mat-card-content,
+.task-execution-page__claim-box,
+.task-execution-page__footer-actions,
+.task-execution-page__subtask-entry {
+  display: flex;
+}
+
+.task-execution-page__topbar,
+.task-execution-page__header,
+.task-execution-page__subtask-entry {
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.task-execution-page__topbar,
+.task-execution-page__assignee,
+.task-execution-page__flash mat-card-content,
+.task-execution-page__claim-box,
+.task-execution-page__footer-actions,
+.task-execution-page__subtask-entry {
+  align-items: center;
+}
+
+.task-execution-page__back-link mat-icon {
+  margin-right: 0.35rem;
+}
+
+.task-execution-page__header {
+  align-items: flex-start;
+}
+
+.task-execution-page__header-side {
+  display: grid;
+  justify-items: end;
+  gap: 0.9rem;
+}
+
+.task-execution-page__assignee {
+  gap: 0.8rem;
+}
+
+.task-execution-page__assignee--action {
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.task-execution-page__assignee--action:hover {
+  background: rgba(23, 24, 26, 0.04);
+}
+
+.task-execution-page__assignee-caret {
+  color: var(--text-secondary);
+}
+
+.task-execution-page__assignee-menu {
+  display: grid;
+  gap: 0.75rem;
+  width: min(24rem, 82vw);
+  padding: 0.35rem 0.25rem 0.2rem;
+}
+
+.task-execution-page__assignee-menu-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.task-execution-page__meta-label,
+.task-execution-page__meta-value,
+.task-execution-page__summary-label,
+.task-execution-page__summary-value,
+.task-execution-page__summary-caption,
+.task-execution-page__empty-card h2,
+.task-execution-page__empty-card p,
+.task-execution-page__subtask-entry strong,
+.task-execution-page__subtask-entry span,
+.task-execution-page__flash p,
+.task-execution-page__claim-box p,
+.task-execution-page__operation-error,
+.task-execution-page__history h3,
+.task-execution-page__history article strong,
+.task-execution-page__history article span {
+  margin: 0;
+}
+
+.task-execution-page__meta-label,
+.task-execution-page__summary-label {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.task-execution-page__meta-value,
+.task-execution-page__summary-value {
+  margin-top: 0.25rem;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.task-execution-page__summary-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.task-execution-page__materials-grid,
+.task-execution-page__material-list,
+.task-execution-page__dispatch-list,
+.task-execution-page__dispatch-card,
+.task-execution-page__composer,
+.task-execution-page__draft-list,
+.task-execution-page__confirmations,
+.task-execution-page__composer-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.task-execution-page__summary-card,
+.task-execution-page__location-card,
+.task-execution-page__timeline-card,
+.task-execution-page__execution-card,
+.task-execution-page__flash,
+.task-execution-page__empty-card {
+  border: 1px solid rgba(23, 24, 26, 0.06);
+  border-radius: 1.45rem;
+  box-shadow: var(--shadow-panel);
+}
+
+.task-execution-page__summary-card mat-card-content {
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 100%;
+}
+
+.task-execution-page__materials-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.task-execution-page__location-card mat-card-content {
+  display: grid;
+  gap: 1rem;
+}
+
+.task-execution-page__location-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.task-execution-page__summary-caption {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.task-execution-page__content {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(18rem, 0.92fr) minmax(0, 1.3fr);
+}
+
+.task-execution-page__timeline-card mat-card-header,
+.task-execution-page__timeline-card mat-card-content,
+.task-execution-page__execution-card mat-card-header,
+.task-execution-page__execution-card mat-card-content {
+  padding-inline: 1.25rem;
+}
+
+.task-execution-page__timeline-card mat-card-header,
+.task-execution-page__execution-card mat-card-header {
+  padding-top: 1.15rem;
+}
+
+.task-execution-page__subtasks-list,
+.task-execution-page__items,
+.task-execution-page__history,
+.task-execution-page__form,
+.task-execution-page__item-row,
+.task-execution-page__item-info,
+.task-execution-page__comment-box,
+.task-execution-page__history article {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.task-execution-page__subtask-entry {
+  padding: 1rem;
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  border-radius: 1rem;
+  background: white;
+  text-align: left;
+}
+
+.task-execution-page__subtask-entry--active {
+  border-color: rgba(198, 40, 40, 0.28);
+  box-shadow: 0 0 0 1px rgba(198, 40, 40, 0.14);
+}
+
+.task-execution-page__execution-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+}
+
+.task-execution-page__composer-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.task-execution-page__full-width-field {
+  grid-column: 1 / -1;
+}
+
+.task-execution-page__material-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  background: rgba(23, 24, 26, 0.03);
+}
+
+.task-execution-page__material-row--nested {
+  background: rgba(23, 24, 26, 0.02);
+}
+
+.task-execution-page__material-row strong,
+.task-execution-page__material-row span {
+  display: block;
+}
+
+.task-execution-page__confirmations {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.task-execution-page__claim-box {
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(244, 183, 64, 0.12);
+}
+
+.task-execution-page__item-row {
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(23, 24, 26, 0.03);
+}
+
+.task-execution-page__item-input,
+.task-execution-page__comment-field {
+  width: 100%;
+}
+
+.task-execution-page__checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+}
+
+.task-execution-page__footer-actions {
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.task-execution-page__operation-error {
+  color: #b3261e;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.task-execution-page__readonly-banner {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  background: rgba(23, 24, 26, 0.05);
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.task-execution-page__task-close-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: 0.2rem;
+}
+
+.task-execution-page__history {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(23, 24, 26, 0.08);
+}
+
+.task-execution-page__flash--success mat-icon {
+  color: #2e7d32;
+}
+
+.task-execution-page__empty-card mat-card-content {
+  display: grid;
+  place-items: center;
+  gap: 0.8rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.task-execution-page__empty-card mat-icon {
+  color: var(--brand-red);
+  transform: scale(1.35);
+}
+
+@media (max-width: 1080px) {
+  .task-execution-page__summary-grid,
+  .task-execution-page__materials-grid,
+  .task-execution-page__content,
+  .task-execution-page__execution-meta,
+  .task-execution-page__composer-grid,
+  .task-execution-page__confirmations {
+    grid-template-columns: 1fr;
+  }
+
+  .task-execution-page__header-side {
+    justify-items: flex-start;
+  }
+
+  .task-execution-page__location-header {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 720px) {
+  .task-execution-page__topbar,
+  .task-execution-page__header,
+  .task-execution-page__claim-box,
+  .task-execution-page__footer-actions,
+  .task-execution-page__subtask-entry,
+  .task-execution-page__material-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .task-execution-page__topbar button,
+  .task-execution-page__back-link {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .task-execution-page__task-close-actions {
+    justify-content: stretch;
+  }
+
+  .task-execution-page__task-close-actions button {
+    width: 100%;
+  }
+}

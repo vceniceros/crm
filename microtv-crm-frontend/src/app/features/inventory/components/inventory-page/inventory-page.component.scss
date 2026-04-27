@@ -1,0 +1,224 @@
+.inventory-page {
+  display: grid;
+  gap: 1.5rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.inventory-page__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.inventory-page__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.inventory-page__action {
+  min-height: 2.9rem;
+  padding-inline: 1rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.inventory-page__action mat-icon {
+  margin-right: 0.45rem;
+}
+
+.inventory-page__feedback,
+.inventory-page__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.8rem 1rem;
+  border-radius: 1rem;
+  font-weight: 600;
+}
+
+.inventory-page__feedback {
+  background: rgba(183, 28, 28, 0.1);
+  color: #9f1b1b;
+}
+
+.inventory-page__status {
+  background: rgba(25, 118, 210, 0.08);
+  color: #125aa0;
+}
+
+.inventory-page__filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(14rem, 1fr) auto;
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.inventory-page__filter-field {
+  display: grid;
+  gap: 0.45rem;
+  width: 100%;
+}
+
+.inventory-page__filter-field--search {
+  min-width: 0;
+}
+
+.inventory-page__filter-label {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.inventory-page__input-shell,
+.inventory-page__select-shell {
+  display: flex;
+  align-items: center;
+  min-height: 3.5rem;
+  padding-inline: 0.95rem;
+  border: 1px solid rgba(23, 24, 26, 0.14);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 1px 0 rgba(23, 24, 26, 0.02);
+}
+
+.inventory-page__input-shell {
+  gap: 0.65rem;
+}
+
+.inventory-page__input-shell mat-icon {
+  color: var(--text-secondary);
+}
+
+.inventory-page__input-shell input,
+.inventory-page__select-shell select {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.inventory-page__input-shell input::placeholder {
+  color: color-mix(in srgb, var(--text-secondary) 70%, white);
+}
+
+.inventory-page__select-shell select {
+  appearance: none;
+  cursor: pointer;
+}
+
+.inventory-page__input-shell:focus-within,
+.inventory-page__select-shell:focus-within {
+  border-color: rgba(25, 118, 210, 0.38);
+  box-shadow: 0 0 0 4px rgba(25, 118, 210, 0.08);
+}
+
+.inventory-page__clear-filters {
+  min-height: 3.5rem;
+  border-radius: 1rem;
+  align-self: stretch;
+}
+
+.inventory-page__results {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.72rem 0.95rem;
+  border-radius: 999px;
+  background: rgba(23, 24, 26, 0.04);
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.inventory-page__empty-state {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.9rem;
+  align-items: start;
+  padding: 1.1rem 1.2rem;
+  border: 1px dashed rgba(23, 24, 26, 0.12);
+  border-radius: 1.2rem;
+  background: rgba(248, 249, 251, 0.9);
+  color: var(--text-secondary);
+}
+
+.inventory-page__empty-state mat-icon {
+  color: var(--text-primary);
+}
+
+.inventory-page__empty-title,
+.inventory-page__empty-copy {
+  margin: 0;
+}
+
+.inventory-page__empty-title {
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.inventory-page__empty-copy {
+  margin-top: 0.2rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .inventory-page__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .inventory-page__actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .inventory-page__filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inventory-page__clear-filters {
+    min-height: 3rem;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .inventory-page {
+    gap: 1rem;
+  }
+
+  .inventory-page__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .inventory-page__action {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .inventory-page__results {
+    width: 100%;
+    justify-content: center;
+    border-radius: 1rem;
+  }
+
+  .inventory-page__empty-state {
+    grid-template-columns: 1fr;
+  }
+}

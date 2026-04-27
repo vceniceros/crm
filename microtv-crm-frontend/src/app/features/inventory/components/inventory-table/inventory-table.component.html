@@ -1,0 +1,151 @@
+<mat-card class="inventory-table">
+  <mat-card-header>
+    <mat-card-title>{{ block().title }}</mat-card-title>
+  </mat-card-header>
+
+  <mat-card-content>
+    <div class="inventory-table__desktop-scroll">
+      <table mat-table [dataSource]="block().items" class="inventory-table__table">
+        <ng-container matColumnDef="image">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('image') }}</th>
+          <td mat-cell *matCellDef="let product">
+            <img
+              class="inventory-table__image"
+              [src]="imageFor(product)"
+              [alt]="'Imagen de ' + product.name"
+              (error)="onImageError($event)"
+            />
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="id">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('id') }}</th>
+          <td mat-cell *matCellDef="let product">{{ product.productCode }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('name') }}</th>
+          <td mat-cell *matCellDef="let product">
+            <div class="inventory-table__product-name">{{ product.name }}</div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="category">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('category') }}</th>
+          <td mat-cell *matCellDef="let product">{{ product.category }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="stock">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('stock') }}</th>
+          <td mat-cell *matCellDef="let product">
+            <span class="inventory-table__stock-pill" [class]="'inventory-table__stock-pill inventory-table__stock-pill--' + stockTone(product)">
+              {{ stockLabel(product) }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('actions') }}</th>
+          <td mat-cell *matCellDef="let product">
+            <div class="inventory-table__actions">
+              @if (canManageStock()) {
+                <button
+                  mat-icon-button
+                  type="button"
+                  aria-label="Restar stock"
+                  [disabled]="!hasStock(product) || isPending(product.productId)"
+                  (click)="removeStock(product.productId)"
+                >
+                  <mat-icon>remove</mat-icon>
+                </button>
+
+                <button mat-icon-button type="button" aria-label="Sumar stock" [disabled]="isPending(product.productId)" (click)="addStock(product.productId)">
+                  <mat-icon>add</mat-icon>
+                </button>
+              }
+
+              @if (canDeleteProducts()) {
+                <button
+                  mat-icon-button
+                  type="button"
+                  aria-label="Eliminar producto"
+                  class="inventory-table__delete-button"
+                  [disabled]="isPending(product.productId)"
+                  (click)="deleteProduct(product)"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+              }
+            </div>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+      </table>
+    </div>
+
+    <div class="inventory-table__mobile-list" aria-label="Listado movil de productos de deposito">
+      @for (product of block().items; track product.productId) {
+        <article class="inventory-table__mobile-card">
+          <div class="inventory-table__mobile-top">
+            <img
+              class="inventory-table__image inventory-table__image--mobile"
+              [src]="imageFor(product)"
+              [alt]="'Imagen de ' + product.name"
+              (error)="onImageError($event)"
+            />
+
+            <div class="inventory-table__mobile-top-content">
+              <p class="inventory-table__mobile-label">{{ labelFor('id') }}</p>
+              <p class="inventory-table__mobile-id">{{ product.productCode }}</p>
+              <p class="inventory-table__mobile-title">{{ product.name }}</p>
+            </div>
+
+            <span class="inventory-table__stock-pill" [class]="'inventory-table__stock-pill inventory-table__stock-pill--' + stockTone(product)">
+              {{ stockLabel(product) }}
+            </span>
+          </div>
+
+          <div class="inventory-table__mobile-block">
+            <p class="inventory-table__mobile-label">{{ labelFor('category') }}</p>
+            <p class="inventory-table__mobile-value">{{ product.category }}</p>
+          </div>
+
+          <div class="inventory-table__actions inventory-table__actions--mobile">
+            @if (canManageStock()) {
+              <button
+                mat-stroked-button
+                type="button"
+                class="inventory-table__action-button"
+                [disabled]="!hasStock(product) || isPending(product.productId)"
+                (click)="removeStock(product.productId)"
+              >
+                <mat-icon>remove</mat-icon>
+                <span>Restar</span>
+              </button>
+
+              <button mat-flat-button color="primary" type="button" class="inventory-table__action-button" [disabled]="isPending(product.productId)" (click)="addStock(product.productId)">
+                <mat-icon>add</mat-icon>
+                <span>Sumar</span>
+              </button>
+            }
+
+            @if (canDeleteProducts()) {
+              <button
+                mat-stroked-button
+                type="button"
+                class="inventory-table__action-button inventory-table__delete-button"
+                [disabled]="isPending(product.productId)"
+                (click)="deleteProduct(product)"
+              >
+                <mat-icon>delete</mat-icon>
+                <span>Eliminar</span>
+              </button>
+            }
+          </div>
+        </article>
+      }
+    </div>
+  </mat-card-content>
+</mat-card>

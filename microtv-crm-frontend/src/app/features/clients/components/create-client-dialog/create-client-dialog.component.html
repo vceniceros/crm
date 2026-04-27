@@ -1,0 +1,107 @@
+<h2 mat-dialog-title>{{ dialogTitle() }}</h2>
+
+<mat-dialog-content>
+  <form class="create-client-dialog__form" [formGroup]="form" (ngSubmit)="submit()">
+    <section class="create-client-dialog__intro">
+      <p class="create-client-dialog__intro-title">{{ isEditMode() ? 'Actualización operativa del cliente' : 'Alta inicial de cliente' }}</p>
+      <p class="create-client-dialog__intro-copy">
+        {{ isEditMode()
+          ? 'Ajustá datos comerciales y ubicación real para mantener al cliente listo para tareas, tickets y seguimiento.'
+          : 'Registrá la información básica y la ubicación real para dejar al cliente disponible en la base del CRM.' }}
+      </p>
+    </section>
+
+    @if (isLoading()) {
+      <section class="create-client-dialog__status" aria-live="polite">
+        Cargando datos actuales del cliente...
+      </section>
+    }
+
+    @if (errorMessage(); as errorMessage) {
+      <section class="create-client-dialog__status create-client-dialog__status--error" aria-live="assertive">
+        {{ errorMessage }}
+      </section>
+    }
+
+    <div class="create-client-dialog__fields">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="create-client-dialog__wide-field">
+        <mat-label>Razón social</mat-label>
+        <input matInput formControlName="razonSocial" placeholder="Ej. Clínica Modelo S.A." />
+        @if (form.controls.razonSocial.hasError('required') && form.controls.razonSocial.touched) {
+          <mat-error>La razón social es obligatoria.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>CUIT</mat-label>
+        <input matInput formControlName="cuit" placeholder="30-71234567-8" />
+        @if (form.controls.cuit.hasError('required') && form.controls.cuit.touched) {
+          <mat-error>El CUIT es obligatorio.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Teléfono</mat-label>
+        <input matInput formControlName="telefono" placeholder="11 4321 6789" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="create-client-dialog__wide-field">
+        <mat-label>Email</mat-label>
+        <input matInput type="email" formControlName="email" placeholder="operaciones@cliente.com.ar" />
+        @if (form.controls.email.hasError('email') && form.controls.email.touched) {
+          <mat-error>Ingresá un email válido.</mat-error>
+        }
+      </mat-form-field>
+
+      @if (isEditMode()) {
+        <label class="create-client-dialog__status-toggle">
+          <mat-checkbox formControlName="isActive">Cliente activo</mat-checkbox>
+        </label>
+      }
+    </div>
+
+    <section class="create-client-dialog__location-card" aria-label="Ubicación real del cliente">
+      <div class="create-client-dialog__location-header">
+        <div>
+          <p class="create-client-dialog__location-eyebrow">Ubicación real</p>
+          <p class="create-client-dialog__location-value">{{ locationLabel() }}</p>
+        </div>
+
+        <div class="create-client-dialog__location-actions">
+          <button mat-stroked-button type="button" (click)="openLocationPicker()">
+            <mat-icon>{{ hasValidLocation() ? 'edit_location_alt' : 'add_location_alt' }}</mat-icon>
+            <span>{{ hasValidLocation() ? 'Cambiar ubicación' : 'Seleccionar en mapa' }}</span>
+          </button>
+
+          @if (hasValidLocation()) {
+            <button mat-button type="button" (click)="openLocationInMaps()">
+              <mat-icon>open_in_new</mat-icon>
+              <span>Abrir en Maps</span>
+            </button>
+
+            <button mat-button type="button" class="create-client-dialog__location-action--warn" (click)="clearLocation()">
+              <mat-icon>location_off</mat-icon>
+              <span>Quitar ubicación</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      @if (hasValidLocation()) {
+        <app-location-map [location]="selectedLocation()" [title]="form.controls.razonSocial.getRawValue() || 'Ubicación del cliente'" />
+      } @else {
+        <section class="create-client-dialog__location-empty">
+          <mat-icon>location_off</mat-icon>
+          <span>Sin ubicación cargada.</span>
+        </section>
+      }
+    </section>
+
+    <mat-dialog-actions align="end">
+      <button mat-button type="button" mat-dialog-close>Cancelar</button>
+      <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || isSubmitting() || isLoading()">
+        {{ submitLabel() }}
+      </button>
+    </mat-dialog-actions>
+  </form>
+</mat-dialog-content>

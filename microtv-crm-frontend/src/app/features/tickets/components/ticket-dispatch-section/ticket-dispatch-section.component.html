@@ -1,0 +1,93 @@
+<mat-card class="ticket-dispatch-section">
+  <mat-card-header>
+    <mat-card-title>Items despachados</mat-card-title>
+    <mat-card-subtitle>
+      Depósito registra el despacho real para una solicitud aprobada y la trazabilidad queda persistida en backend.
+    </mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    @if (canManageDispatch()) {
+      <section class="ticket-dispatch-section__composer" [formGroup]="dispatchForm">
+        <div class="ticket-dispatch-section__composer-grid">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Solicitud aprobada</mat-label>
+            <mat-select formControlName="requestId">
+              @for (request of approvedRequests(); track request.id) {
+                <mat-option [value]="request.id">{{ request.id }} · {{ request.requestReason || 'Sin motivo cargado' }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Item despachado</mat-label>
+            <mat-select formControlName="inventoryItemId">
+              @for (item of inventoryOptions(); track item.id) {
+                <mat-option [value]="item.id">{{ item.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Cantidad</mat-label>
+            <input matInput type="number" min="1" formControlName="quantity" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Serial</mat-label>
+            <input matInput formControlName="serialNumber" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Código de barras</mat-label>
+            <input matInput formControlName="barcodeValue" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Observación</mat-label>
+            <input matInput formControlName="notes" />
+          </mat-form-field>
+
+          <button mat-flat-button color="primary" type="button" (click)="createDispatch()">
+            <mat-icon>local_shipping</mat-icon>
+            <span>Registrar despacho</span>
+          </button>
+        </div>
+
+        <p class="ticket-dispatch-section__hint">
+          @if (approvedRequestCount()) {
+            Hay {{ approvedRequestCount() }} solicitud{{ approvedRequestCount() > 1 ? 'es' : '' }} autorizada{{ approvedRequestCount() > 1 ? 's' : '' }} para tomar como referencia.
+          } @else {
+            Todavía no hay solicitudes autorizadas para despachar.
+          }
+        </p>
+      </section>
+    }
+
+    @if (dispatchedItems().length) {
+      <div class="ticket-dispatch-section__list">
+        @for (item of dispatchedItems(); track item.inventoryItemId + '-' + item.quantity + '-' + $index) {
+          <article class="ticket-dispatch-section__item">
+            <div>
+              <p class="ticket-dispatch-section__name">{{ item.inventoryItemName }}</p>
+              <p class="ticket-dispatch-section__meta">Cantidad despachada: {{ item.quantity }}</p>
+              @if (item.serialNumber || item.barcodeValue) {
+                <p class="ticket-dispatch-section__meta">{{ item.serialNumber || item.barcodeValue }}</p>
+              }
+              @if (item.notes) {
+                <p class="ticket-dispatch-section__meta">{{ item.notes }}</p>
+              }
+            </div>
+
+            <mat-icon>inventory</mat-icon>
+          </article>
+        }
+      </div>
+    } @else {
+      <div class="ticket-dispatch-section__empty">
+        <mat-icon>inventory_2</mat-icon>
+        <p>No hay items despachados registrados todavía.</p>
+      </div>
+    }
+  </mat-card-content>
+</mat-card>

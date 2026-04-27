@@ -1,0 +1,74 @@
+.stats-cards {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  min-width: 0;
+}
+
+.stats-cards__card {
+  border: 1px solid rgba(23, 24, 26, 0.06);
+  border-left-width: 6px;
+  border-radius: 1.4rem;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: var(--shadow-panel);
+}
+
+.stats-cards__card mat-card-content {
+  padding: 1.25rem;
+}
+
+.stats-cards__card--danger {
+  border-left-color: var(--brand-red);
+}
+
+.stats-cards__card--info {
+  border-left-color: var(--accent-blue);
+}
+
+.stats-cards__card--warning {
+  border-left-color: var(--accent-amber);
+}
+
+.stats-cards__card--success {
+  border-left-color: var(--accent-green);
+}
+
+.stats-cards__label,
+.stats-cards__value,
+.stats-cards__sublabel {
+  margin: 0;
+}
+
+.stats-cards__label {
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.stats-cards__value {
+  margin-top: 0.7rem;
+  font-size: clamp(1.9rem, 2vw, 2.35rem);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.stats-cards__sublabel {
+  margin-top: 0.7rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 1180px) {
+  .stats-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .stats-cards {
+    grid-template-columns: 1fr;
+  }
+}

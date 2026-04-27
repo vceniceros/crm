@@ -1,0 +1,68 @@
+@if (viewModel$ | async; as viewModel) {
+  <section class="clients-page">
+    <div class="clients-page__header">
+      <app-page-title
+        eyebrow="Relación comercial"
+        [title]="viewModel.page.pageTitle"
+        [subtitle]="viewModel.page.pageSubtitle"
+      />
+
+      @if (viewModel.canCreate) {
+        <div class="clients-page__actions">
+          <button mat-flat-button color="primary" type="button" class="clients-page__action" (click)="openCreateClientDialog()">
+            <mat-icon>person_add</mat-icon>
+            <span>Crear cliente</span>
+          </button>
+        </div>
+      }
+    </div>
+
+    <section class="clients-page__intro-card" aria-label="Resumen de clientes">
+      <div>
+        <p class="clients-page__intro-label">Base activa</p>
+        <p class="clients-page__intro-value">{{ viewModel.page.items.length }} clientes</p>
+      </div>
+
+      <p class="clients-page__intro-copy">
+        Vista principal pensada para lectura rápida: razón social visible arriba y datos de contacto ordenados en cada card.
+      </p>
+    </section>
+
+    @if (viewModel.isLoading) {
+      <section class="clients-page__status-card clients-page__status-card--info" aria-live="polite">
+        Cargando clientes reales del CRM...
+      </section>
+    }
+
+    @if (feedbackMessage(); as feedbackMessage) {
+      <section class="clients-page__status-card" [class.clients-page__status-card--error]="feedbackTone() === 'error'" aria-live="polite">
+        <span>{{ feedbackMessage }}</span>
+        <button mat-button type="button" (click)="clearFeedback()">Cerrar</button>
+      </section>
+    }
+
+    @if (viewModel.errorMessage; as errorMessage) {
+      <section class="clients-page__status-card clients-page__status-card--error" aria-live="assertive">
+        <span>{{ errorMessage }}</span>
+        <button mat-button type="button" (click)="clearFeedback()">Cerrar</button>
+      </section>
+    }
+
+    @if (!viewModel.isLoading && viewModel.page.items.length === 0) {
+      <section class="clients-page__empty-card" aria-live="polite">
+        <p class="clients-page__empty-title">Todavía no hay clientes activos.</p>
+        <p class="clients-page__empty-copy">Creá el primer cliente real para dejarlo disponible en tareas y seguimiento.</p>
+      </section>
+    } @else {
+      <app-clients-grid
+        [clients]="viewModel.page.items"
+        [canEdit]="viewModel.canEdit"
+        [canDelete]="viewModel.canDelete"
+        (editClient)="openEditClientDialog($event)"
+        (deleteClient)="deleteClient($event)"
+        (openLocation)="openLocationDialog($event)"
+        (openExternalMaps)="openExternalMaps($event)"
+      />
+    }
+  </section>
+}

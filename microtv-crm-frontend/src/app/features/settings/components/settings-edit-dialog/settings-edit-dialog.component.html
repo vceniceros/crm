@@ -1,0 +1,177 @@
+<h2 mat-dialog-title>{{ data.title }}</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="settings-edit-dialog__form">
+    @if (data.kind === 'role') {
+      <mat-form-field appearance="outline">
+        <mat-label>Nombre del rol</mat-label>
+        <input matInput formControlName="role_label" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Descripción</mat-label>
+        <textarea matInput rows="3" formControlName="description"></textarea>
+      </mat-form-field>
+
+      <mat-slide-toggle formControlName="is_active">Activo</mat-slide-toggle>
+    }
+
+    @if (data.kind === 'user-roles') {
+      <mat-form-field appearance="outline">
+        <mat-label>Roles asignados</mat-label>
+        <mat-select formControlName="role_keys" multiple>
+          @for (role of data.roleOptions ?? []; track role.code) {
+            <mat-option [value]="role.code">{{ role.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
+
+    @if (data.kind === 'category') {
+      <mat-form-field appearance="outline">
+        <mat-label>Nombre</mat-label>
+        <input matInput formControlName="name" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Tipo</mat-label>
+        <input matInput formControlName="category_type" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Descripción</mat-label>
+        <textarea matInput rows="3" formControlName="description"></textarea>
+      </mat-form-field>
+
+      <mat-slide-toggle formControlName="is_active">Activo</mat-slide-toggle>
+    }
+
+    @if (data.kind === 'priority') {
+      <mat-form-field appearance="outline">
+        <mat-label>Código</mat-label>
+        <input matInput formControlName="code" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Nombre</mat-label>
+        <input matInput formControlName="name" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Orden</mat-label>
+        <input matInput type="number" formControlName="order_index" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Color (opcional)</mat-label>
+        <input matInput formControlName="color" />
+      </mat-form-field>
+
+      <mat-slide-toggle formControlName="is_active">Activo</mat-slide-toggle>
+    }
+
+    @if (data.kind === 'status') {
+      <mat-form-field appearance="outline">
+        <mat-label>Código</mat-label>
+        <input matInput formControlName="code" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Nombre</mat-label>
+        <input matInput formControlName="name" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Entidad</mat-label>
+        <mat-select formControlName="entity_type">
+          <mat-option value="ticket">Ticket</mat-option>
+          <mat-option value="task">Tarea</mat-option>
+          <mat-option value="deposit">Depósito</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Orden</mat-label>
+        <input matInput type="number" formControlName="order_index" />
+      </mat-form-field>
+
+      <mat-slide-toggle formControlName="is_final">Estado final</mat-slide-toggle>
+      <mat-slide-toggle formControlName="is_active">Activo</mat-slide-toggle>
+    }
+
+    @if (data.kind === 'template') {
+      <mat-form-field appearance="outline">
+        <mat-label>Nombre del template</mat-label>
+        <input matInput formControlName="template_name" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Descripción</mat-label>
+        <textarea matInput rows="3" formControlName="description"></textarea>
+      </mat-form-field>
+
+      <mat-slide-toggle formControlName="is_active">Activo</mat-slide-toggle>
+    }
+
+    @if (data.kind === 'sla') {
+      <mat-form-field appearance="outline">
+        <mat-label>Entidad</mat-label>
+        <mat-select formControlName="entity_type">
+          <mat-option value="ticket">Ticket</mat-option>
+          <mat-option value="task">Tarea</mat-option>
+          <mat-option value="deposit">Depósito</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Prioridad</mat-label>
+        <mat-select formControlName="priority_code">
+          @for (code of data.priorityOptions ?? []; track code) {
+            <mat-option [value]="code">{{ code }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Respuesta (minutos)</mat-label>
+        <input matInput type="number" formControlName="response_time_minutes" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Resolución (minutos)</mat-label>
+        <input matInput type="number" formControlName="resolution_time_minutes" />
+      </mat-form-field>
+
+      <mat-slide-toggle formControlName="is_active">Activo</mat-slide-toggle>
+    }
+
+    @if (data.kind === 'notification') {
+      <mat-form-field appearance="outline">
+        <mat-label>Código de evento</mat-label>
+        <input matInput formControlName="event_code" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Etiqueta</mat-label>
+        <input matInput formControlName="label" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Roles a notificar</mat-label>
+        <mat-select formControlName="notify_roles_json" multiple>
+          @for (role of data.roleOptions ?? []; track role.code) {
+            <mat-option [value]="role.code">{{ role.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-slide-toggle formControlName="notify_assigned">Notificar al asignado</mat-slide-toggle>
+      <mat-slide-toggle formControlName="is_active">Activo</mat-slide-toggle>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close type="button">Cancelar</button>
+  <button mat-flat-button color="primary" type="button" (click)="submit()">{{ data.submitLabel }}</button>
+</mat-dialog-actions>

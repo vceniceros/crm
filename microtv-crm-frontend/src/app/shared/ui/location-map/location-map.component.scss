@@ -1,0 +1,80 @@
+:host {
+  display: block;
+}
+
+.location-map__shell,
+.location-map__message {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  border-radius: 1.35rem;
+  background: rgba(244, 246, 248, 0.92);
+}
+
+.location-map__canvas {
+  min-height: 24rem;
+}
+
+.location-map__overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  text-align: center;
+  background: rgba(248, 249, 251, 0.92);
+  color: var(--text-secondary);
+}
+
+.location-map__overlay p,
+.location-map__message-title,
+.location-map__message-copy {
+  margin: 0;
+}
+
+.location-map__overlay p {
+  font-weight: 600;
+}
+
+.location-map__overlay--error,
+.location-map__message {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.location-map__overlay--error {
+  align-content: center;
+  justify-items: start;
+  text-align: left;
+}
+
+.location-map__message {
+  padding: 1.15rem 1.1rem;
+}
+
+.location-map__overlay--error mat-icon,
+.location-map__message mat-icon {
+  color: var(--brand-red);
+}
+
+.location-map__message-copy {
+  margin-top: 0.3rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+@media (max-width: 720px) {
+  .location-map__canvas {
+    min-height: 18rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .location-map__overlay--error,
+  .location-map__message {
+    grid-template-columns: 1fr;
+  }
+}

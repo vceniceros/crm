@@ -1,0 +1,65 @@
+<h2 mat-dialog-title>Crear tarea</h2>
+
+<mat-dialog-content>
+  @if (taskCreationData$ | async; as taskCreationData) {
+    <form class="create-task-dialog__form" [formGroup]="form" (ngSubmit)="submit()">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Título</mat-label>
+        <input matInput formControlName="title" placeholder="Ej. Revisión de instalación en sucursal" />
+        @if (form.controls.title.hasError('required') && form.controls.title.touched) {
+          <mat-error>El título es obligatorio.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Cliente</mat-label>
+        <mat-select formControlName="clientId">
+          @for (client of taskCreationData.clients; track client.id) {
+            <mat-option [value]="client.id">{{ client.name }}</mat-option>
+          }
+        </mat-select>
+        @if (form.controls.clientId.hasError('required') && form.controls.clientId.touched) {
+          <mat-error>Seleccioná un cliente.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Template</mat-label>
+        <mat-select formControlName="templateId">
+          @for (template of taskCreationData.templates; track template.id) {
+            <mat-option [value]="template.id">
+              <div class="create-task-dialog__template-option">
+                <span>{{ template.name }}</span>
+                <small>{{ template.subtaskCount }} subtareas</small>
+              </div>
+            </mat-option>
+          }
+        </mat-select>
+        @if (form.controls.templateId.hasError('required') && form.controls.templateId.touched) {
+          <mat-error>Seleccioná un template.</mat-error>
+        }
+      </mat-form-field>
+
+      @if (selectedTemplate(); as template) {
+        <section class="create-task-dialog__template-summary">
+          <div class="create-task-dialog__template-header">
+            <mat-icon>description</mat-icon>
+            <div>
+              <p class="create-task-dialog__template-title">{{ template.name }}</p>
+              <p class="create-task-dialog__template-meta">{{ template.subtaskCount }} subtareas base</p>
+            </div>
+          </div>
+
+          @if (template.description) {
+            <p class="create-task-dialog__template-description">{{ template.description }}</p>
+          }
+        </section>
+      }
+
+      <mat-dialog-actions align="end">
+        <button mat-button type="button" mat-dialog-close>Cancelar</button>
+        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">Crear tarea</button>
+      </mat-dialog-actions>
+    </form>
+  }
+</mat-dialog-content>

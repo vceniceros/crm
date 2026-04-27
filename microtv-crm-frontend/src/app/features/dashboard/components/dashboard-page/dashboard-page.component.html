@@ -1,0 +1,26 @@
+@if (vm$ | async; as vm) {
+  @if (vm.loading) {
+    <section class="dashboard-state dashboard-state--loading" aria-live="polite">
+      <p>Cargando resumen operativo...</p>
+    </section>
+  } @else if (vm.error) {
+    <section class="dashboard-state dashboard-state--error" aria-live="assertive">
+      <p>{{ vm.error }}</p>
+    </section>
+  } @else if (vm.dashboard; as dashboard) {
+    <section class="dashboard-page">
+      <app-page-title [title]="dashboard.pageTitle" [subtitle]="dashboard.pageSubtitle" />
+
+      <app-stats-cards [stats]="dashboard.stats" />
+
+      <div class="dashboard-page__grid">
+        <app-recent-tickets-table [block]="dashboard.recentTickets" />
+        <app-recent-activity-timeline [block]="dashboard.recentActivity" />
+      </div>
+    </section>
+  } @else {
+    <section class="dashboard-state" aria-live="polite">
+      <p>No hay datos disponibles para mostrar todavía.</p>
+    </section>
+  }
+}

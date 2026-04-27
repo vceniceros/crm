@@ -1,0 +1,70 @@
+<section class="template-materials-editor">
+  <div class="template-materials-editor__header">
+    <div>
+      <p class="template-materials-editor__title">Materiales requeridos</p>
+      <p class="template-materials-editor__subtitle">Definí los insumos necesarios para ejecutar este template y dejar preparada la referencia operativa.</p>
+    </div>
+  </div>
+
+  <div class="template-materials-editor__add-row" [formGroup]="addMaterialForm">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Material</mat-label>
+      <mat-select formControlName="materialId">
+        @for (material of materials(); track material.id) {
+          <mat-option [value]="material.id" [disabled]="isSelected(material.id)">
+            {{ material.name }}
+            @if (material.unit) {
+              <span class="template-materials-editor__unit-hint">({{ material.unit }})</span>
+            }
+          </mat-option>
+        }
+      </mat-select>
+      @if (addMaterialForm.controls.materialId.hasError('required') && addMaterialForm.controls.materialId.touched) {
+        <mat-error>Seleccioná un material.</mat-error>
+      }
+      @if (addMaterialForm.controls.materialId.hasError('duplicate')) {
+        <mat-error>Ese material ya fue agregado al template.</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Cantidad</mat-label>
+      <input matInput type="number" min="1" formControlName="quantity" />
+      @if (addMaterialForm.controls.quantity.invalid && addMaterialForm.controls.quantity.touched) {
+        <mat-error>Ingresá una cantidad válida.</mat-error>
+      }
+    </mat-form-field>
+
+    <button mat-stroked-button type="button" (click)="addMaterial()">
+      <mat-icon>add</mat-icon>
+      <span>Agregar material</span>
+    </button>
+  </div>
+
+  @if (requiredMaterials().length) {
+    <div class="template-materials-editor__list">
+      @for (material of requiredMaterials().controls; track trackMaterial(material)) {
+        <article class="template-materials-editor__item">
+          <div>
+            <p class="template-materials-editor__item-name">{{ material.controls.name.value }}</p>
+            <p class="template-materials-editor__item-meta">
+              {{ material.controls.quantity.value }}
+              @if (material.controls.unit.value) {
+                <span>{{ material.controls.unit.value }}</span>
+              }
+            </p>
+          </div>
+
+          <button mat-icon-button type="button" (click)="removeMaterial($index)" aria-label="Quitar material">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </article>
+      }
+    </div>
+  } @else {
+    <div class="template-materials-editor__empty">
+      <mat-icon>inventory_2</mat-icon>
+      <p>Si esta tarea no requiere insumos en esta etapa, podés completar el template y asociarlos más adelante.</p>
+    </div>
+  }
+</section>

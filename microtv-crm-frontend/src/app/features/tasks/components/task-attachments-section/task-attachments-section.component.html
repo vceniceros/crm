@@ -1,0 +1,88 @@
+<mat-card class="task-attachments-section">
+  <mat-card-header>
+    <mat-card-title>Adjuntos de tarea</mat-card-title>
+    <mat-card-subtitle>Fotos y videos asociados al avance operativo, validados por una fachada reutilizable.</mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    <div class="task-attachments-section__actions">
+      @if (!disabled()) {
+        <input
+          #fileInput
+          type="file"
+          [accept]="acceptAttribute"
+          multiple
+          hidden
+          [disabled]="isUploading()"
+          (change)="onFileSelection($event)"
+        />
+
+        <button mat-stroked-button type="button" [disabled]="isUploading()" (click)="fileInput.click()">
+          <mat-icon>upload_file</mat-icon>
+          <span>{{ isUploading() ? 'Subiendo multimedia...' : 'Agregar fotos o videos' }}</span>
+        </button>
+
+        <p class="task-attachments-section__hint">
+          La clasificacion y validacion se resuelven en la fachada, y el archivo queda persistido en el backend al subirlo.
+        </p>
+      } @else {
+        <p class="task-attachments-section__hint">Modo lectura: visualizando multimedia registrada para esta subtarea.</p>
+      }
+    </div>
+
+    @if (uploadError(); as uploadError) {
+      <p class="task-attachments-section__error">{{ uploadError }}</p>
+    }
+
+    @if (attachments().length) {
+      <div class="task-attachments-section__list">
+        @for (attachment of attachments(); track trackByAttachmentId($index, attachment)) {
+          <article class="task-attachments-section__item">
+            <div class="task-attachments-section__preview" [class.task-attachments-section__preview--placeholder]="!canPreview(attachment)">
+              @if (attachment.kind === 'image' && canPreview(attachment)) {
+                <img [src]="previewUrl(attachment)" [alt]="attachment.fileName" (error)="markPreviewAsFailed(attachment.id)" />
+              } @else if (attachment.kind === 'video' && canPreview(attachment)) {
+                <video controls preload="metadata" (error)="markPreviewAsFailed(attachment.id)">
+                  <source [src]="previewUrl(attachment)" [type]="attachment.fileType" />
+                </video>
+              } @else {
+                <mat-icon>{{ iconFor(attachment) }}</mat-icon>
+              }
+            </div>
+
+            <div class="task-attachments-section__meta">
+              <div>
+                <p class="task-attachments-section__name">{{ attachment.fileName }}</p>
+                <p class="task-attachments-section__details">{{ attachment.fileType }} · {{ formatSize(attachment.size) }}</p>
+              </div>
+
+              @if (!disabled()) {
+                <button mat-icon-button type="button" aria-label="Quitar adjunto" (click)="removeAttachment(attachment.id)">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              }
+            </div>
+
+            @if (!canPreview(attachment) && (attachment.kind === 'image' || attachment.kind === 'video')) {
+              <p class="task-attachments-section__preview-note">
+                No se pudo mostrar la previsualización.
+                @if (downloadUrl(attachment); as mediaUrl) {
+                  <a [href]="mediaUrl" target="_blank" rel="noopener">Abrir archivo</a>
+                }
+              </p>
+            }
+
+            @if (attachment.storagePath) {
+              <p class="task-attachments-section__preview-note">Destino resuelto: {{ attachment.storagePath }}</p>
+            }
+          </article>
+        }
+      </div>
+    } @else {
+      <div class="task-attachments-section__empty">
+        <mat-icon>perm_media</mat-icon>
+        <p>No hay adjuntos cargados todavía.</p>
+      </div>
+    }
+  </mat-card-content>
+</mat-card>

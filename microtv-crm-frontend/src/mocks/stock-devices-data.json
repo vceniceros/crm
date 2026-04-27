@@ -1,0 +1,46 @@
+{
+  "devices": [
+    {
+      "id": 1,
+      "code": "DEV-001",
+      "name": "Router TP-Link Archer C6",
+      "category": "Networking",
+      "serial": "TPL-AXC6-0001"
+    },
+    {
+      "id": 2,
+      "code": "DEV-002",
+      "name": "ONU GPON Huawei HG8310M",
+      "category": "Fibra",
+      "serial": "HUA-HG8310-0102"
+    },
+    {
+      "id": 3,
+      "code": "DEV-003",
+      "name": "Monitor 21 pulgadas Samsung",
+      "category": "Pantalla",
+      "serial": "MON-21-3344"
+    },
+    {
+      "id": 4,
+      "code": "DEV-004",
+      "name": "Fuente switching 12V 5A",
+      "category": "Energia",
+      "serial": "PWR-12V5A-1120"
+    },
+    {
+      "id": 5,
+      "code": "DEV-005",
+      "name": "DVR Hikvision 8 canales",
+      "category": "Grabacion",
+      "serial": "HIK-DVR8-7781"
+    },
+    {
+      "id": 6,
+      "code": "DEV-006",
+      "name": "Modulo GPS Teltonika FMB920",
+      "category": "Telemetria",
+      "serial": "TEL-FMB920-4418"
+    }
+  ]
+}

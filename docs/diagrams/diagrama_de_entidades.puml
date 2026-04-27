@@ -1,0 +1,155 @@
+@startuml diagrama_de_entidades
+
+' Diagrama entidad-relacion base para arrancar.
+' Reemplaza nombres, atributos y relaciones segun tu dominio.
+
+hide circle
+skinparam linetype ortho
+skinparam shadowing false
+skinparam class {
+	BackgroundColor White
+	ArrowColor Black
+	BorderColor Black
+}
+
+title Diagrama de Entidades
+
+' =========================
+' Entidades principales
+' =========================
+
+entity "Cliente" as Cliente {
+    +razonSocial: string
+	+cuit: string
+	+email: string
+	+telefono: string
+	---
+	+registrarse()
+	+realizarPedido()
+}
+
+
+
+entity "Usuario" as Usuario {
+	+nombre: string
+	+email: string
+	+coontraseña: string
+	---
+	+registrarse()
+	+iniciarSesion()
+}
+
+entity "Rol" as Rol {
+	+nombre: string
+	---
+	+asignarPermisos()
+}
+
+entity "Productos" as Productos {
+	+codigo: string
+	+nombre: string
+	+marca: string
+	+serial: string
+	+categoria: string
+	---
+	+agregarProducto()
+	+eliminarProducto()
+}
+
+entity "Inventario" as Inventario {
+	+id_inventario: int
+	+cantidad: int
+	+codigo_producto: string
+	
+	---
+	+actualizarInventario()
+	+consultarInventario()
+}
+
+entity "Tareas" as Tareas {
+	+id_tarea: int
+	+titulo: string
+	+tipo: string
+	+descripcion: string
+	+estado: string
+	+comentario: String
+	+fechaVencimiento: date
+	
+	---
+	+crearTarea()
+	+completarTarea()
+}
+
+entity "SubTareas" as SubTareas {
+	+id_subtarea: int
+	+titulo: string
+	+tipo: string
+	+tareaPadre: int
+	+subtareaBloqueante: int
+	+descripcion: string
+	+comentario: String
+	+estado: string
+	+items(item: string)
+	+fechaVencimiento: date
+	---
+	+crearSubTarea()
+	+asignarSubtareaPrevia()
+	+completarSubTarea()
+}
+
+entity "Tickets" as Tickets {
+	+id_ticket: int
+	+titulo: string
+	+tipo: string
+	+razonSocial: string
+	+descripcion: string
+	+estado: string
+	+comentario: String
+	+fechaCreacion: date
+	---
+	+crearTicket()
+	+cerrarTicket()
+}
+
+entity "Estados" as Estados {
+	+id_estado: int
+	+nombre: string
+	---
+	+actualizarEstado()
+	+consultarEstado()
+}
+
+
+' =========================
+' Relaciones
+' =========================
+Rol ||--o{ Usuario : se le asigna
+Usuario ||--o{ Tareas : crea
+Tareas ||--o{ SubTareas : tiene
+Usuario ||--o{ Tickets : crea
+Estados ||--o{ Tareas : define estado
+
+Tareas ||--o{ Productos : involucra
+Productos ||--o{ Inventario : se controla en
+
+Tareas ||--o{ Estados : tiene estado
+
+Cliente ||--o{ Tickets : genera
+Cliente||--o{ Tareas : genera1
+
+
+
+
+' =========================
+' Convenciones utiles
+' =========================
+'
+' ||--||  uno a uno
+' ||--o{  uno a muchos
+' }o--o{  muchos a muchos
+' |o--||  cero o uno a uno
+'
+' Si quieres modelar una relacion muchos a muchos,
+' normalmente conviene crear una entidad intermedia.
+
+@enduml

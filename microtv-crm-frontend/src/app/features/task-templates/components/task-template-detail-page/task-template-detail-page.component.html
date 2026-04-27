@@ -1,0 +1,128 @@
+<section class="task-template-detail-page">
+  <a mat-stroked-button routerLink="/tasks/templates" class="task-template-detail-page__back-link">
+    <mat-icon>arrow_back</mat-icon>
+    <span>Volver a templates</span>
+  </a>
+
+  @if (isLoading()) {
+    <mat-card class="task-template-detail-page__message">
+      <mat-card-content>
+        <mat-spinner diameter="32"></mat-spinner>
+        <p>Cargando detalle del template...</p>
+      </mat-card-content>
+    </mat-card>
+  } @else if (errorMessage(); as errorMessage) {
+    <mat-card class="task-template-detail-page__message task-template-detail-page__message--error">
+      <mat-card-content>
+        <mat-icon>error</mat-icon>
+        <p>{{ errorMessage }}</p>
+      </mat-card-content>
+    </mat-card>
+  } @else if (template(); as template) {
+    <div class="task-template-detail-page__header">
+      <app-page-title
+        eyebrow="Detalle de template"
+        [title]="template.template_name"
+        [subtitle]="template.description || 'Template operativo sin descripción cargada.'"
+      />
+
+      <div class="task-template-detail-page__header-side">
+        <app-status-badge [label]="template.is_active ? 'Activo' : 'Inactivo'" [tone]="toTaskTone(template.is_active ? 'IN_PROGRESS' : 'BLOCKED')" />
+        @if (canManage()) {
+          <a mat-flat-button color="primary" [routerLink]="['/tasks/templates', template.template_id, 'edit']">Editar</a>
+        }
+      </div>
+    </div>
+
+    <mat-card class="task-template-detail-page__meta-card">
+      <mat-card-content>
+        <div>
+          <span>Subtareas</span>
+          <strong>{{ template.subtasks.length }}</strong>
+        </div>
+        <div>
+          <span>Productos mínimos</span>
+          <strong>{{ template.required_materials.length }}</strong>
+        </div>
+        <div>
+          <span>Creado</span>
+          <strong>{{ template.created_at | date: 'dd/MM/yyyy HH:mm' }}</strong>
+        </div>
+        <div>
+          <span>Actualizado</span>
+          <strong>{{ template.updated_at ? (template.updated_at | date: 'dd/MM/yyyy HH:mm') : 'Sin cambios' }}</strong>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="task-template-detail-page__meta-card">
+      <mat-card-header>
+        <mat-card-title>Productos mínimos requeridos</mat-card-title>
+        <mat-card-subtitle>Este bloque se copia a la tarea para comparar requerido vs despachado.</mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        @if (template.required_materials.length) {
+          <div class="task-template-detail-page__items">
+            @for (material of template.required_materials; track material.required_material_id) {
+              <article class="task-template-detail-page__item-row">
+                <div>
+                  <strong>{{ material.product_name }}</strong>
+                  <span>{{ material.product_code }}{{ material.requires_tracking ? ' · tracking unitario' : '' }}</span>
+                </div>
+                <span>x{{ material.quantity_required }}</span>
+              </article>
+            }
+          </div>
+        } @else {
+          <p class="task-template-detail-page__description">Este template no tiene productos mínimos configurados.</p>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <div class="task-template-detail-page__subtasks">
+      @for (subtask of template.subtasks; track subtask.task_template_subtask_id) {
+        <mat-card class="task-template-detail-page__subtask-card">
+          <mat-card-content>
+            <div class="task-template-detail-page__subtask-header">
+              <div>
+                <p class="task-template-detail-page__order">Subtarea {{ subtask.order_index + 1 }}</p>
+                <h2>{{ subtask.subtask_title }}</h2>
+              </div>
+
+              <div class="task-template-detail-page__subtask-tags">
+                <span>{{ formatRoleKey(subtask.responsible_role_key) }}</span>
+                <span>{{ formatAssignmentPolicy(subtask.next_assignment_policy) }}</span>
+              </div>
+            </div>
+
+            <p class="task-template-detail-page__description">{{ subtask.subtask_description || 'Sin descripción.' }}</p>
+
+            <div class="task-template-detail-page__subtask-meta">
+              <div>
+                <span>Comentario obligatorio</span>
+                <strong>{{ subtask.close_comment_required ? 'Sí' : 'No' }}</strong>
+              </div>
+              <div>
+                <span>Usuario por defecto</span>
+                <strong>{{ subtask.default_responsible_crm_user_id || 'Sin usuario fijo' }}</strong>
+              </div>
+            </div>
+
+            <div class="task-template-detail-page__items">
+              @for (item of subtask.items; track item.task_template_item_id) {
+                <article class="task-template-detail-page__item-row">
+                  <div>
+                    <strong>{{ item.item_label }}</strong>
+                    <span>{{ item.item_type === 'checkbox' ? 'Checkbox' : 'Texto' }}</span>
+                  </div>
+                  <span>{{ item.is_required ? 'Obligatorio' : 'Opcional' }}</span>
+                </article>
+              }
+            </div>
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+  }
+</section>

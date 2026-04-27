@@ -1,0 +1,45 @@
+{
+  "progress": [
+    {
+      "taskId": "TS-3108",
+      "completedSubtaskIds": ["TS-3108-1", "TS-3108-2"],
+      "comment": "Cliente disponible miércoles por la tarde. Falta cerrar responsable en sitio.",
+      "attachments": [],
+      "finalized": false,
+      "updatedAt": "2026-04-06T17:35:00.000Z"
+    },
+    {
+      "taskId": "TS-3104",
+      "completedSubtaskIds": ["TS-3104-1", "TS-3104-1-1", "TS-3104-1-2", "TS-3104-2"],
+      "comment": "Stock reservado en depósito. Pendiente remito cuando se confirme retiro.",
+      "attachments": [
+        {
+          "id": "seed-ts3104-1",
+          "fileName": "reserva-sensores.jpg",
+          "fileType": "image/jpeg",
+          "kind": "image",
+          "previewUrl": null,
+          "size": 248120
+        }
+      ],
+      "finalized": false,
+      "updatedAt": "2026-04-06T14:12:00.000Z"
+    },
+    {
+      "taskId": "TS-3099",
+      "completedSubtaskIds": ["TS-3099-1"],
+      "comment": "Se pidió documentación y se espera respuesta del cliente.",
+      "attachments": [],
+      "finalized": false,
+      "updatedAt": "2026-04-05T10:25:00.000Z"
+    },
+    {
+      "taskId": "TS-3095",
+      "completedSubtaskIds": ["TS-3095-1", "TS-3095-2", "TS-3095-3"],
+      "comment": "Checklist listo para revisión final antes de cerrar la tarea.",
+      "attachments": [],
+      "finalized": false,
+      "updatedAt": "2026-04-06T09:45:00.000Z"
+    }
+  ]
+}

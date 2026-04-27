@@ -1,0 +1,60 @@
+{
+  "items": [
+    {
+      "id": 1001,
+      "name": "Fuente switching 12V 5A",
+      "category": "Cargadores",
+      "imageUrl": "https://placehold.co/96x96/e9eef3/4f5a66?text=12V",
+      "stock": 12
+    },
+    {
+      "id": 1002,
+      "name": "Monitor LED 19 pulgadas reparado",
+      "category": "Reparados",
+      "imageUrl": "https://placehold.co/96x96/f1f4f7/5b6470?text=LED",
+      "stock": 3
+    },
+    {
+      "id": 1003,
+      "name": "Placa main Android carteleria",
+      "category": "Sistemas Android",
+      "imageUrl": "https://placehold.co/96x96/edf3ec/54634f?text=AND",
+      "stock": 7
+    },
+    {
+      "id": 1004,
+      "name": "Driver de retroiluminacion monitor 24",
+      "category": "Repuestos de monitores",
+      "imageUrl": "https://placehold.co/96x96/f6f0e8/6d5b42?text=DRV",
+      "stock": 0
+    },
+    {
+      "id": 1005,
+      "name": "Modulo TAMO telemetria",
+      "category": "Sistemas TAMO",
+      "imageUrl": "https://placehold.co/96x96/e9f0f7/45617e?text=TMO",
+      "stock": 5
+    },
+    {
+      "id": 1006,
+      "name": "Splitter HDMI 1x4",
+      "category": "Audio y video",
+      "imageUrl": "https://placehold.co/96x96/f0edf8/65578b?text=HDMI",
+      "stock": 2
+    },
+    {
+      "id": 1007,
+      "name": "Soporte VESA universal",
+      "category": "Visualizacion",
+      "imageUrl": "https://placehold.co/96x96/edf1ef/536157?text=VESA",
+      "stock": 9
+    },
+    {
+      "id": 1008,
+      "name": "Kit conectores y tornilleria",
+      "category": "Varios",
+      "imageUrl": null,
+      "stock": 0
+    }
+  ]
+}

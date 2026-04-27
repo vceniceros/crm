@@ -1,0 +1,34 @@
+{
+  "pageTitle": "Tareas pendientes",
+  "pageSubtitle": "Vista inicial para seguimiento operativo de tareas activas, con foco en responsables, avance de subtareas y estado actual.",
+  "templateAction": {
+    "id": "create-template",
+    "label": "Crear template",
+    "icon": "post_add",
+    "variant": "secondary"
+  },
+  "primaryAction": {
+    "id": "create-task",
+    "label": "Crear tarea",
+    "icon": "add_task",
+    "variant": "primary"
+  },
+  "secondaryAction": {
+    "id": "task-history",
+    "label": "Historial",
+    "icon": "history",
+    "variant": "secondary"
+  },
+  "tasksTable": {
+    "title": "Pendientes del equipo",
+    "columns": [
+      { "key": "id", "label": "ID tarea" },
+      { "key": "title", "label": "Título" },
+      { "key": "client", "label": "Cliente" },
+      { "key": "subtasks", "label": "Subtareas" },
+      { "key": "status", "label": "Estado" },
+      { "key": "assignedTo", "label": "Asignado a" }
+    ],
+    "items": []
+  }
+}

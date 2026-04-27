@@ -1,0 +1,1 @@
+export type MockUserRole = 'admin' | 'ejecutivo' | 'deposito' | 'tecnico';

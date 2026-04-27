@@ -1,0 +1,103 @@
+.task-templates-page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.task-templates-page__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 1rem;
+}
+
+.task-templates-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.task-templates-page__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 1rem;
+}
+
+.task-templates-page__card,
+.task-templates-page__message {
+  border-radius: 1.25rem;
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  box-shadow: var(--shadow-panel);
+}
+
+.task-templates-page__card-top,
+.task-templates-page__message mat-card-content {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.task-templates-page__card h2,
+.task-templates-page__description,
+.task-templates-page__eyebrow,
+.task-templates-page__preview-title,
+.task-templates-page__preview span,
+.task-templates-page__meta-grid span,
+.task-templates-page__meta-grid strong,
+.task-templates-page__message p {
+  margin: 0;
+}
+
+.task-templates-page__eyebrow,
+.task-templates-page__preview-title,
+.task-templates-page__meta-grid span {
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.task-templates-page__description {
+  margin-top: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.task-templates-page__meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.task-templates-page__meta-grid div,
+.task-templates-page__preview {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.task-templates-page__preview {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(23, 24, 26, 0.08);
+}
+
+.task-templates-page__message mat-card-content {
+  align-items: center;
+}
+
+.task-templates-page__message--error mat-icon {
+  color: #b3261e;
+}
+
+@media (max-width: 840px) {
+  .task-templates-page__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .task-templates-page__actions {
+    justify-content: flex-start;
+  }
+}

@@ -1,0 +1,34 @@
+.reports-page {
+  display: grid;
+  gap: 1rem;
+}
+
+.reports-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 1rem;
+  padding: 0.5rem;
+}
+
+.reports-tabs__item {
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.92rem;
+  border-radius: 0.7rem;
+  padding: 0.55rem 0.8rem;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.reports-tabs__item:hover {
+  background: rgba(62, 142, 222, 0.1);
+  color: var(--text-primary);
+}
+
+.reports-tabs__item--active {
+  background: rgba(62, 142, 222, 0.18);
+  color: var(--text-primary);
+}

@@ -1,0 +1,122 @@
+{
+  "pageTitle": "Clientes",
+  "pageSubtitle": "Base mock inicial de clientes con foco en lectura visual clara, datos de contacto rápidos y alta controlada por rol administrador.",
+  "items": [
+    {
+      "id": 101,
+      "razonSocial": "Clínica Modelo S.A.",
+      "cuit": "30-71234567-8",
+      "email": "operaciones@clinicamodelo.com.ar",
+      "telefono": "11 4321 6789",
+      "location": {
+        "latitude": -34.6037,
+        "longitude": -58.3816,
+        "addressLabel": "Microcentro, Buenos Aires"
+      }
+    },
+    {
+      "id": 102,
+      "razonSocial": "Consorcio Libertad 2145",
+      "cuit": "30-69874512-3",
+      "email": "administracion@consorciolibertad.com.ar",
+      "telefono": "11 4987 1140",
+      "location": {
+        "latitude": -34.5888,
+        "longitude": -58.3975,
+        "addressLabel": "Recoleta, Buenos Aires"
+      }
+    },
+    {
+      "id": 103,
+      "razonSocial": "Hotel Plaza del Centro",
+      "cuit": "30-70125634-1",
+      "email": "mantenimiento@hotelplaza.com.ar",
+      "telefono": "11 4370 2245",
+      "location": {
+        "latitude": -34.6019,
+        "longitude": -58.3742,
+        "addressLabel": "San Nicolás, Buenos Aires"
+      }
+    },
+    {
+      "id": 104,
+      "razonSocial": "Metalúrgica Sur Industrial S.R.L.",
+      "cuit": "30-70999876-5",
+      "email": "compras@metalurgicasur.com.ar",
+      "telefono": "11 4268 9080",
+      "location": {
+        "latitude": -34.7241,
+        "longitude": -58.2546,
+        "addressLabel": "Parque Industrial de Avellaneda"
+      }
+    },
+    {
+      "id": 105,
+      "razonSocial": "Laboratorio Norte Diagnóstico",
+      "cuit": "30-71543219-0",
+      "email": "infraestructura@labnorte.com.ar",
+      "telefono": "11 4556 7712",
+      "location": {
+        "latitude": -34.5605,
+        "longitude": -58.4549,
+        "addressLabel": "Belgrano, Buenos Aires"
+      }
+    },
+    {
+      "id": 106,
+      "razonSocial": "Centro Logístico Delta S.A.",
+      "cuit": "30-70341987-6",
+      "email": "seguridad@deltalogistica.com.ar",
+      "telefono": "11 4733 2811",
+      "location": {
+        "latitude": -34.4594,
+        "longitude": -58.5797,
+        "addressLabel": "Benavídez, Tigre"
+      }
+    },
+    {
+      "id": 107,
+      "razonSocial": "Colegio San Gabriel",
+      "cuit": "30-68754120-4",
+      "email": "administracion@colegiosangabriel.edu.ar",
+      "telefono": "11 4674 8932",
+      "location": null
+    },
+    {
+      "id": 108,
+      "razonSocial": "Retail Patagónico S.A.",
+      "cuit": "30-72211876-9",
+      "email": "soporte.sucursales@retailpatagonico.com.ar",
+      "telefono": "11 4890 3375",
+      "location": {
+        "latitude": -34.6157,
+        "longitude": -58.4333,
+        "addressLabel": "Almagro, Buenos Aires"
+      }
+    },
+    {
+      "id": 109,
+      "razonSocial": "Grupo Médico Horizonte",
+      "cuit": "30-71823004-2",
+      "email": "servicios@grupohorizonte.com.ar",
+      "telefono": "11 4520 1006",
+      "location": {
+        "latitude": -34.5711,
+        "longitude": -58.4233,
+        "addressLabel": "Palermo, Buenos Aires"
+      }
+    },
+    {
+      "id": 110,
+      "razonSocial": "Terminales Urbanas del Oeste",
+      "cuit": "30-69440321-7",
+      "email": "infraestructura@tuo.com.ar",
+      "telefono": "11 4658 4200",
+      "location": {
+        "latitude": -34.6396,
+        "longitude": -58.5627,
+        "addressLabel": "Morón, Buenos Aires"
+      }
+    }
+  ]
+}

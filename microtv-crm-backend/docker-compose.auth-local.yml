@@ -1,0 +1,75 @@
+services:
+  auth-db:
+    image: postgres:16-alpine
+    container_name: crm-auth-db
+    environment:
+      POSTGRES_DB: auth_microtv
+      POSTGRES_USER: authmicrotv
+      POSTGRES_PASSWORD: authmicrotv
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - crm-auth-db-data:/var/lib/postgresql/data
+
+  auth-local:
+    build:
+      context: ..
+      dockerfile: microtv-crm-backend/docker/auth-local/Dockerfile
+    container_name: crm-auth-local
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://authmicrotv:authmicrotv@auth-db:5432/auth_microtv
+      JWT_SECRET: change-me
+      JWT_ALGORITHM: HS256
+      JWT_ISSUER: auth.crm.ycc.internal
+      JWT_AUDIENCE: microtv-platform
+      ALLOWED_ORIGINS: http://localhost:4200,http://localhost:5173,http://localhost:8010
+      CRM_AUTH_TENANT_TYPE: company
+      CRM_AUTH_TENANT_ID: YCC
+      CRM_AUTH_ADMIN_EMAIL: admin@ycc.local
+      CRM_AUTH_ADMIN_PASSWORD: changeme-secure-password
+      CRM_AUTH_ADMIN_NAME: Administrador CRM
+      CRM_LOCAL_ADMIN_EMAIL: admin@ycc.local
+      CRM_LOCAL_ADMIN_PASSWORD: changeme-secure-password
+      CRM_LOCAL_YCC_EMAIL: operador.crm@yccbrothers.com
+      CRM_LOCAL_YCC_PASSWORD: Passw0rd!
+      CRM_LOCAL_YCC_AUX_EMAIL: deposito.aux@yccbrothers.com
+      CRM_LOCAL_YCC_AUX_PASSWORD: Passw0rd!
+      CRM_LOCAL_YCC_EXECUTIVE_EMAIL: ejecutivo.crm@yccbrothers.com
+      CRM_LOCAL_YCC_EXECUTIVE_PASSWORD: Passw0rd!
+      CRM_LOCAL_YCC_TECH_EMAIL: tecnico.campo@yccbrothers.com
+      CRM_LOCAL_YCC_TECH_PASSWORD: Passw0rd!
+      CRM_LOCAL_YCC_TECH_USER_ID: auth-user-ycc-tech-001
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8001/health >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    ports:
+      - "8001:8001"
+
+  crm-db:
+    image: postgres:16-alpine
+    container_name: crm-backend-db
+    environment:
+      POSTGRES_DB: crm_microtv
+      POSTGRES_USER: crmmicrotv
+      POSTGRES_PASSWORD: crmmicrotv
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    ports:
+      - "5433:5432"
+    volumes:
+      - crm-backend-db-data:/var/lib/postgresql/data
+
+volumes:
+  crm-auth-db-data:
+  crm-backend-db-data:
