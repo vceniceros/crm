@@ -7,24 +7,11 @@
     </div>
   </section>
 } @else {
-  <section class="location-map__shell">
-    <div #mapCanvas class="location-map__canvas" aria-label="Mapa de ubicación"></div>
-
-    @if (state() === 'loading' || state() === 'idle') {
-      <div class="location-map__overlay" aria-live="polite">
-        <mat-progress-spinner diameter="40" mode="indeterminate"></mat-progress-spinner>
-        <p>Cargando mapa...</p>
-      </div>
-    }
-
-    @if (state() === 'error') {
-      <div class="location-map__overlay location-map__overlay--error" aria-live="polite">
-        <mat-icon>warning</mat-icon>
-        <div>
-          <p class="location-map__message-title">No se pudo cargar el mapa</p>
-          <p class="location-map__message-copy">{{ errorMessage() }}</p>
-        </div>
-      </div>
-    }
-  </section>
+  <app-location-picker-map
+    [title]="title()"
+    [zoom]="zoom()"
+    [readOnly]="true"
+    [showGoogleMapsLink]="false"
+    [markers]="normalizedMarkers()"
+  />
 }

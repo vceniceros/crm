@@ -32,8 +32,7 @@ export class LocationFacade {
       return null;
     }
 
-    const coordinates = `${location.latitude},${location.longitude}`;
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(coordinates)}`;
+    return `https://www.google.com/maps?q=${location.latitude},${location.longitude}`;
   }
 
   openNavigation(location: AppLocation | null | undefined): boolean {

@@ -29,24 +29,13 @@
   </section>
 
   <section class="location-picker-dialog__map-shell">
-    <div #mapCanvas class="location-picker-dialog__map" aria-label="Selector de ubicación"></div>
-
-    @if (state() === 'loading' || state() === 'idle') {
-      <div class="location-picker-dialog__overlay" aria-live="polite">
-        <mat-progress-spinner diameter="40" mode="indeterminate"></mat-progress-spinner>
-        <p>Cargando selector de ubicación...</p>
-      </div>
-    }
-
-    @if (state() === 'error') {
-      <div class="location-picker-dialog__overlay location-picker-dialog__overlay--error" aria-live="polite">
-        <mat-icon>warning</mat-icon>
-        <div>
-          <p class="location-picker-dialog__message-title">No se pudo cargar el mapa</p>
-          <p class="location-picker-dialog__message-copy">{{ errorMessage() }}</p>
-        </div>
-      </div>
-    }
+    <app-location-picker-map
+      [title]="data.title || 'Ubicación seleccionada'"
+      [readOnly]="false"
+      [initialCoordinates]="initialCoordinates()"
+      [showGoogleMapsLink]="false"
+      (onChange)="onCoordinatesChanged($event)"
+    />
   </section>
 </mat-dialog-content>
 

@@ -15,6 +15,10 @@ type CrmRuntimeConfig = {
   imageQuality?: number | string;
   imageTargetFormat?: string;
   videoMaxSizeMb?: number | string;
+  mapStyleUrl?: string;
+  mapDefaultLat?: number | string;
+  mapDefaultLon?: number | string;
+  mapDefaultZoom?: number | string;
 };
 
 declare global {
@@ -68,6 +72,15 @@ function resolveMediaPublicUrl(rawValue: string | undefined): string {
 
   const withSlash = normalized.startsWith('/') ? normalized : `/${normalized}`;
   return withSlash.replace(/\/+$/, '') || '/media';
+}
+
+function resolveString(rawValue: string | undefined, fallback = ''): string {
+  if (typeof rawValue !== 'string') {
+    return fallback;
+  }
+
+  const normalized = rawValue.trim();
+  return normalized || fallback;
 }
 
 function resolveImageTargetFormat(rawValue: string | undefined): 'jpeg' | 'png' | 'webp' | 'avif' {
@@ -132,4 +145,11 @@ export const crmMediaConfig = {
 
 export const crmApiConfig = {
   baseUrl: resolveCrmApiBaseUrl(runtimeConfig)
+} as const;
+
+export const crmMapConfig = {
+  styleUrl: resolveString(runtimeConfig?.mapStyleUrl),
+  defaultLat: Math.min(90, Math.max(-90, resolveNumber(runtimeConfig?.mapDefaultLat, -34.6037))),
+  defaultLon: Math.min(180, Math.max(-180, resolveNumber(runtimeConfig?.mapDefaultLon, -58.3816))),
+  defaultZoom: Math.min(20, Math.max(1, resolveNumber(runtimeConfig?.mapDefaultZoom, 12)))
 } as const;

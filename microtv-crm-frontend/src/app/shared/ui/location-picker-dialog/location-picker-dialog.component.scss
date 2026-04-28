@@ -15,9 +15,9 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.95rem 1rem;
-  border: 1px solid rgba(23, 24, 26, 0.08);
+  border: 1px solid var(--border-subtle);
   border-radius: 1.25rem;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 248, 250, 0.94));
+  background: linear-gradient(180deg, var(--surface-panel), color-mix(in srgb, var(--surface-panel) 72%, var(--surface-soft) 28%));
 }
 
 .location-picker-dialog__intro-icon {
@@ -68,43 +68,14 @@
 }
 
 .location-picker-dialog__map-shell {
-  position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(23, 24, 26, 0.08);
-  border-radius: 1.35rem;
-  background: rgba(244, 246, 248, 0.92);
+  min-height: 0;
 }
 
-.location-picker-dialog__map {
-  min-height: 28rem;
-}
-
-.location-picker-dialog__overlay {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  gap: 0.75rem;
-  padding: 1.5rem;
-  text-align: center;
-  background: rgba(248, 249, 251, 0.92);
-  color: var(--text-secondary);
-}
-
-.location-picker-dialog__overlay p {
-  margin: 0;
-  font-weight: 600;
-}
-
-.location-picker-dialog__overlay--error {
-  grid-template-columns: auto 1fr;
-  align-content: center;
-  justify-items: start;
-  text-align: left;
-}
-
-.location-picker-dialog__overlay--error mat-icon {
-  color: var(--brand-red);
+:host-context(html.theme-dark) .location-picker-dialog__intro,
+:host-context(html.theme-dark) .location-picker-dialog__summary {
+  background:
+    radial-gradient(circle at right top, rgba(183, 28, 28, 0.16), transparent 36%),
+    linear-gradient(180deg, rgba(21, 27, 38, 0.98), rgba(17, 23, 36, 0.95));
 }
 
 @media (max-width: 720px) {
@@ -116,15 +87,5 @@
   .location-picker-dialog__summary {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .location-picker-dialog__map {
-    min-height: 20rem;
-  }
-}
-
-@media (max-width: 560px) {
-  .location-picker-dialog__overlay--error {
-    grid-template-columns: 1fr;
   }
 }

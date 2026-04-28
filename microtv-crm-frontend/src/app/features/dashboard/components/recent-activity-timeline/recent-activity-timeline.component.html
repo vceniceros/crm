@@ -5,7 +5,7 @@
 
   <mat-card-content>
     <ol class="activity-timeline__list">
-      @for (item of block().items; track item.timestamp + item.text) {
+      @for (item of block().items; track item.timestamp + '|' + item.text + '|' + $index) {
         <li
           class="activity-timeline__item"
           [class.activity-timeline__item--clickable]="!!item.targetRoute"
