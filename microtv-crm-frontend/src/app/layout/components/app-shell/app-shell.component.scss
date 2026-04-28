@@ -10,11 +10,9 @@
 
 .app-shell__sidenav {
   width: var(--shell-sidebar-width);
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  background:
-    radial-gradient(circle at top, rgba(183, 28, 28, 0.2), transparent 28%),
-    linear-gradient(180deg, #121214 0%, #19191c 100%);
-  color: var(--text-inverse);
+  border-right: 1px solid var(--shell-sidebar-border);
+  background: var(--shell-sidebar-bg);
+  color: var(--shell-sidebar-text);
 }
 
 .app-shell__content {

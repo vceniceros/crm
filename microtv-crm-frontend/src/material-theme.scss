@@ -10,6 +10,21 @@ html {
   @include mat.theme(
     (
       color: (
+        theme-type: light,
+        primary: mat.$red-palette,
+        tertiary: mat.$blue-palette,
+      ),
+      typography: Manrope,
+      density: 0,
+    )
+  );
+}
+
+html.theme-dark {
+  @include mat.theme(
+    (
+      color: (
+        theme-type: dark,
         primary: mat.$red-palette,
         tertiary: mat.$blue-palette,
       ),
@@ -26,4 +41,8 @@ body {
   font: var(--mat-sys-body-medium);
   margin: 0;
   height: 100%;
+}
+
+html.theme-dark body {
+  color-scheme: dark;
 }

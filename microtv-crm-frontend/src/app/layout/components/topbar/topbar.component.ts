@@ -1,5 +1,5 @@
 import { AsyncPipe, DatePipe } from '@angular/common';
-import { Component, inject, input, OnDestroy, OnInit, output } from '@angular/core';
+import { Component, computed, inject, input, OnDestroy, OnInit, output } from '@angular/core';
 import { Router } from '@angular/router';
 import { map } from 'rxjs';
 import { MatBadgeModule } from '@angular/material/badge';
@@ -11,6 +11,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { Notification } from '../../../core/models/notification.model';
 import { NotificationsService } from '../../../core/services/notifications.service';
+import { ThemeService } from '../../../core/services/theme.service';
 
 @Component({
   selector: 'app-topbar',
@@ -26,10 +27,16 @@ export class TopbarComponent implements OnInit, OnDestroy {
 
   private readonly notificationsService = inject(NotificationsService);
   private readonly router = inject(Router);
+  private readonly themeService = inject(ThemeService);
 
   readonly unreadCount$ = this.notificationsService.unreadCount$;
   readonly notifications$ = this.notificationsService.notifications$;
   readonly unreadNotifications$ = this.notifications$.pipe(map((items) => items.filter((item) => !item.is_read)));
+  readonly currentTheme = this.themeService.theme;
+  readonly themeToggleIcon = computed(() => (this.currentTheme() === 'dark' ? 'light_mode' : 'dark_mode'));
+  readonly themeToggleLabel = computed(() =>
+    this.currentTheme() === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'
+  );
 
   ngOnInit(): void {
     this.notificationsService.startPolling();
@@ -59,5 +66,9 @@ export class TopbarComponent implements OnInit, OnDestroy {
 
   markAllRead(): void {
     this.notificationsService.markAllRead().subscribe();
+  }
+
+  toggleTheme(): void {
+    this.themeService.toggleTheme();
   }
 }
