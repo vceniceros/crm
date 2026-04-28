@@ -13,6 +13,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { CreateInventoryProductFormValue } from '../../../../core/models/create-product.model';
 import { InventoryProduct } from '../../../../core/models/inventory-product.model';
 import { InventoryService } from '../../../../core/services/inventory.service';
+import { optimizeImageForUpload } from '../../../../core/utils/media-upload-optimization';
 import { CreateProductFormGroup, CreateProductFormModel } from '../create-product-form.types';
 
 @Component({
@@ -37,6 +38,7 @@ import { CreateProductFormGroup, CreateProductFormModel } from '../create-produc
   styleUrl: './create-product-dialog.component.scss'
 })
 export class CreateProductDialogComponent {
+  private static readonly maxRawImageBytes = 12 * 1024 * 1024;
   private static readonly maxImageBytes = 2 * 1024 * 1024;
   private static readonly allowedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -65,7 +67,7 @@ export class CreateProductDialogComponent {
     requiresTracking: this.formBuilder.control(false, { nonNullable: true })
   });
 
-  onFileSelected(event: Event): void {
+  async onFileSelected(event: Event): Promise<void> {
     const input = event.target;
     if (!(input instanceof HTMLInputElement)) {
       return;
@@ -84,14 +86,21 @@ export class CreateProductDialogComponent {
       input.value = '';
       return;
     }
-    if (file.size > CreateProductDialogComponent.maxImageBytes) {
-      this.imageError.set('La imagen no puede superar los 2 MB.');
+    if (file.size > CreateProductDialogComponent.maxRawImageBytes) {
+      this.imageError.set('La imagen seleccionada es demasiado grande para procesarse en el navegador.');
       input.value = '';
       return;
     }
 
-    this.selectedFile = file;
-    this.selectedFileName.set(file.name);
+    const optimizedFile = await optimizeImageForUpload(file);
+    if (optimizedFile.size > CreateProductDialogComponent.maxImageBytes) {
+      this.imageError.set('La imagen optimizada no puede superar los 2 MB.');
+      input.value = '';
+      return;
+    }
+
+    this.selectedFile = optimizedFile;
+    this.selectedFileName.set(optimizedFile.name);
   }
 
   async submit(): Promise<void> {

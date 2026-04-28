@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -480,7 +479,7 @@ class TaskAttachment(Base):
 
     @property
     def storagePath(self) -> str:
-        return str((Path("public") / Path(self.file_url.lstrip("/"))).as_posix())
+        return self.file_url.lstrip("/")
 
     @property
     def size(self) -> int | None:

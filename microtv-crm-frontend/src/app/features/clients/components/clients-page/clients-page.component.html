@@ -28,6 +28,8 @@
       </p>
     </section>
 
+    <app-context-help-card [storageId]="'clients'" [content]="helpText" [showOnlyFirstVisit]="true" />
+
     @if (viewModel.isLoading) {
       <section class="clients-page__status-card clients-page__status-card--info" aria-live="polite">
         Cargando clientes reales del CRM...
@@ -50,8 +52,8 @@
 
     @if (!viewModel.isLoading && viewModel.page.items.length === 0) {
       <section class="clients-page__empty-card" aria-live="polite">
-        <p class="clients-page__empty-title">Todavía no hay clientes activos.</p>
-        <p class="clients-page__empty-copy">Creá el primer cliente real para dejarlo disponible en tareas y seguimiento.</p>
+        <p class="clients-page__empty-title">{{ helpText.emptyStates['default']?.title }}</p>
+        <p class="clients-page__empty-copy">{{ helpText.emptyStates['default']?.description }}</p>
       </section>
     } @else {
       <app-clients-grid

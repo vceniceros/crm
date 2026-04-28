@@ -21,10 +21,12 @@ import {
   toTicketPriorityTone,
   toTicketStatusTone
 } from '../../../../core/models/ticket-management.model';
+import { UI_HELP_TEXTS } from '../../../../core/config/ui-help-texts.config';
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
 import { TicketManagementService } from '../../../../core/services/ticket-management.service';
 import { ListingSortDirection, ListingStatusOption, ListingControlsComponent } from '../../../../shared/ui/listing-controls/listing-controls.component';
 import { ListingViewMode, ListingViewPreferenceService } from '../../../../shared/services/listing-view-preference.service';
+import { ContextHelpCardComponent } from '../../../../shared/ui/context-help-card/context-help-card.component';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 import { CreateTicketDialogComponent } from '../create-ticket-dialog/create-ticket-dialog.component';
 import { SurveyLinkDialogComponent } from '../survey-link-dialog/survey-link-dialog.component';
@@ -48,6 +50,7 @@ interface TicketListUiState {
     MatIconModule,
     MatProgressSpinnerModule,
     MatTabsModule,
+    ContextHelpCardComponent,
     ListingControlsComponent,
     PageTitleComponent,
     TicketsTableComponent
@@ -64,6 +67,7 @@ export class TicketsPageComponent {
   private readonly authSessionService = inject(AuthSessionService);
   private readonly ticketManagementService = inject(TicketManagementService);
   private readonly listingViewPreferenceService = inject(ListingViewPreferenceService);
+  readonly helpText = UI_HELP_TEXTS.tickets;
 
   readonly isHandset = toSignal(
     this.breakpointObserver.observe([Breakpoints.Handset]).pipe(map((state) => state.matches)),

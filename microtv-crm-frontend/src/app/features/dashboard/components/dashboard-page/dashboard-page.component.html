@@ -11,6 +11,8 @@
     <section class="dashboard-page">
       <app-page-title [title]="dashboard.pageTitle" [subtitle]="dashboard.pageSubtitle" />
 
+      <app-context-help-card [storageId]="'dashboard'" [content]="helpText" [showOnlyFirstVisit]="true" />
+
       <app-stats-cards [stats]="dashboard.stats" />
 
       <div class="dashboard-page__grid">
@@ -20,7 +22,8 @@
     </section>
   } @else {
     <section class="dashboard-state" aria-live="polite">
-      <p>No hay datos disponibles para mostrar todavía.</p>
+      <p>{{ helpText.emptyStates['noData']?.title }}</p>
+      <p class="dashboard-state__description">{{ helpText.emptyStates['noData']?.description }}</p>
     </section>
   }
 }

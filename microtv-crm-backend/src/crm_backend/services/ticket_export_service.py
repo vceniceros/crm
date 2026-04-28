@@ -63,8 +63,20 @@ def _survey_status_for_pdf(ticket: Ticket) -> str:
 class TicketExportService:
     """Build a ZIP archive containing a PDF report and all media for a ticket."""
 
-    def __init__(self, media_base_dir: Path | str) -> None:
-        self._media_base_dir = Path(media_base_dir)
+    def __init__(
+        self,
+        *,
+        media_root_dir: Path | str,
+        media_public_url: str = "/media",
+        legacy_public_dir: Path | str | None = None,
+    ) -> None:
+        self._media_root_dir = Path(media_root_dir).resolve()
+        self._media_public_url = media_public_url.rstrip("/") or "/media"
+        self._legacy_public_dir = Path(legacy_public_dir).resolve() if legacy_public_dir is not None else None
+
+        self._allowed_roots: list[Path] = [self._media_root_dir]
+        if self._legacy_public_dir is not None:
+            self._allowed_roots.append(self._legacy_public_dir)
 
     def export_development_zip(
         self,
@@ -125,11 +137,14 @@ class TicketExportService:
 
     def _is_safe_path(self, path: Path) -> bool:
         """Reject paths outside the media base dir (path traversal guard)."""
-        try:
-            path.resolve().relative_to(self._media_base_dir.resolve())
-            return True
-        except ValueError:
-            return False
+        resolved = path.resolve()
+        for root in self._allowed_roots:
+            try:
+                resolved.relative_to(root)
+                return True
+            except ValueError:
+                continue
+        return False
 
     # ------------------------------------------------------------------
     # PDF builder
@@ -409,13 +424,56 @@ class TicketExportService:
         storage_path = getattr(attachment, "storagePath", None)
         if isinstance(storage_path, str) and storage_path.strip():
             candidate = Path(storage_path)
-            if not candidate.is_absolute():
-                return self._media_base_dir.parent / candidate
-            return candidate
+            if candidate.is_absolute():
+                return candidate
+            resolved_from_storage = self._resolve_public_or_relative_path(storage_path)
+            if resolved_from_storage is not None:
+                return resolved_from_storage
 
         file_url = getattr(attachment, "file_url", None)
         if isinstance(file_url, str) and file_url.strip():
-            normalized = file_url.strip().replace("\\", "/").lstrip("/")
-            return self._media_base_dir / normalized
+            resolved_from_url = self._resolve_public_or_relative_path(file_url)
+            if resolved_from_url is not None:
+                return resolved_from_url
 
         return None
+
+    def _resolve_public_or_relative_path(self, raw_path: str) -> Path | None:
+        normalized = (raw_path or "").strip().replace("\\", "/")
+        if not normalized:
+            return None
+
+        lower = normalized.lower()
+        if lower.startswith("http://") or lower.startswith("https://") or lower.startswith("data:") or lower.startswith("blob:"):
+            return None
+
+        media_prefix = f"{self._media_public_url}/"
+        if normalized.startswith(media_prefix):
+            return self._safe_join(self._media_root_dir, normalized[len(media_prefix) :])
+
+        compact_media_prefix = f"{self._media_public_url.lstrip('/')}/"
+        if normalized.startswith(compact_media_prefix):
+            return self._safe_join(self._media_root_dir, normalized[len(compact_media_prefix) :])
+
+        if self._legacy_public_dir is not None:
+            if normalized.startswith("/images/") or normalized.startswith("/videos/"):
+                return self._safe_join(self._legacy_public_dir, normalized.lstrip("/"))
+            if normalized.startswith("images/") or normalized.startswith("videos/"):
+                return self._safe_join(self._legacy_public_dir, normalized)
+            if normalized.startswith("/public/"):
+                return self._safe_join(self._legacy_public_dir, normalized[len("/public/") :])
+            if normalized.startswith("public/"):
+                return self._safe_join(self._legacy_public_dir, normalized[len("public/") :])
+
+        if normalized.startswith("/"):
+            return None
+
+        return self._safe_join(self._media_root_dir, normalized)
+
+    def _safe_join(self, root: Path, relative_path: str) -> Path | None:
+        candidate = (root / relative_path.lstrip("/")).resolve()
+        try:
+            candidate.relative_to(root)
+        except ValueError:
+            return None
+        return candidate

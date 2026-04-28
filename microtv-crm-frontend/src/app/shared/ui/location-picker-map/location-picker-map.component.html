@@ -1,0 +1,42 @@
+<section class="location-picker-map">
+  <header class="location-picker-map__header">
+    <div>
+      <p class="location-picker-map__label">{{ title() }}</p>
+      <p class="location-picker-map__coordinates">{{ coordinatesLabel() }}</p>
+    </div>
+
+    @if (showGoogleMapsLink() && googleMapsUrl(); as googleMapsUrl) {
+      <button mat-stroked-button type="button" (click)="openInGoogleMaps()">
+        <mat-icon>open_in_new</mat-icon>
+        <span>Abrir en Google Maps</span>
+      </button>
+    }
+  </header>
+
+  <div #mapShell class="location-picker-map__shell">
+    <div #mapCanvas class="location-picker-map__canvas" aria-label="Mapa de ubicación"></div>
+
+    @if (state() === 'loading' || state() === 'idle') {
+      <div class="location-picker-map__overlay" aria-live="polite">
+        <mat-progress-spinner diameter="40" mode="indeterminate"></mat-progress-spinner>
+        <p>Cargando mapa...</p>
+      </div>
+    }
+
+    @if (state() === 'error') {
+      <div class="location-picker-map__overlay location-picker-map__overlay--error" aria-live="assertive">
+        <mat-icon>warning</mat-icon>
+        <div>
+          <p class="location-picker-map__error-title">No se pudo cargar el mapa</p>
+          <p class="location-picker-map__error-copy">{{ errorMessage() }}</p>
+        </div>
+      </div>
+    }
+  </div>
+
+  @if (readOnly() && !hasVisibleMarker()) {
+    <p class="location-picker-map__hint">No hay coordenadas válidas para mostrar.</p>
+  } @else if (!readOnly()) {
+    <p class="location-picker-map__hint">Hacé click en el mapa o arrastrá el marcador para actualizar lat/lon.</p>
+  }
+</section>

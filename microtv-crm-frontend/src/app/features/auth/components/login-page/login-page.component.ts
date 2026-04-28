@@ -1,5 +1,6 @@
+import { isPlatformBrowser } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { Component, PLATFORM_ID, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -33,6 +34,9 @@ export class LoginPageComponent {
   private readonly authSessionService = inject(AuthSessionService);
   private readonly router = inject(Router);
   private readonly activatedRoute = inject(ActivatedRoute);
+  private readonly platformId = inject(PLATFORM_ID);
+  private readonly isBrowser = isPlatformBrowser(this.platformId);
+  private readonly lastLoginEmailStorageKey = 'crm-last-login-email';
 
   readonly showDevSeedAccounts = crmRuntimeConfig.devMode;
   readonly seedAccounts: CrmRuntimeSeedLoginAccount[] = crmRuntimeConfig.devLoginAccounts;
@@ -45,11 +49,11 @@ export class LoginPageComponent {
   readonly feedbackTone = signal<'error' | 'info'>('error');
   readonly showPassword = signal(false);
   readonly form = new FormGroup({
-    email: new FormControl('admin.crm@microtv.com', {
+    email: new FormControl(this.resolveInitialEmail(), {
       nonNullable: true,
       validators: [Validators.required, Validators.email]
     }),
-    password: new FormControl('Passw0rd!', {
+    password: new FormControl('', {
       nonNullable: true,
       validators: [Validators.required]
     })
@@ -68,6 +72,7 @@ export class LoginPageComponent {
       const response = await firstValueFrom(this.authSessionService.login(this.form.getRawValue()));
 
       if (response.status === 'authenticated') {
+        this.rememberEmail(this.form.controls.email.getRawValue());
         const redirectTo = this.activatedRoute.snapshot.queryParamMap.get('redirectTo') || '/';
         await this.router.navigateByUrl(redirectTo);
         return;
@@ -132,5 +137,29 @@ export class LoginPageComponent {
     }
 
     return 'No se pudo completar el login. Revisá la configuracion local y probá de nuevo.';
+  }
+
+  private resolveInitialEmail(): string {
+    if (!this.isBrowser) {
+      return '';
+    }
+
+    try {
+      return globalThis.localStorage.getItem(this.lastLoginEmailStorageKey)?.trim() ?? '';
+    } catch {
+      return '';
+    }
+  }
+
+  private rememberEmail(email: string): void {
+    if (!this.isBrowser) {
+      return;
+    }
+
+    try {
+      globalThis.localStorage.setItem(this.lastLoginEmailStorageKey, email.trim());
+    } catch {
+      // Ignore storage failures and continue login flow.
+    }
   }
 }

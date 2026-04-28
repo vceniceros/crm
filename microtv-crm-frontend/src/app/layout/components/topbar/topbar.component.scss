@@ -11,9 +11,9 @@
   min-width: 0;
   min-height: 5.5rem;
   padding: 0.95rem 1.5rem;
-  background: rgba(244, 245, 247, 0.88);
+  background: var(--topbar-bg);
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(23, 24, 26, 0.08);
+  border-bottom: 1px solid var(--topbar-border);
 }
 
 .topbar__leading,
@@ -58,12 +58,12 @@
 
 .topbar__icon-button {
   position: relative;
-  background: rgba(23, 24, 26, 0.04);
+  background: var(--topbar-icon-bg);
 }
 
 .topbar__icon-button--notifications {
   position: relative;
-  background: rgba(23, 24, 26, 0.04);
+  background: var(--topbar-icon-bg);
 }
 
 .topbar__icon-button--notifications-active {
@@ -88,8 +88,8 @@
     justify-content: space-between;
     gap: 0.6rem;
     padding: 0.65rem 0.8rem;
-    background: #fff;
-    border-bottom: 1px solid rgba(23, 24, 26, 0.08);
+    background: var(--topbar-notif-header-bg);
+    border-bottom: 1px solid var(--topbar-notif-header-border);
   }
 
   .notif-panel__heading {

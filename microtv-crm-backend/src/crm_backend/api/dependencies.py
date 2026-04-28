@@ -383,6 +383,10 @@ def get_satisfaction_form_service(
         satisfaction_images_dir=settings.satisfaction_images_dir,
         satisfaction_videos_dir=settings.satisfaction_videos_dir,
         expiry_hours=settings.satisfaction_form_expiry_hours,
+        satisfaction_images_max_bytes=settings.satisfaction_images_max_bytes,
+        satisfaction_videos_max_bytes=settings.satisfaction_videos_max_bytes,
+        satisfaction_images_public_prefix=settings.satisfaction_images_public_prefix,
+        satisfaction_videos_public_prefix=settings.satisfaction_videos_public_prefix,
     )
 
 
@@ -391,4 +395,8 @@ def get_ticket_export_service(
 ) -> "TicketExportService":
     """Provide the ticket export service."""
     from crm_backend.services.ticket_export_service import TicketExportService  # noqa: PLC0415
-    return TicketExportService(media_base_dir=settings.public_dir)
+    return TicketExportService(
+        media_root_dir=settings.crm_media_root_path,
+        media_public_url=settings.crm_media_public_url,
+        legacy_public_dir=settings.public_dir,
+    )

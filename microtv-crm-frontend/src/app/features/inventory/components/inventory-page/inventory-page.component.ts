@@ -7,8 +7,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { BehaviorSubject, combineLatest, map } from 'rxjs';
 
 import { InventoryProduct } from '../../../../core/models/inventory-product.model';
+import { UI_HELP_TEXTS } from '../../../../core/config/ui-help-texts.config';
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
 import { InventoryService } from '../../../../core/services/inventory.service';
+import { ContextHelpCardComponent } from '../../../../shared/ui/context-help-card/context-help-card.component';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 import { CreateProductDialogComponent } from '../create-product-dialog/create-product-dialog.component';
 import { InventoryTableComponent } from '../inventory-table/inventory-table.component';
@@ -21,6 +23,7 @@ import { InventoryTableComponent } from '../inventory-table/inventory-table.comp
     MatButtonModule,
     MatDialogModule,
     MatIconModule,
+    ContextHelpCardComponent,
     PageTitleComponent,
     InventoryTableComponent
   ],
@@ -34,6 +37,7 @@ export class InventoryPageComponent {
   private readonly inventoryService = inject(InventoryService);
   private readonly querySubject = new BehaviorSubject('');
   private readonly categoryIdSubject = new BehaviorSubject('all');
+  readonly helpText = UI_HELP_TEXTS.inventory;
 
   readonly inventoryPage$ = combineLatest({
     inventoryPage: this.inventoryService.inventoryPage$,

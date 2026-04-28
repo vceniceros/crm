@@ -83,6 +83,33 @@ function parseBoolean(value, fallback = false) {
   return fallback;
 }
 
+function parseNumber(value, fallback) {
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+
+  const parsed = Number(value.trim());
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+function parseMediaPublicUrl(value) {
+  if (typeof value !== 'string') {
+    return '/media';
+  }
+
+  const normalized = value.trim();
+  if (!normalized) {
+    return '/media';
+  }
+
+  const withSlash = normalized.startsWith('/') ? normalized : `/${normalized}`;
+  return withSlash.replace(/\/+$/, '') || '/media';
+}
+
 function parseDevLoginAccounts(rawValue) {
   if (typeof rawValue !== 'string' || !rawValue.trim()) {
     return null;
@@ -130,9 +157,33 @@ const devMode = parseBoolean(envValues.DEV_MODE, false);
 const devLoginAccounts = devMode
   ? (parseDevLoginAccounts(envValues.DEV_LOGIN_ACCOUNTS_JSON) ?? defaultDevLoginAccounts)
   : [];
+const mediaPublicUrl = parseMediaPublicUrl(envValues.CRM_MEDIA_PUBLIC_URL);
+const imageMaxWidth = parseNumber(envValues.IMAGE_MAX_WIDTH, 1280);
+const imageMaxHeight = parseNumber(envValues.IMAGE_MAX_HEIGHT, 1280);
+const imageQuality = parseNumber(envValues.IMAGE_QUALITY, 0.75);
+const imageTargetFormat = (envValues.IMAGE_TARGET_FORMAT || 'webp').trim().toLowerCase() || 'webp';
+const videoMaxSizeMb = parseNumber(envValues.VIDEO_MAX_SIZE_MB, 50);
+const mapStyleUrl = (envValues.NEXT_PUBLIC_MAP_STYLE_URL || '').trim();
+const mapDefaultLat = parseNumber(envValues.NEXT_PUBLIC_MAP_DEFAULT_LAT, -34.6037);
+const mapDefaultLon = parseNumber(envValues.NEXT_PUBLIC_MAP_DEFAULT_LON, -58.3816);
+const mapDefaultZoom = parseNumber(envValues.NEXT_PUBLIC_MAP_DEFAULT_ZOOM, 12);
 
 const runtimeConfigContents = `globalThis.__CRM_RUNTIME_CONFIG__ = ${JSON.stringify(
-  { crmApiBaseUrl, devMode, devLoginAccounts },
+  {
+    crmApiBaseUrl,
+    devMode,
+    devLoginAccounts,
+    mediaPublicUrl,
+    imageMaxWidth,
+    imageMaxHeight,
+    imageQuality,
+    imageTargetFormat,
+    videoMaxSizeMb,
+    mapStyleUrl,
+    mapDefaultLat,
+    mapDefaultLon,
+    mapDefaultZoom,
+  },
   null,
   2
 )};\n`;

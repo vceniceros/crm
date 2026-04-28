@@ -21,6 +21,8 @@
     </div>
   </div>
 
+  <app-context-help-card [storageId]="'tasks'" [content]="helpText" [showOnlyFirstVisit]="true" />
+
   @if (errorMessage(); as errorMessage) {
     <mat-card class="tasks-page__message tasks-page__message--error">
       <mat-card-content>
@@ -165,7 +167,7 @@
             <mat-card class="tasks-page__message">
               <mat-card-content>
                 <mat-icon>assignment_ind</mat-icon>
-                <p>No tenés tareas asignadas en este momento.</p>
+                <p>{{ helpText.emptyStates['assigned']?.title }}</p>
               </mat-card-content>
             </mat-card>
           } @else if (listState('assigned').viewMode === 'table') {
@@ -225,7 +227,7 @@
             <mat-card class="tasks-page__message">
               <mat-card-content>
                 <mat-icon>inbox</mat-icon>
-                <p>No hay subtareas pendientes de asignación para tus roles.</p>
+                <p>{{ helpText.emptyStates['unassigned']?.title }}</p>
               </mat-card-content>
             </mat-card>
           } @else if (listState('unassigned').viewMode === 'table') {
@@ -285,7 +287,7 @@
               <mat-card class="tasks-page__message">
                 <mat-card-content>
                   <mat-icon>visibility</mat-icon>
-                  <p>No hay tareas para seguimiento general.</p>
+                  <p>{{ helpText.emptyStates['tracking']?.title }}</p>
                 </mat-card-content>
               </mat-card>
             } @else if (listState('tracking').viewMode === 'table') {
@@ -347,7 +349,7 @@
               <mat-card class="tasks-page__message">
                 <mat-card-content>
                   <mat-icon>history</mat-icon>
-                  <p>No hay tareas aprobadas en el historial.</p>
+                  <p>{{ helpText.emptyStates['history']?.title }}</p>
                 </mat-card-content>
               </mat-card>
             } @else if (listState('history').viewMode === 'table') {

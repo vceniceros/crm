@@ -7,8 +7,10 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 
 import { ClientItem } from '../../../../core/models/client.model';
+import { UI_HELP_TEXTS } from '../../../../core/config/ui-help-texts.config';
 import { MockAccessControlService } from '../../../../core/services/mock-access-control.service';
 import { ClientsService } from '../../../../core/services/clients.service';
+import { ContextHelpCardComponent } from '../../../../shared/ui/context-help-card/context-help-card.component';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 import { LocationLinkService } from '../../../../shared/services/location-link.service';
 import { ClientDialogData, CreateClientDialogComponent } from '../create-client-dialog/create-client-dialog.component';
@@ -18,7 +20,7 @@ import { ClientsGridComponent } from '../clients-grid/clients-grid.component';
 @Component({
   selector: 'app-clients-page',
   standalone: true,
-  imports: [AsyncPipe, MatButtonModule, MatDialogModule, MatIconModule, PageTitleComponent, ClientsGridComponent],
+  imports: [AsyncPipe, MatButtonModule, MatDialogModule, MatIconModule, ContextHelpCardComponent, PageTitleComponent, ClientsGridComponent],
   templateUrl: './clients-page.component.html',
   styleUrl: './clients-page.component.scss'
 })
@@ -28,6 +30,7 @@ export class ClientsPageComponent {
   private readonly locationLinkService = inject(LocationLinkService);
   private readonly mockAccessControlService = inject(MockAccessControlService);
   private readonly clientsService = inject(ClientsService);
+  readonly helpText = UI_HELP_TEXTS.clients;
 
   readonly feedbackMessage = signal<string | null>(null);
   readonly feedbackTone = signal<'success' | 'error'>('success');

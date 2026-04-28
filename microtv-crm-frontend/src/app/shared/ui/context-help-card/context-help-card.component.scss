@@ -1,0 +1,118 @@
+.context-help {
+  min-width: 0;
+}
+
+.context-help__card {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(circle at right top, rgba(183, 28, 28, 0.08), transparent 35%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 249, 251, 0.96));
+  box-shadow: var(--shadow-panel);
+}
+
+.context-help__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.context-help__eyebrow,
+.context-help__title,
+.context-help__summary,
+.context-help__list-title,
+.context-help__list {
+  margin: 0;
+}
+
+.context-help__eyebrow {
+  color: var(--brand-red);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.context-help__title {
+  margin-top: 0.2rem;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.context-help__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.context-help__hide {
+  color: var(--text-secondary);
+}
+
+.context-help__summary {
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.context-help__mobile-toggle {
+  justify-self: start;
+  border-radius: 999px;
+}
+
+.context-help__mobile-toggle mat-icon {
+  margin-right: 0.25rem;
+}
+
+.context-help__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.context-help__list-title {
+  margin-bottom: 0.4rem;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.context-help__list {
+  padding-left: 1.05rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  display: grid;
+  gap: 0.35rem;
+}
+
+@media (max-width: 900px) {
+  .context-help__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .context-help__card {
+    padding: 0.9rem;
+  }
+
+  .context-help__header {
+    align-items: center;
+  }
+
+  .context-help__hide {
+    padding-inline: 0.4rem;
+    min-width: 0;
+  }
+}
+
+:host-context(html.theme-dark) .context-help__card {
+  background:
+    radial-gradient(circle at right top, rgba(183, 28, 28, 0.18), transparent 42%),
+    linear-gradient(180deg, rgba(21, 27, 38, 0.96), rgba(17, 23, 37, 0.94));
+  border-color: var(--border-subtle);
+}

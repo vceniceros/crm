@@ -257,6 +257,5 @@ def delete_product(
     """
 
     product = stock_service.delete_product(actor, product_id=product_id)
-    local_image_url = product.image_url if (product.image_url or "").startswith("/images/products/") else None
-    image_storage.delete(local_image_url)
+    image_storage.delete(product.image_url)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

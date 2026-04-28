@@ -1,0 +1,65 @@
+<section class="context-help" [attr.aria-label]="'Ayuda contextual de ' + content().moduleTitle">
+  @if (visible()) {
+    <article class="context-help__card" role="region" [attr.aria-label]="content().moduleTitle">
+      <header class="context-help__header">
+        <div>
+          <p class="context-help__eyebrow">Guía rápida</p>
+          <h3 class="context-help__title">{{ content().moduleTitle }}</h3>
+        </div>
+
+        <div class="context-help__header-actions">
+          <button
+            mat-icon-button
+            type="button"
+            [matTooltip]="content().tooltip"
+            matTooltipPosition="above"
+            [attr.aria-label]="'Ayuda adicional de ' + content().moduleTitle"
+          >
+            <mat-icon>info</mat-icon>
+          </button>
+
+          <button
+            mat-button
+            type="button"
+            class="context-help__hide"
+            [attr.aria-label]="'Ocultar ayuda de ' + content().moduleTitle"
+            (click)="hideHelp()"
+          >
+            Ocultar ayuda
+          </button>
+        </div>
+      </header>
+
+      <p class="context-help__summary">{{ content().summary }}</p>
+
+      @if (mobileMode()) {
+        <button mat-stroked-button type="button" class="context-help__mobile-toggle" (click)="toggleMobileDetails()">
+          <mat-icon>{{ mobileExpanded() ? 'expand_less' : 'expand_more' }}</mat-icon>
+          <span>{{ mobileToggleLabel() }}</span>
+        </button>
+      }
+
+      @if (!mobileMode() || mobileExpanded()) {
+        <div class="context-help__grid">
+          <section>
+            <p class="context-help__list-title">Qué estás viendo</p>
+            <ul class="context-help__list">
+              @for (bullet of content().bullets; track bullet) {
+                <li>{{ bullet }}</li>
+              }
+            </ul>
+          </section>
+
+          <section>
+            <p class="context-help__list-title">Qué podés hacer acá</p>
+            <ul class="context-help__list">
+              @for (action of content().actions; track action) {
+                <li>{{ action }}</li>
+              }
+            </ul>
+          </section>
+        </div>
+      }
+    </article>
+  }
+</section>

@@ -2,8 +2,8 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
 from typing import Annotated
+from typing import Literal
 
 from pydantic import Field
 from pydantic import field_validator
@@ -59,6 +59,8 @@ class Settings(BaseSettings):
     auth_jwt_issuer: str = Field(default="auth.crm.ycc.internal")
     auth_jwt_audience: str = Field(default="microtv-platform")
     auto_provision_crm_role: bool = Field(default=True)
+    crm_media_root: str = Field(default="public")
+    crm_media_public_url: str = Field(default="/media")
     product_images_max_bytes: int = Field(default=2 * 1024 * 1024)
     task_images_max_bytes: int = Field(default=8 * 1024 * 1024)
     task_videos_max_bytes: int = Field(default=128 * 1024 * 1024)
@@ -103,12 +105,42 @@ class Settings(BaseSettings):
         normalized = value.strip()
         return normalized or None
 
+    @field_validator("crm_media_root", mode="before")
+    @classmethod
+    def normalize_media_root(cls, value: str | Path | None) -> str:
+        """Normaliza la raíz física de multimedia."""
+
+        if value is None:
+            return "public"
+        normalized = str(value).strip()
+        return normalized or "public"
+
+    @field_validator("crm_media_public_url", mode="before")
+    @classmethod
+    def normalize_media_public_url(cls, value: str | None) -> str:
+        """Normaliza el prefijo público de multimedia."""
+
+        normalized = (value or "/media").strip() or "/media"
+        if not normalized.startswith("/"):
+            normalized = f"/{normalized}"
+        normalized = normalized.rstrip("/")
+        return normalized or "/media"
+
     @property
     def project_root(self) -> Path:
         return Path(__file__).resolve().parents[3]
 
     @property
+    def crm_media_root_path(self) -> Path:
+        root = Path(self.crm_media_root)
+        if root.is_absolute():
+            return root
+        return (self.project_root / root).resolve()
+
+    @property
     def public_dir(self) -> Path:
+        """Legacy media directory used by older /images and /videos URLs."""
+
         return self.project_root / "public"
 
     @property
@@ -121,15 +153,27 @@ class Settings(BaseSettings):
 
     @property
     def product_images_dir(self) -> Path:
-        return self.public_images_dir / "products"
+        return self.crm_media_root_path / "products" / "images"
 
     @property
     def task_images_dir(self) -> Path:
-        return self.public_images_dir / "task"
+        return self.crm_media_root_path / "tasks" / "images"
 
     @property
     def task_videos_dir(self) -> Path:
-        return self.public_videos_dir / "task"
+        return self.crm_media_root_path / "tasks" / "videos"
+
+    @property
+    def task_images_public_prefix(self) -> str:
+        return self._build_media_public_prefix("tasks", "images")
+
+    @property
+    def task_videos_public_prefix(self) -> str:
+        return self._build_media_public_prefix("tasks", "videos")
+
+    @property
+    def product_images_public_prefix(self) -> str:
+        return self._build_media_public_prefix("products", "images")
 
     satisfaction_images_max_bytes: int = Field(default=8 * 1024 * 1024)
     satisfaction_videos_max_bytes: int = Field(default=64 * 1024 * 1024)
@@ -137,15 +181,87 @@ class Settings(BaseSettings):
 
     @property
     def satisfaction_images_dir(self) -> Path:
-        return self.public_images_dir / "satisfaction"
+        return self.crm_media_root_path / "satisfaction" / "images"
 
     @property
     def satisfaction_videos_dir(self) -> Path:
-        return self.public_videos_dir / "satisfaction"
+        return self.crm_media_root_path / "satisfaction" / "videos"
+
+    @property
+    def satisfaction_images_public_prefix(self) -> str:
+        return self._build_media_public_prefix("satisfaction", "images")
+
+    @property
+    def satisfaction_videos_public_prefix(self) -> str:
+        return self._build_media_public_prefix("satisfaction", "videos")
 
     @property
     def satisfaction_media_dir(self) -> Path:
-        return self.public_dir / "satisfaction"
+        return self.crm_media_root_path / "satisfaction"
+
+    def to_public_storage_path(self, raw_path: str) -> str:
+        """Normaliza una URL/path público para persistirlo como path relativo público."""
+
+        normalized = (raw_path or "").strip().replace("\\", "/")
+        if not normalized:
+            return ""
+        if normalized.startswith("/public/"):
+            normalized = normalized[len("/public/") :]
+        elif normalized.startswith("public/"):
+            normalized = normalized[len("public/") :]
+        return normalized.lstrip("/")
+
+    def resolve_media_filesystem_path(self, raw_path: str | None) -> Path | None:
+        """Resuelve una URL/path público al archivo físico con fallback legacy."""
+
+        normalized = (raw_path or "").strip().replace("\\", "/")
+        if not normalized:
+            return None
+        lower = normalized.lower()
+        if lower.startswith("http://") or lower.startswith("https://") or lower.startswith("data:") or lower.startswith("blob:"):
+            return None
+
+        media_prefix = f"{self.crm_media_public_url}/"
+        legacy_public_prefix = "/public/"
+        if normalized.startswith(media_prefix):
+            relative = normalized[len(media_prefix) :].lstrip("/")
+            return self._safe_join(self.crm_media_root_path, relative)
+
+        if normalized.startswith(self.crm_media_public_url.lstrip("/") + "/"):
+            relative = normalized[len(self.crm_media_public_url.lstrip("/") + "/") :].lstrip("/")
+            return self._safe_join(self.crm_media_root_path, relative)
+
+        if normalized.startswith("/images/") or normalized.startswith("/videos/"):
+            return self._safe_join(self.public_dir, normalized.lstrip("/"))
+
+        if normalized.startswith(legacy_public_prefix):
+            return self._safe_join(self.public_dir, normalized[len(legacy_public_prefix) :])
+
+        if normalized.startswith("public/"):
+            return self._safe_join(self.public_dir, normalized[len("public/") :])
+
+        if normalized.startswith("images/") or normalized.startswith("videos/"):
+            return self._safe_join(self.public_dir, normalized)
+
+        if normalized.startswith("/"):
+            return None
+
+        return self._safe_join(self.crm_media_root_path, normalized)
+
+    def _build_media_public_prefix(self, *segments: str) -> str:
+        clean_segments = [segment.strip("/") for segment in segments if segment.strip("/")]
+        if not clean_segments:
+            return self.crm_media_public_url
+        return f"{self.crm_media_public_url}/{'/'.join(clean_segments)}"
+
+    def _safe_join(self, root: Path, relative_path: str) -> Path | None:
+        base = root.resolve()
+        candidate = (base / relative_path).resolve()
+        try:
+            candidate.relative_to(base)
+        except ValueError:
+            return None
+        return candidate
 
 
 @lru_cache(maxsize=1)

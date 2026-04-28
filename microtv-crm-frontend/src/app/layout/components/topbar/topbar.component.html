@@ -28,6 +28,18 @@
       <mat-icon>notifications</mat-icon>
     </button>
 
+    <button
+      type="button"
+      mat-icon-button
+      class="topbar__icon-button topbar__icon-button--theme"
+      [attr.title]="themeToggleLabel()"
+      [attr.aria-label]="themeToggleLabel()"
+      [matTooltip]="themeToggleLabel()"
+      (click)="toggleTheme()"
+    >
+      <mat-icon>{{ themeToggleIcon() }}</mat-icon>
+    </button>
+
     <mat-menu #notifPanel="matMenu" class="notif-panel" xPosition="before" panelClass="topbar__notif-menu-panel">
       <div class="notif-panel__header" (click)="$event.stopPropagation()">
         <span class="notif-panel__heading">Notificaciones</span>
@@ -56,7 +68,18 @@
       }
     </mat-menu>
 
-    <button type="button" mat-icon-button class="topbar__icon-button" aria-label="Ayuda">
+    <button
+      type="button"
+      mat-icon-button
+      class="topbar__icon-button"
+      [attr.title]="helpButtonLabel()"
+      [attr.aria-label]="helpButtonLabel()"
+      [matTooltip]="helpButtonLabel()"
+      (mouseenter)="requestContextHelpReveal()"
+      (mouseleave)="requestContextHelpHide()"
+      (focus)="requestContextHelpReveal()"
+      (click)="requestContextHelpReveal()"
+    >
       <mat-icon>help_outline</mat-icon>
     </button>
   </div>
