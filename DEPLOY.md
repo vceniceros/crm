@@ -117,7 +117,7 @@ CRM_AUTH_ADMIN_NAME=Administrador CRM
 ```
 
 ### 7.2 Backend CRM
-Archivo: `/opt/ycc/crm/microtv-crm-ycc/microtv-crm-backend/.env`
+Archivo: `/opt/ycc/microtv-crm-ycc/microtv-crm-backend/.env`
 
 ```env
 APP_NAME=MicroTV CRM Backend
@@ -197,7 +197,7 @@ Esto aplica:
 ### 9.2 CRM backend
 
 ```bash
-cd /opt/ycc/crm/microtv-crm-ycc/microtv-crm-backend
+cd /opt/ycc/microtv-crm-ycc/microtv-crm-backend
 source .venv/bin/activate
 # Si el proyecto usa bootstrap interno al inicio, mantener; si agregan alembic futuro, ejecutar aquí.
 ```
@@ -244,10 +244,10 @@ Requires=ycc-crm-auth.service
 Type=simple
 User=ycc
 Group=ycc
-WorkingDirectory=/opt/ycc/crm/microtv-crm-ycc/microtv-crm-backend
-EnvironmentFile=/opt/ycc/crm/microtv-crm-ycc/microtv-crm-backend/.env
+WorkingDirectory=/opt/ycc/microtv-crm-ycc/microtv-crm-backend
+EnvironmentFile=/opt/ycc/microtv-crm-ycc/microtv-crm-backend/.env
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/bin/bash -lc '/opt/ycc/crm/microtv-crm-ycc/microtv-crm-backend/.venv/bin/uvicorn crm_backend.main:app --host "${HOST:-127.0.0.1}" --port "${PORT:-8202}"'
+ExecStart=/bin/bash -lc '/opt/ycc/microtv-crm-ycc/microtv-crm-backend/.venv/bin/uvicorn crm_backend.main:app --host "${HOST:-127.0.0.1}" --port "${PORT:-8202}"'
 Restart=always
 RestartSec=3
 StandardOutput=append:/opt/ycc/logs/crm-backend/backend.log
@@ -399,8 +399,8 @@ location /api/ {
 ## 12) Verificación con curl
 
 ```bash
-AUTH_PORT=$(grep '^PORT=' /opt/ycc/crm/microtv-crm-ycc/auth.microtv.ar/backend/.env | cut -d= -f2)
-BACKEND_PORT=$(grep '^PORT=' /opt/ycc/crm/microtv-crm-ycc/microtv-crm-backend/.env | cut -d= -f2)
+AUTH_PORT=$(grep '^PORT=' /opt/ycc/microtv-crm-ycc/auth.microtv.ar/backend/.env | cut -d= -f2)
+BACKEND_PORT=$(grep '^PORT=' /opt/ycc/microtv-crm-ycc/microtv-crm-backend/.env | cut -d= -f2)
 FRONTEND_PORT=$(grep '^PORT=' /opt/ycc/crm/microtv-crm-ycc/microtv-crm-frontend/.env | cut -d= -f2)
 
 # salud local en 192.168.11.8
