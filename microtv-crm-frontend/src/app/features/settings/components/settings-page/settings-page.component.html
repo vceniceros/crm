@@ -5,6 +5,8 @@
     subtitle="Administrá usuarios y roles, categorías, prioridades y estados, templates, SLA y notificaciones con persistencia real."
   />
 
+  <app-context-help-card [storageId]="'settings'" [content]="helpText" [showOnlyFirstVisit]="true" />
+
   @if (errorMessage(); as errorMessage) {
     <mat-card class="settings-page__message settings-page__message--error">
       <mat-card-content>

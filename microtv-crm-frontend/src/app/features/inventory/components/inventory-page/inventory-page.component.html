@@ -17,6 +17,8 @@
       </div>
     </div>
 
+    <app-context-help-card [storageId]="'inventory'" [content]="helpText" [showOnlyFirstVisit]="true" />
+
     @if (errorMessage$ | async; as errorMessage) {
       <div class="inventory-page__feedback" role="alert">
         <mat-icon>error</mat-icon>
@@ -82,8 +84,8 @@
       <div class="inventory-page__empty-state" role="status">
         <mat-icon>search_off</mat-icon>
         <div>
-          <p class="inventory-page__empty-title">No hay coincidencias para los filtros actuales.</p>
-          <p class="inventory-page__empty-copy">Proba con otro codigo, referencia de imagen o una categoria distinta.</p>
+          <p class="inventory-page__empty-title">{{ helpText.emptyStates['filters']?.title }}</p>
+          <p class="inventory-page__empty-copy">{{ helpText.emptyStates['filters']?.description }}</p>
         </div>
       </div>
     }

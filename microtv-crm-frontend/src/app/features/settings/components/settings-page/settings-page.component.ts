@@ -28,8 +28,10 @@ import {
   SettingsUserRoleAssignment,
   SettingsUserRoleAssignmentRequest
 } from '../../../../core/models/settings-management.model';
+import { UI_HELP_TEXTS } from '../../../../core/config/ui-help-texts.config';
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
 import { SettingsManagementService } from '../../../../core/services/settings-management.service';
+import { ContextHelpCardComponent } from '../../../../shared/ui/context-help-card/context-help-card.component';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 import {
   SettingsDialogRoleOption,
@@ -47,6 +49,7 @@ import {
     MatIconModule,
     MatProgressSpinnerModule,
     MatTabsModule,
+    ContextHelpCardComponent,
     PageTitleComponent
   ],
   templateUrl: './settings-page.component.html',
@@ -58,6 +61,7 @@ export class SettingsPageComponent {
   private readonly authSessionService = inject(AuthSessionService);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
+  readonly helpText = UI_HELP_TEXTS.settings;
 
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);

@@ -19,6 +19,8 @@
     </div>
   </div>
 
+  <app-context-help-card [storageId]="'tickets'" [content]="helpText" [showOnlyFirstVisit]="true" />
+
   @if (errorMessage(); as errorMessage) {
     <div class="tickets-page__alert tickets-page__alert--error">{{ errorMessage }}</div>
   }
@@ -53,7 +55,18 @@
             (sortDirectionChanged)="onListSortDirectionChanged('assigned', $event)"
             (viewModeChanged)="onListViewModeChanged('assigned', $event)"
           />
-          <app-tickets-table title="Tickets asignados a mí" [items]="assignedVisibleRows()" [viewMode]="listState('assigned').viewMode" />
+
+          @if (!assignedVisibleRows().length) {
+            <div class="tickets-page__empty-state" aria-live="polite">
+              <mat-icon>inbox</mat-icon>
+              <div>
+                <p class="tickets-page__empty-title">{{ helpText.emptyStates['assigned']?.title }}</p>
+                <p class="tickets-page__empty-copy">{{ helpText.emptyStates['assigned']?.description }}</p>
+              </div>
+            </div>
+          } @else {
+            <app-tickets-table title="Tickets asignados a mí" [items]="assignedVisibleRows()" [viewMode]="listState('assigned').viewMode" />
+          }
         </div>
       </mat-tab>
 
@@ -71,15 +84,26 @@
             (sortDirectionChanged)="onListSortDirectionChanged('unassigned', $event)"
             (viewModeChanged)="onListViewModeChanged('unassigned', $event)"
           />
-          <app-tickets-table
-            title="Tickets sin asignar en mi rol"
-            [items]="unassignedVisibleRows()"
-            [canSelfAssign]="canSelfAssignUnassignedTickets()"
-            [isAssigning]="isAssigning()"
-            [assigningTicketId]="assigningTicketId()"
-            [viewMode]="listState('unassigned').viewMode"
-            (selfAssignRequested)="selfAssignTicket($event)"
-          />
+
+          @if (!unassignedVisibleRows().length) {
+            <div class="tickets-page__empty-state" aria-live="polite">
+              <mat-icon>assignment_late</mat-icon>
+              <div>
+                <p class="tickets-page__empty-title">{{ helpText.emptyStates['unassigned']?.title }}</p>
+                <p class="tickets-page__empty-copy">{{ helpText.emptyStates['unassigned']?.description }}</p>
+              </div>
+            </div>
+          } @else {
+            <app-tickets-table
+              title="Tickets sin asignar en mi rol"
+              [items]="unassignedVisibleRows()"
+              [canSelfAssign]="canSelfAssignUnassignedTickets()"
+              [isAssigning]="isAssigning()"
+              [assigningTicketId]="assigningTicketId()"
+              [viewMode]="listState('unassigned').viewMode"
+              (selfAssignRequested)="selfAssignTicket($event)"
+            />
+          }
         </div>
       </mat-tab>
 
@@ -97,7 +121,18 @@
             (sortDirectionChanged)="onListSortDirectionChanged('tracking', $event)"
             (viewModeChanged)="onListViewModeChanged('tracking', $event)"
           />
-          <app-tickets-table title="Seguimiento general" [items]="trackingVisibleRows()" [viewMode]="listState('tracking').viewMode" />
+
+          @if (!trackingVisibleRows().length) {
+            <div class="tickets-page__empty-state" aria-live="polite">
+              <mat-icon>visibility_off</mat-icon>
+              <div>
+                <p class="tickets-page__empty-title">{{ helpText.emptyStates['tracking']?.title }}</p>
+                <p class="tickets-page__empty-copy">{{ helpText.emptyStates['tracking']?.description }}</p>
+              </div>
+            </div>
+          } @else {
+            <app-tickets-table title="Seguimiento general" [items]="trackingVisibleRows()" [viewMode]="listState('tracking').viewMode" />
+          }
         </div>
       </mat-tab>
 
@@ -116,17 +151,28 @@
               (sortDirectionChanged)="onListSortDirectionChanged('history', $event)"
               (viewModeChanged)="onListViewModeChanged('history', $event)"
             />
-            <app-tickets-table
-              title="Historial de tickets cerrados"
-              [items]="historyVisibleRows()"
-              [viewMode]="listState('history').viewMode"
-              [enablePostClosureActions]="canGenerateSatisfactionForms()"
-              [exportingTicketId]="exportingTicketId()"
-              [generatingSurveyTicketId]="satisfactionFormGenerating()"
-              (exportHistoryRequested)="onExportTicketHistory($event)"
-              (generateSurveyRequested)="onGenerateTicketSurvey($event)"
-              (viewSurveyRequested)="onViewSurvey($event)"
-            />
+
+            @if (!historyVisibleRows().length) {
+              <div class="tickets-page__empty-state" aria-live="polite">
+                <mat-icon>history_toggle_off</mat-icon>
+                <div>
+                  <p class="tickets-page__empty-title">{{ helpText.emptyStates['history']?.title }}</p>
+                  <p class="tickets-page__empty-copy">{{ helpText.emptyStates['history']?.description }}</p>
+                </div>
+              </div>
+            } @else {
+              <app-tickets-table
+                title="Historial de tickets cerrados"
+                [items]="historyVisibleRows()"
+                [viewMode]="listState('history').viewMode"
+                [enablePostClosureActions]="canGenerateSatisfactionForms()"
+                [exportingTicketId]="exportingTicketId()"
+                [generatingSurveyTicketId]="satisfactionFormGenerating()"
+                (exportHistoryRequested)="onExportTicketHistory($event)"
+                (generateSurveyRequested)="onGenerateTicketSurvey($event)"
+                (viewSurveyRequested)="onViewSurvey($event)"
+              />
+            }
           </div>
         </mat-tab>
       }

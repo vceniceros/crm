@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +13,9 @@ from crm_backend.api.router import api_router
 from crm_backend.core.config import get_settings
 from crm_backend.db.bootstrap import initialize_database
 from crm_backend.db.session import SessionLocal
+
+
+_logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -59,10 +63,32 @@ def create_app() -> FastAPI:
     )
 
     register_error_handlers(app)
-    settings.public_images_dir.mkdir(parents=True, exist_ok=True)
-    settings.public_videos_dir.mkdir(parents=True, exist_ok=True)
-    app.mount("/images", StaticFiles(directory=settings.public_images_dir), name="images")
-    app.mount("/videos", StaticFiles(directory=settings.public_videos_dir), name="videos")
+
+    media_dirs = [
+        settings.crm_media_root_path,
+        settings.task_images_dir,
+        settings.task_videos_dir,
+        settings.product_images_dir,
+        settings.satisfaction_images_dir,
+        settings.satisfaction_videos_dir,
+        settings.public_images_dir,
+        settings.public_videos_dir,
+    ]
+    for media_dir in media_dirs:
+        try:
+            media_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            _logger.exception("No se pudo crear el directorio de multimedia: %s", media_dir)
+
+    app.mount(
+        settings.crm_media_public_url,
+        StaticFiles(directory=settings.crm_media_root_path, check_dir=False),
+        name="media",
+    )
+    if settings.crm_media_public_url != "/images":
+        app.mount("/images", StaticFiles(directory=settings.public_images_dir, check_dir=False), name="images")
+    if settings.crm_media_public_url != "/videos":
+        app.mount("/videos", StaticFiles(directory=settings.public_videos_dir, check_dir=False), name="videos")
     app.include_router(api_router)
 
     return app

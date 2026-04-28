@@ -1,9 +1,10 @@
 import { isPlatformBrowser } from '@angular/common';
 import { inject, Injectable, PLATFORM_ID } from '@angular/core';
-import { Observable } from 'rxjs';
+import { from, Observable, switchMap } from 'rxjs';
 
 import { TaskAttachment } from '../../core/models/task-attachment.model';
 import { TaskManagementService } from '../../core/services/task-management.service';
+import { optimizeImageForUpload } from '../../core/utils/media-upload-optimization';
 
 import { ImageUploadStrategy } from './media-upload/image-upload.strategy';
 import { MediaUploadContext, MediaUploadPort, MediaUploadStrategy } from './media-upload/media-upload.types';
@@ -27,8 +28,9 @@ export class MediaUploadFacade implements MediaUploadPort {
       throw new Error('La subida de multimedia solo está disponible en el navegador.');
     }
 
-    files.forEach((file) => this.resolveStrategy(context, file).validate(file));
-    return this.taskManagementService.uploadTaskAttachments(context.taskId, files, context.subtaskId ?? null);
+    return from(this.prepareFilesForUpload(files, context)).pipe(
+      switchMap((preparedFiles) => this.taskManagementService.uploadTaskAttachments(context.taskId, preparedFiles, context.subtaskId ?? null))
+    );
   }
 
   delete(attachmentId: string): Observable<void> {
@@ -54,5 +56,24 @@ export class MediaUploadFacade implements MediaUploadPort {
 
   private getStrategiesFor(_context: MediaUploadContext): MediaUploadStrategy[] {
     return this.strategies;
+  }
+
+  private async prepareFilesForUpload(files: readonly File[], context: MediaUploadContext): Promise<File[]> {
+    const prepared: File[] = [];
+
+    for (const file of files) {
+      const strategy = this.resolveStrategy(context, file);
+      if (strategy.kind === 'image') {
+        const optimized = await optimizeImageForUpload(file);
+        strategy.validate(optimized);
+        prepared.push(optimized);
+        continue;
+      }
+
+      strategy.validate(file);
+      prepared.push(file);
+    }
+
+    return prepared;
   }
 }

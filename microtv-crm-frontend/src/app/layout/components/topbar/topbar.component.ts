@@ -10,6 +10,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { Notification } from '../../../core/models/notification.model';
+import { ContextHelpService } from '../../../core/services/context-help.service';
 import { NotificationsService } from '../../../core/services/notifications.service';
 import { ThemeService } from '../../../core/services/theme.service';
 
@@ -28,6 +29,7 @@ export class TopbarComponent implements OnInit, OnDestroy {
   private readonly notificationsService = inject(NotificationsService);
   private readonly router = inject(Router);
   private readonly themeService = inject(ThemeService);
+  private readonly contextHelpService = inject(ContextHelpService);
 
   readonly unreadCount$ = this.notificationsService.unreadCount$;
   readonly notifications$ = this.notificationsService.notifications$;
@@ -37,6 +39,7 @@ export class TopbarComponent implements OnInit, OnDestroy {
   readonly themeToggleLabel = computed(() =>
     this.currentTheme() === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'
   );
+  readonly helpButtonLabel = computed(() => 'Mostrar ayudas de esta pantalla');
 
   ngOnInit(): void {
     this.notificationsService.startPolling();
@@ -70,5 +73,13 @@ export class TopbarComponent implements OnInit, OnDestroy {
 
   toggleTheme(): void {
     this.themeService.toggleTheme();
+  }
+
+  requestContextHelpReveal(): void {
+    this.contextHelpService.requestReveal();
+  }
+
+  requestContextHelpHide(): void {
+    this.contextHelpService.requestHide();
   }
 }

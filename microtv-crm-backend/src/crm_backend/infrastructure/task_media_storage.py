@@ -42,7 +42,8 @@ class BaseTaskMediaUploadStrategy:
     allowed_content_types: set[str]
     allowed_extensions: set[str]
 
-    def __init__(self, *, target_dir: Path, public_prefix: str, max_bytes: int) -> None:
+    def __init__(self, *, settings: Settings, target_dir: Path, public_prefix: str, max_bytes: int) -> None:
+        self._settings = settings
         self._target_dir = target_dir
         self._public_prefix = public_prefix.rstrip("/")
         self._max_bytes = max_bytes
@@ -61,7 +62,7 @@ class BaseTaskMediaUploadStrategy:
         return StoredTaskMedia(
             file_name=file_name,
             file_url=f"{self._public_prefix}/{file_name}",
-            storage_path=str(Path("public") / Path(self._public_prefix.lstrip("/")) / file_name).replace("\\", "/"),
+            storage_path=self._settings.to_public_storage_path(f"{self._public_prefix}/{file_name}"),
             mime_type=upload.content_type or self._default_mime_type(),
             file_size_bytes=len(content),
             attachment_type=self.attachment_type,
@@ -71,6 +72,14 @@ class BaseTaskMediaUploadStrategy:
         candidate = self._target_dir / stored_media.file_name
         if candidate.exists():
             candidate.unlink()
+            return
+
+        fallback_paths = [stored_media.file_url, stored_media.storage_path]
+        for raw_path in fallback_paths:
+            resolved = self._settings.resolve_media_filesystem_path(raw_path)
+            if resolved is not None and resolved.exists():
+                resolved.unlink()
+                return
 
     def _validate(self, upload: UploadFile, content: bytes) -> None:
         if not content:
@@ -135,15 +144,18 @@ class TaskMediaStorageFacade:
     """Resolve the upload strategy and persist task media files."""
 
     def __init__(self, settings: Settings) -> None:
+        self._settings = settings
         self._strategies: list[TaskMediaUploadStrategy] = [
             ImageTaskMediaUploadStrategy(
+                settings=settings,
                 target_dir=settings.task_images_dir,
-                public_prefix="/images/task",
+                public_prefix=settings.task_images_public_prefix,
                 max_bytes=settings.task_images_max_bytes,
             ),
             VideoTaskMediaUploadStrategy(
+                settings=settings,
                 target_dir=settings.task_videos_dir,
-                public_prefix="/videos/task",
+                public_prefix=settings.task_videos_public_prefix,
                 max_bytes=settings.task_videos_max_bytes,
             ),
         ]
@@ -168,7 +180,7 @@ class TaskMediaStorageFacade:
             StoredTaskMedia(
                 file_name=file_name,
                 file_url=file_url,
-                storage_path=str(Path("public") / Path(file_url.lstrip("/"))).replace("\\", "/"),
+                storage_path=self._settings.to_public_storage_path(file_url),
                 mime_type=mime_type or "application/octet-stream",
                 file_size_bytes=file_size_bytes or 0,
                 attachment_type=attachment_type,

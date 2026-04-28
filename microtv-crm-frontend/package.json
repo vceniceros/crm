@@ -30,6 +30,7 @@
     "@angular/ssr": "^21.2.6",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "browser-image-compression": "^2.0.2",
     "express": "^5.1.0",
     "leaflet": "^1.9.4",
     "react": "^19.2.5",

@@ -40,7 +40,7 @@ class ProductImageStorage:
         filename = f"{uuid4()}{suffix}"
         destination = self._target_dir / filename
         destination.write_bytes(content)
-        return f"/images/products/{filename}"
+        return f"{self._settings.product_images_public_prefix}/{filename}"
 
     def delete(self, relative_url: str | None) -> None:
         """Delete a previously stored image if it exists."""
@@ -53,6 +53,11 @@ class ProductImageStorage:
         candidate = self._target_dir / filename
         if candidate.exists():
             candidate.unlink()
+            return
+
+        fallback = self._settings.resolve_media_filesystem_path(relative_url)
+        if fallback is not None and fallback.exists():
+            fallback.unlink()
 
     def _detect_suffix(self, *, content: bytes, content_type: str | None) -> str:
         if content.startswith(self._SIGNATURES["image/jpeg"][0]):

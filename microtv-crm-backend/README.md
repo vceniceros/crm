@@ -58,6 +58,31 @@ pip install -e .[test]
 uvicorn crm_backend.main:app --reload --host 0.0.0.0 --port 8010
 ```
 
+## Multimedia configurable
+
+El backend soporta almacenamiento de archivos multimedia fuera del repo usando `.env`:
+
+- `CRM_MEDIA_ROOT`: carpeta física donde se escriben archivos (por ejemplo `/opt/ycc/crm-media`).
+- `CRM_MEDIA_PUBLIC_URL`: prefijo público montado por FastAPI (por ejemplo `/media`).
+
+Subcarpetas usadas por módulo:
+
+- `tasks/images`
+- `tasks/videos`
+- `products/images`
+- `satisfaction/images`
+- `satisfaction/videos`
+
+Para compatibilidad legacy, el backend mantiene mounts de `/images` y `/videos` apuntando al directorio histórico `public/` del proyecto.
+
+Ejemplo recomendado en Nginx:
+
+```nginx
+location /media/ {
+  proxy_pass http://127.0.0.1:8202;
+}
+```
+
 ## Contrato HTTP actual
 
 ### `POST /auth/login`

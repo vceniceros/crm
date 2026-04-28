@@ -15,6 +15,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
 
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
+import { UI_HELP_TEXTS } from '../../../../core/config/ui-help-texts.config';
 import { AppLocation } from '../../../../core/models/location.model';
 import {
   buildInitials,
@@ -35,6 +36,7 @@ import { ListingControlsComponent, ListingSortDirection, ListingStatusOption } f
 import { LocationPickerService } from '../../../../shared/services/location-picker.service';
 import { LocationLinkService } from '../../../../shared/services/location-link.service';
 import { LocationMapComponent } from '../../../../shared/ui/location-map/location-map.component';
+import { ContextHelpCardComponent } from '../../../../shared/ui/context-help-card/context-help-card.component';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 import { StatusBadgeComponent } from '../../../../shared/ui/status-badge/status-badge.component';
 import { TasksTableComponent } from '../tasks-table/tasks-table.component';
@@ -61,6 +63,7 @@ interface TaskListUiState {
     MatProgressSpinnerModule,
     MatSelectModule,
     MatTabsModule,
+    ContextHelpCardComponent,
     ListingControlsComponent,
     LocationMapComponent,
     PageTitleComponent,
@@ -84,6 +87,7 @@ export class TasksPageComponent {
   private readonly activatedRoute = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  readonly helpText = UI_HELP_TEXTS.tasks;
 
   readonly isLoading = signal(true);
   readonly isCreatingTask = signal(false);

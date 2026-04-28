@@ -15,6 +15,16 @@
   font-weight: 600;
 }
 
+.dashboard-state p {
+  margin: 0;
+}
+
+.dashboard-state__description {
+  margin-top: 0.35rem !important;
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
 .dashboard-state--loading {
   border-left: 6px solid var(--accent-blue);
 }

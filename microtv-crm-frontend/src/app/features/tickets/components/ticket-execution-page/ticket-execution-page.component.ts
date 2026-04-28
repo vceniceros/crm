@@ -13,7 +13,7 @@ import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { forkJoin } from 'rxjs';
+import { forkJoin, from, switchMap } from 'rxjs';
 
 import { CrmUserOption } from '../../../../core/models/task-management.model';
 import { InventoryProduct } from '../../../../core/models/inventory-product.model';
@@ -34,6 +34,7 @@ import { InventoryFlowService } from '../../../../core/services/inventory-flow.s
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
 import { TicketManagementService } from '../../../../core/services/ticket-management.service';
 import { TicketInventoryRequest, TicketInventoryRequestItem, TicketInventoryRequestStatus } from '../../../../core/models/ticket-inventory-request.model';
+import { isVideoFile, mediaVideoMaxBytes, optimizeImagesForUpload } from '../../../../core/utils/media-upload-optimization';
 import { LocationLinkService } from '../../../../shared/services/location-link.service';
 import { LocationPickerService } from '../../../../shared/services/location-picker.service';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
@@ -485,8 +486,8 @@ export class TicketExecutionPageComponent {
 
     this.isSaving.set(true);
     this.errorMessage.set(null);
-    this.ticketManagementService
-      .uploadTicketAttachments(ticket.ticket_id, files)
+    from(this.prepareTicketFilesForUpload(files))
+      .pipe(switchMap((preparedFiles) => this.ticketManagementService.uploadTicketAttachments(ticket.ticket_id, preparedFiles)))
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (attachments) => {
@@ -499,6 +500,19 @@ export class TicketExecutionPageComponent {
           this.isSaving.set(false);
         }
       });
+  }
+
+  private async prepareTicketFilesForUpload(files: readonly File[]): Promise<File[]> {
+    const maxVideoBytes = mediaVideoMaxBytes();
+    const maxVideoMb = Math.max(1, Math.round(maxVideoBytes / (1024 * 1024)));
+
+    for (const file of files) {
+      if (isVideoFile(file) && file.size > maxVideoBytes) {
+        throw new Error(`El video ${file.name} supera el límite permitido de ${maxVideoMb} MB.`);
+      }
+    }
+
+    return optimizeImagesForUpload(files);
   }
 
   removeAttachment(attachmentId: string): void {

@@ -68,7 +68,18 @@
       }
     </mat-menu>
 
-    <button type="button" mat-icon-button class="topbar__icon-button" aria-label="Ayuda">
+    <button
+      type="button"
+      mat-icon-button
+      class="topbar__icon-button"
+      [attr.title]="helpButtonLabel()"
+      [attr.aria-label]="helpButtonLabel()"
+      [matTooltip]="helpButtonLabel()"
+      (mouseenter)="requestContextHelpReveal()"
+      (mouseleave)="requestContextHelpHide()"
+      (focus)="requestContextHelpReveal()"
+      (click)="requestContextHelpReveal()"
+    >
       <mat-icon>help_outline</mat-icon>
     </button>
   </div>

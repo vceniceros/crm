@@ -132,7 +132,18 @@ export class TaskAttachmentsSectionComponent {
       return normalized;
     }
 
-    const normalizedPath = normalized.replace(/^\/?public\//i, '').replace(/^\/+/, '');
+    const slashNormalized = normalized.replace(/\\/g, '/');
+    const lowerPath = slashNormalized.toLowerCase();
+    const publicMarker = '/public/';
+    const publicIndex = lowerPath.lastIndexOf(publicMarker);
+    const normalizedPath = (publicIndex >= 0 ? slashNormalized.slice(publicIndex + publicMarker.length) : slashNormalized)
+      .replace(/^\/?public\//i, '')
+      .replace(/^\/+/, '');
+
+    if (!normalizedPath || /^[a-z]:\//i.test(normalizedPath)) {
+      return null;
+    }
+
     return `${this.backendOrigin}/${normalizedPath}`;
   }
 

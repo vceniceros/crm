@@ -138,6 +138,18 @@ AUTH_JWT_ALGORITHM=HS256
 AUTH_JWT_ISSUER=auth.crm.ycc.internal
 AUTH_JWT_AUDIENCE=microtv-platform
 
+# Raíz física real de multimedia (fuera del repo).
+CRM_MEDIA_ROOT=/opt/ycc/crm-media
+# Prefijo público que devuelve/consume la API.
+CRM_MEDIA_PUBLIC_URL=/media
+
+# Límites de backend (bytes).
+PRODUCT_IMAGES_MAX_BYTES=2097152
+TASK_IMAGES_MAX_BYTES=8388608
+TASK_VIDEOS_MAX_BYTES=134217728
+SATISFACTION_IMAGES_MAX_BYTES=8388608
+SATISFACTION_VIDEOS_MAX_BYTES=67108864
+
 AUTO_PROVISION_CRM_ROLE=true
 DEFAULT_ADMIN_AUTH_ROLES=admin,platform_admin,company_admin
 DEFAULT_DEPOSITO_AUTH_ROLES=operador_deposito,company_operator
@@ -152,9 +164,52 @@ Archivo: `/opt/ycc/crm/microtv-crm-ycc/microtv-crm-frontend/.env`
 ```env
 SERVER_NAME=crm.ycc.group
 CRM_API_BASE_URL=https://crm.ycc.group/api
+
+# Debe coincidir con CRM_MEDIA_PUBLIC_URL del backend.
+CRM_MEDIA_PUBLIC_URL=/media
+
+# Compresión/redimensión de imágenes en frontend.
+IMAGE_MAX_WIDTH=1280
+IMAGE_MAX_HEIGHT=1280
+IMAGE_QUALITY=0.75
+# Objetivo preferido. Hoy el backend valida JPG/PNG/WEBP; si pones avif, el frontend hace fallback seguro a webp.
+IMAGE_TARGET_FORMAT=webp
+
+# Límite de validación para videos en frontend (sin compresión pesada).
+VIDEO_MAX_SIZE_MB=50
+
 PORT=8201
 NODE_ENV=production
 ```
+
+### 7.4 Multimedia declarativo (fuente de verdad = `.env`)
+
+El manejo de multimedia queda 100% gobernado por variables de entorno:
+
+- Backend escribe archivos en `CRM_MEDIA_ROOT`.
+- Backend publica archivos bajo `CRM_MEDIA_PUBLIC_URL`.
+- Frontend comprime/redimensiona imágenes antes de upload con `IMAGE_MAX_*`, `IMAGE_QUALITY`, `IMAGE_TARGET_FORMAT`.
+- Frontend valida tamaño de video con `VIDEO_MAX_SIZE_MB` (sin compresión de video pesada).
+
+Estructura esperada en disco (ejemplo):
+
+```text
+/opt/ycc/crm-media/
+  tasks/
+    images/
+    videos/
+  products/
+    images/
+  satisfaction/
+    images/
+    videos/
+```
+
+Reglas operativas:
+
+- No guardar multimedia dentro del repo.
+- En DB/API se persiste URL pública relativa (ej: `/media/tasks/images/archivo.webp`), no paths físicos.
+- Se mantiene compatibilidad temporal con rutas legacy (`/images/...`, `/videos/...`) para registros viejos.
 
 ## 8) Instalación de dependencias
 
@@ -177,6 +232,16 @@ cd ../microtv-crm-frontend
 npm ci
 npm run build
 ```
+
+### 8.1 Dependencias adicionales por multimedia (estado actual)
+
+Asumiendo que el último commit ya es el que está en producción:
+
+- No hay nuevas dependencias de sistema (`apt`) por este cambio de multimedia.
+- No hay nuevas dependencias Python fuera de las ya instaladas por `pip install -e .`.
+- Sí hay dependencia frontend (`browser-image-compression`), pero ya está versionada en `package.json`.
+  - `npm ci` la instala automáticamente.
+  - Si solo actualizás `.env` de frontend, igual debés regenerar build (`npm run build`) para reflejar runtime config en artefactos desplegados.
 
 ## 9) Migraciones
 
@@ -293,6 +358,9 @@ Si el checkout está en `/opt/ycc/crm/microtv-crm-ycc`, reemplazar ese prefijo e
 sudo mkdir -p /opt/ycc/logs/crm-frontend
 sudo chown ycc:ycc /opt/ycc/logs/crm-frontend
 
+sudo mkdir -p /opt/ycc/crm-media
+sudo chown -R ycc:ycc /opt/ycc/crm-media
+
 sudo systemctl daemon-reload
 sudo systemctl enable ycc-crm-auth ycc-crm-backend ycc-crm-frontend
 sudo systemctl restart ycc-crm-auth ycc-crm-backend ycc-crm-frontend
@@ -331,7 +399,16 @@ location /api/ {
   proxy_set_header X-Forwarded-Proto $scheme;
 }
 
-# Archivos públicos montados por FastAPI (task media, etc.).
+# Archivos multimedia públicos montados por FastAPI.
+location /media/ {
+  proxy_pass http://192.168.11.8:8202;
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+# Fallback legacy opcional para registros viejos que guarden /images/* o /videos/*.
 location /images/ {
   proxy_pass http://192.168.11.8:8202;
   proxy_set_header Host $host;
@@ -363,6 +440,11 @@ location = /nginx-health {
   return 200 "healthy\n";
 }
 ```
+
+Importante:
+
+- Si cambiás `CRM_MEDIA_PUBLIC_URL` en backend/frontend, también tenés que ajustar este `location` en Nginx.
+- Mantener `/images/` y `/videos/` como fallback legacy hasta completar limpieza de registros históricos.
 
 Aplicar y validar en el host `192.168.11.6`:
 
@@ -419,6 +501,15 @@ curl -sS https://crm.ycc.group/api/health
 curl -sS -X POST https://crm.ycc.group/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@ycc.local","password":"<PASSWORD_INICIAL>"}'
+
+# validar configuración multimedia efectiva
+grep '^CRM_MEDIA_' /opt/ycc/microtv-crm-ycc/microtv-crm-backend/.env
+grep -E '^(CRM_MEDIA_PUBLIC_URL|IMAGE_MAX_WIDTH|IMAGE_MAX_HEIGHT|IMAGE_QUALITY|IMAGE_TARGET_FORMAT|VIDEO_MAX_SIZE_MB)=' /opt/ycc/crm/microtv-crm-ycc/microtv-crm-frontend/.env
+
+# validar estructura física esperada de media
+MEDIA_ROOT=$(grep '^CRM_MEDIA_ROOT=' /opt/ycc/microtv-crm-ycc/microtv-crm-backend/.env | cut -d= -f2)
+ls -la "${MEDIA_ROOT}"
+ls -la "${MEDIA_ROOT}/tasks" "${MEDIA_ROOT}/products" "${MEDIA_ROOT}/satisfaction"
 ```
 
 ## 13) Operación diaria
@@ -452,6 +543,11 @@ Opciones:
 - [ ] Asignación de roles operativos funciona.
 - [ ] Login del usuario creado funciona.
 - [ ] Re-ejecutar `python -m src.cli ensure_crm_bootstrap` no duplica roles/admin.
+- [ ] `CRM_MEDIA_ROOT` apunta fuera del repo y existe en disco.
+- [ ] Upload de imagen en ticket/tarea/producto/satisfacción devuelve URL pública con prefijo `CRM_MEDIA_PUBLIC_URL`.
+- [ ] Upload de video respeta límites configurados y sigue operativo sin compresión pesada.
+- [ ] Visualización de multimedia nueva funciona por `/media/...`.
+- [ ] Visualización de multimedia legacy (`/images/...` y `/videos/...`) sigue funcionando.
 
 ## 16) Seguridad mínima
 

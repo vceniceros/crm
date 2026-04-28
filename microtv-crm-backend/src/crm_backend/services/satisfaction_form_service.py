@@ -35,9 +35,6 @@ if TYPE_CHECKING:
 
 _logger = logging.getLogger(__name__)
 
-# Size limits (configurable via Settings but using sensible defaults here)
-_MAX_IMAGE_BYTES = 8 * 1024 * 1024   # 8 MB
-_MAX_VIDEO_BYTES = 64 * 1024 * 1024  # 64 MB
 _ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 _ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/quicktime"}
 _ALLOWED_MIME_TYPES = _ALLOWED_IMAGE_TYPES | _ALLOWED_VIDEO_TYPES
@@ -80,11 +77,19 @@ class PublicSatisfactionFormService:
         satisfaction_images_dir: object,  # pathlib.Path
         satisfaction_videos_dir: object,  # pathlib.Path
         expiry_hours: int = _DEFAULT_EXPIRY_HOURS,
+        satisfaction_images_max_bytes: int = 8 * 1024 * 1024,
+        satisfaction_videos_max_bytes: int = 64 * 1024 * 1024,
+        satisfaction_images_public_prefix: str = "/images/satisfaction",
+        satisfaction_videos_public_prefix: str = "/videos/satisfaction",
     ) -> None:
         self._session = session
         self._images_dir = Path(satisfaction_images_dir)  # type: ignore[arg-type]
         self._videos_dir = Path(satisfaction_videos_dir)  # type: ignore[arg-type]
         self._expiry_hours = expiry_hours
+        self._max_image_bytes = satisfaction_images_max_bytes
+        self._max_video_bytes = satisfaction_videos_max_bytes
+        self._images_public_prefix = satisfaction_images_public_prefix.rstrip("/")
+        self._videos_public_prefix = satisfaction_videos_public_prefix.rstrip("/")
 
     # ------------------------------------------------------------------
     # Internal (authenticated) operations
@@ -317,7 +322,7 @@ class PublicSatisfactionFormService:
         self._check_magic_bytes(content, mime)
 
         is_video = mime in _ALLOWED_VIDEO_TYPES
-        max_bytes = _MAX_VIDEO_BYTES if is_video else _MAX_IMAGE_BYTES
+        max_bytes = self._max_video_bytes if is_video else self._max_image_bytes
         if len(content) > max_bytes:
             limit_mb = max_bytes // (1024 * 1024)
             raise TicketValidationError(f"El archivo supera el límite permitido de {limit_mb} MB.")
@@ -363,5 +368,5 @@ class PublicSatisfactionFormService:
         return normalized
 
     def _build_public_media_path(self, file_name: str, *, is_video: bool) -> str:
-        base = "/videos/satisfaction" if is_video else "/images/satisfaction"
+        base = self._videos_public_prefix if is_video else self._images_public_prefix
         return f"{base}/{file_name}"
