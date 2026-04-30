@@ -108,7 +108,7 @@ export class LocationPickerMapComponent implements AfterViewInit, OnChanges, OnD
   private mapInstance: MapLibreMap | null = null;
   private editableMarker: MapLibreMarker | null = null;
   private staticMarkers: MapLibreMarker[] = [];
-  private maplibreModule: typeof import('maplibre-gl') | null = null;
+  private maplibreModule: Pick<typeof import('maplibre-gl'), 'Map' | 'Marker'> | null = null;
   private mapInitializationPromise: Promise<void> | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private resizeFrameId: number | null = null;
@@ -192,7 +192,13 @@ export class LocationPickerMapComponent implements AfterViewInit, OnChanges, OnD
     this.errorMessage.set('');
 
     this.mapInitializationPromise = (async () => {
-      const maplibre = await import('maplibre-gl');
+      const imported = await import('maplibre-gl');
+      const maplibre = ((imported as { default?: typeof import('maplibre-gl') }).default ?? imported);
+
+      if (typeof maplibre.Map !== 'function' || typeof maplibre.Marker !== 'function') {
+        throw new Error('No se pudo inicializar MapLibre: exportaciones Map/Marker no disponibles.');
+      }
+
       this.maplibreModule = maplibre;
 
       const initialCenter = this.resolveInitialCenter();
