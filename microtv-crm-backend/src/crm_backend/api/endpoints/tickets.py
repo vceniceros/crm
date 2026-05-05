@@ -93,14 +93,22 @@ def list_assignable_roles(
     ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
 ) -> list[TicketRoleOptionResponse]:
     roles = ticket_service.list_assignable_roles(actor)
-    return [
-        TicketRoleOptionResponse(
-            crm_role_id=role.crm_role_id,
-            role_key=role.role_key,
-            role_label=role.role_label,
+    response: list[TicketRoleOptionResponse] = []
+    for role in roles:
+        role_id = str(getattr(role, "crm_role_id", "") or "").strip()
+        role_key = str(getattr(role, "role_key", "") or "").strip()
+        role_label = str(getattr(role, "role_label", "") or "").strip()
+        if not role_id or not role_key or not role_label:
+            continue
+        response.append(
+            TicketRoleOptionResponse(
+                crm_role_id=role_id,
+                role_key=role_key,
+                role_label=role_label,
+            )
         )
-        for role in roles
-    ]
+
+    return response
 
 
 @router.post(
