@@ -10,6 +10,7 @@ export interface CurrentUser {
   initials: string;
   name: string;
   role: string;
+  avatarUrl?: string | null;
 }
 
 export interface TopbarInfo {

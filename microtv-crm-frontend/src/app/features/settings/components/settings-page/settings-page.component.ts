@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -11,6 +10,7 @@ import { forkJoin } from 'rxjs';
 
 import {
   SettingsAuthUser,
+  SettingsAuthUserCreateRequest,
   SettingsCategory,
   SettingsCategoryWriteRequest,
   SettingsNotificationRule,
@@ -42,7 +42,6 @@ import {
   selector: 'app-settings-page',
   standalone: true,
   imports: [
-    DatePipe,
     MatButtonModule,
     MatCardModule,
     MatDialogModule,
@@ -92,28 +91,12 @@ export class SettingsPageComponent {
     this.errorMessage.set(null);
 
     forkJoin({
-      roles: this.settingsService.listRoles(),
-      userRoles: this.settingsService.listUserRoles(),
-      authUsers: this.settingsService.listAuthUsers(),
-      categories: this.settingsService.listCategories(),
-      priorities: this.settingsService.listPriorities(),
-      statuses: this.settingsService.listStatuses(),
-      templates: this.settingsService.listTaskTemplates(),
-      sla: this.settingsService.listSlaRules(),
-      notifications: this.settingsService.listNotificationRules()
+      authUsers: this.settingsService.listAuthUsers()
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (result) => {
-          this.roles.set(result.roles);
-          this.userRoles.set(result.userRoles);
           this.authUsers.set(result.authUsers);
-          this.categories.set(result.categories);
-          this.priorities.set(result.priorities);
-          this.statuses.set(result.statuses);
-          this.templates.set(result.templates);
-          this.slaRules.set(result.sla);
-          this.notificationRules.set(result.notifications);
           this.loading.set(false);
         },
         error: (error: Error) => {
@@ -364,6 +347,11 @@ export class SettingsPageComponent {
     return this.authSessionService.sessionSnapshot()?.user.role_keys.includes('admin') ?? false;
   }
 
+  isAdminOrExecutive(): boolean {
+    const roleKeys = this.authSessionService.sessionSnapshot()?.user.role_keys ?? [];
+    return roleKeys.includes('admin') || roleKeys.includes('ejecutivo');
+  }
+
   prettyAuthRoles(roleKeys: string[]): string {
     const byKey = new Map(this.crmOperationalRoles.map((role) => [role.code, role.label]));
     if (!roleKeys.length) {
@@ -373,89 +361,92 @@ export class SettingsPageComponent {
   }
 
   createAuthUser(): void {
-    const email = window.prompt('Email del usuario nuevo (obligatorio):', '')?.trim();
-    if (!email) {
-      return;
-    }
-    const displayName = window.prompt('Nombre visible:', '')?.trim();
-    if (!displayName) {
-      return;
-    }
-    const password = window.prompt('Contraseña inicial (mínimo 8 caracteres):', '') ?? '';
-    if (password.length < 8) {
-      this.errorMessage.set('La contraseña inicial debe tener al menos 8 caracteres.');
-      return;
-    }
-    const roleInput = window.prompt(
-      'Roles (separados por coma): admin, ejecutivo, tecnico_campo, operador_deposito',
-      'operador_deposito'
-    );
-    const roles = (roleInput ?? '')
-      .split(',')
-      .map((role) => role.trim())
-      .filter((role) => !!role);
-
-    this.settingsService
-      .createAuthUser({
-        email,
-        display_name: displayName,
-        password,
-        is_active: true,
-        roles
+    this.dialog
+      .open(SettingsEditDialogComponent, {
+        width: '34rem',
+        data: {
+          kind: 'auth-user',
+          authUserMode: 'create',
+          title: 'Nuevo usuario',
+          submitLabel: 'Crear',
+          value: {
+            email: '',
+            display_name: '',
+            password: '',
+            roles: ['operador_deposito']
+          },
+          roleOptions: this.crmOperationalRoles.map((role) => ({ code: role.code, label: role.label }))
+        }
       })
+      .afterClosed()
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => this.reload(),
-        error: (error: Error) => this.errorMessage.set(error.message)
+      .subscribe((value: { email: string; display_name: string; password: string; roles: string[] } | undefined) => {
+        if (!value) {
+          return;
+        }
+
+        const payload: SettingsAuthUserCreateRequest = {
+          email: value.email,
+          display_name: value.display_name,
+          password: value.password,
+          is_active: true,
+          roles: value.roles ?? []
+        };
+
+        this.settingsService
+          .createAuthUser(payload)
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe({
+            next: () => this.reload(),
+            error: (error: Error) => this.errorMessage.set(error.message)
+          });
       });
   }
 
   editAuthUser(user: SettingsAuthUser): void {
-    const nextEmail = window.prompt('Email del usuario:', user.email)?.trim();
-    if (!nextEmail) {
-      return;
-    }
-    const nextName = window.prompt('Nombre visible:', user.display_name)?.trim();
-    if (!nextName) {
-      return;
-    }
-    this.settingsService
-      .updateAuthUser(user.user_id, {
-        email: nextEmail,
-        display_name: nextName
+    this.dialog
+      .open(SettingsEditDialogComponent, {
+        width: '34rem',
+        data: {
+          kind: 'auth-user',
+          authUserMode: 'edit',
+          title: `Editar usuario ${user.display_name}`,
+          submitLabel: 'Guardar',
+          value: {
+            email: user.email,
+            display_name: user.display_name,
+            roles: user.roles
+          },
+          roleOptions: this.crmOperationalRoles.map((role) => ({ code: role.code, label: role.label }))
+        }
       })
+      .afterClosed()
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => this.reload(),
-        error: (error: Error) => this.errorMessage.set(error.message)
+      .subscribe((value: { email: string; display_name: string; roles: string[] } | undefined) => {
+        if (!value) {
+          return;
+        }
+
+        forkJoin({
+          user: this.settingsService.updateAuthUser(user.user_id, {
+            email: value.email,
+            display_name: value.display_name
+          }),
+          roles: this.settingsService.setAuthUserRoles(user.user_id, {
+            roles: value.roles ?? []
+          })
+        })
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe({
+            next: () => this.reload(),
+            error: (error: Error) => this.errorMessage.set(error.message)
+          });
       });
   }
 
   toggleAuthUserStatus(user: SettingsAuthUser): void {
     this.settingsService
       .setAuthUserStatus(user.user_id, { is_active: !user.is_active })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => this.reload(),
-        error: (error: Error) => this.errorMessage.set(error.message)
-      });
-  }
-
-  updateAuthUserRoles(user: SettingsAuthUser): void {
-    const value = window.prompt(
-      'Roles (separados por coma): admin, ejecutivo, tecnico_campo, operador_deposito',
-      user.roles.join(', ')
-    );
-    if (value === null) {
-      return;
-    }
-    const roles = value
-      .split(',')
-      .map((role) => role.trim())
-      .filter((role) => !!role);
-
-    this.settingsService
-      .setAuthUserRoles(user.user_id, { roles })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => this.reload(),

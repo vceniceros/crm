@@ -22,6 +22,7 @@ export interface AuthenticatedUserResponse {
   auth_user_id: string;
   email: string | null;
   display_name: string | null;
+  avatar_url?: string | null;
   primary_role: string;
   role_keys: string[];
   active_membership: ActiveMembershipResponse;

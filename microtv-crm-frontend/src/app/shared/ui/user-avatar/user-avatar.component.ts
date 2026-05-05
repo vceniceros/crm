@@ -9,4 +9,5 @@ import { Component, input } from '@angular/core';
 export class UserAvatarComponent {
   readonly initials = input.required<string>();
   readonly size = input(40);
+  readonly imageUrl = input<string | null | undefined>(null);
 }

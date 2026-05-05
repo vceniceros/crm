@@ -109,6 +109,10 @@ export class LocationPickerMapComponent implements AfterViewInit, OnChanges, OnD
   private editableMarker: MapLibreMarker | null = null;
   private staticMarkers: MapLibreMarker[] = [];
   private maplibreModule: Pick<typeof import('maplibre-gl'), 'Map' | 'Marker'> | null = null;
+  private leafletInstance: import('leaflet').Map | null = null;
+  private leafletMarkers: import('leaflet').Marker[] = [];
+  private leafletModule: typeof import('leaflet') | null = null;
+  private usingLeafletFallback = false;
   private mapInitializationPromise: Promise<void> | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private resizeFrameId: number | null = null;
@@ -140,6 +144,11 @@ export class LocationPickerMapComponent implements AfterViewInit, OnChanges, OnD
 
   ngOnDestroy(): void {
     this.destroyResizeObserver();
+    this.clearLeafletMarkers();
+    this.leafletInstance?.remove();
+    this.leafletInstance = null;
+    this.leafletModule = null;
+    this.usingLeafletFallback = false;
     this.clearMarkers();
     this.mapInstance?.remove();
     this.mapInstance = null;
@@ -161,7 +170,7 @@ export class LocationPickerMapComponent implements AfterViewInit, OnChanges, OnD
       return;
     }
 
-    if (!this.mapInstance) {
+    if (!this.mapInstance && !this.leafletInstance) {
       await this.initializeMap();
       return;
     }
@@ -170,7 +179,7 @@ export class LocationPickerMapComponent implements AfterViewInit, OnChanges, OnD
   }
 
   private async initializeMap(): Promise<void> {
-    if (this.mapInitializationPromise || this.mapInstance) {
+    if (this.mapInitializationPromise || this.mapInstance || this.leafletInstance) {
       return;
     }
 
@@ -208,13 +217,6 @@ export class LocationPickerMapComponent implements AfterViewInit, OnChanges, OnD
         center: [initialCenter.lon, initialCenter.lat],
         zoom: this.resolveInitialZoom()
       });
-      map.on('error', (event) => {
-        const message = event?.error instanceof Error && event.error.message.trim()
-          ? event.error.message
-          : 'No se pudo renderizar el mapa con el estilo configurado.';
-        this.state.set('error');
-        this.errorMessage.set(message);
-      });
 
       if (!this.readOnly()) {
         map.on('click', (event: MapMouseEvent) => {
@@ -222,17 +224,53 @@ export class LocationPickerMapComponent implements AfterViewInit, OnChanges, OnD
         });
       }
 
-      map.on('load', () => {
-        this.state.set('ready');
-        this.updateMapContents(true);
-        this.observeMapContainer();
-      });
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const handleLoad = () => {
+            cleanup();
+            resolve();
+          };
+
+          const handleError = (event: { error?: unknown }) => {
+            cleanup();
+
+            const error = event?.error;
+            if (error instanceof Error && error.message.trim()) {
+              reject(error);
+              return;
+            }
+
+            reject(new Error('No se pudo renderizar el mapa con el estilo configurado.'));
+          };
+
+          const cleanup = () => {
+            map.off('load', handleLoad);
+            map.off('error', handleError);
+          };
+
+          map.on('load', handleLoad);
+          map.on('error', handleError);
+        });
+      } catch (error) {
+        map.remove();
+        throw error;
+      }
 
       this.mapInstance = map;
+      this.state.set('ready');
+      this.updateMapContents(true);
+      this.observeMapContainer();
     })()
-      .catch((error: unknown) => {
-        this.state.set('error');
-        this.errorMessage.set(this.resolveMapErrorMessage(error));
+      .catch(async (error: unknown) => {
+        try {
+          this.mapInstance?.remove();
+          this.mapInstance = null;
+          this.maplibreModule = null;
+          await this.initLeafletFallback();
+        } catch {
+          this.state.set('error');
+          this.errorMessage.set(this.resolveMapErrorMessage(error));
+        }
       })
       .finally(() => {
         this.mapInitializationPromise = null;
@@ -241,7 +279,53 @@ export class LocationPickerMapComponent implements AfterViewInit, OnChanges, OnD
     await this.mapInitializationPromise;
   }
 
+  private async initLeafletFallback(): Promise<void> {
+    const mapElement = this.mapCanvas?.nativeElement;
+    if (!mapElement) {
+      throw new Error('No map container');
+    }
+
+    this.mapInstance?.remove();
+    this.mapInstance = null;
+    this.maplibreModule = null;
+    this.clearMarkers();
+    this.clearLeafletMarkers();
+    this.leafletInstance?.remove();
+    this.leafletInstance = null;
+
+    const imported = await import('leaflet');
+    const L = ((imported as { default?: typeof import('leaflet') }).default ?? imported);
+    this.leafletModule = L;
+    this.usingLeafletFallback = true;
+
+    const center = this.resolveInitialCenter();
+    const zoom = this.resolveInitialZoom();
+
+    const map = L.map(mapElement, { preferCanvas: true });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(map);
+    map.setView([center.lat, center.lon], zoom);
+
+    if (!this.readOnly()) {
+      map.on('click', (event: import('leaflet').LeafletMouseEvent) => {
+        this.updateSelection({ lat: event.latlng.lat, lon: event.latlng.lng }, true, true);
+      });
+    }
+
+    this.leafletInstance = map;
+    this.state.set('ready');
+    this.updateMapContents(true);
+    this.observeMapContainer();
+  }
+
   private updateMapContents(forceRecenter = false): void {
+    if (this.usingLeafletFallback && this.leafletInstance) {
+      this.updateLeafletContents(forceRecenter);
+      return;
+    }
+
     if (!this.mapInstance || !this.maplibreModule) {
       return;
     }
@@ -268,6 +352,44 @@ export class LocationPickerMapComponent implements AfterViewInit, OnChanges, OnD
     this.ensureEditableMarker(selected);
     if (forceRecenter || !this.mapInstance.getBounds().contains([selected.lon, selected.lat])) {
       this.mapInstance.easeTo({ center: [selected.lon, selected.lat], zoom: this.resolveFocusedZoom() });
+    }
+  }
+
+  private updateLeafletContents(forceRecenter: boolean): void {
+    if (!this.leafletInstance || !this.leafletModule) {
+      return;
+    }
+
+    const L = this.leafletModule;
+    this.clearLeafletMarkers();
+
+    const markersToRender = this.readOnly()
+      ? this.normalizedMarkers()
+      : (() => {
+          const selected = this.normalizeCoordinates(this.selectedCoordinates())
+            ?? this.normalizeCoordinates(this.initialCoordinates());
+          return selected ? [{ ...selected, title: this.title(), kind: 'primary' as const }] : [];
+        })();
+
+    for (const marker of markersToRender) {
+      const leafletMarker = L.marker([marker.lat, marker.lon]).addTo(this.leafletInstance);
+      if (marker.title) {
+        leafletMarker.bindPopup(marker.title);
+      }
+      this.leafletMarkers.push(leafletMarker);
+    }
+
+    if (forceRecenter && markersToRender.length > 0) {
+      this.leafletInstance.setView(
+        [markersToRender[0].lat, markersToRender[0].lon],
+        this.resolveFocusedZoom()
+      );
+      return;
+    }
+
+    if (forceRecenter) {
+      const center = this.resolveFallbackCenter();
+      this.leafletInstance.setView([center.lat, center.lon], this.resolveInitialZoom());
     }
   }
 
@@ -374,10 +496,14 @@ export class LocationPickerMapComponent implements AfterViewInit, OnChanges, OnD
     }
 
     this.selectedCoordinates.set(normalized);
-    this.ensureEditableMarker(normalized);
+    if (this.usingLeafletFallback && this.leafletInstance) {
+      this.updateLeafletContents(recenter);
+    } else {
+      this.ensureEditableMarker(normalized);
 
-    if (recenter && this.mapInstance) {
-      this.mapInstance.easeTo({ center: [normalized.lon, normalized.lat], zoom: this.resolveFocusedZoom() });
+      if (recenter && this.mapInstance) {
+        this.mapInstance.easeTo({ center: [normalized.lon, normalized.lat], zoom: this.resolveFocusedZoom() });
+      }
     }
 
     if (emit) {
@@ -387,7 +513,7 @@ export class LocationPickerMapComponent implements AfterViewInit, OnChanges, OnD
 
   private observeMapContainer(): void {
     const observedElement = this.mapShell?.nativeElement ?? this.mapCanvas?.nativeElement;
-    if (!this.isBrowser || !this.mapInstance || !observedElement || typeof ResizeObserver === 'undefined') {
+    if (!this.isBrowser || (!this.mapInstance && !this.leafletInstance) || !observedElement || typeof ResizeObserver === 'undefined') {
       return;
     }
 
@@ -434,13 +560,14 @@ export class LocationPickerMapComponent implements AfterViewInit, OnChanges, OnD
   }
 
   private scheduleMapResize(): void {
-    if (!this.mapInstance || this.resizeFrameId !== null) {
+    if ((!this.mapInstance && !this.leafletInstance) || this.resizeFrameId !== null) {
       return;
     }
 
     this.resizeFrameId = requestAnimationFrame(() => {
       this.resizeFrameId = null;
       this.mapInstance?.resize();
+      this.leafletInstance?.invalidateSize();
     });
   }
 
@@ -455,6 +582,13 @@ export class LocationPickerMapComponent implements AfterViewInit, OnChanges, OnD
       marker.remove();
     }
     this.staticMarkers = [];
+  }
+
+  private clearLeafletMarkers(): void {
+    for (const marker of this.leafletMarkers) {
+      marker.remove();
+    }
+    this.leafletMarkers = [];
   }
 
   private normalizeMarker(marker: LocationPickerMapMarker | null | undefined): LocationPickerMapMarker | null {

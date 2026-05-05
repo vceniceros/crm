@@ -100,6 +100,11 @@
   pointer-events: auto;
 }
 
+:host ::ng-deep .location-picker-map__canvas .leaflet-container {
+  width: 100%;
+  height: 100%;
+}
+
 .location-picker-map__overlay {
   position: absolute;
   inset: 0;

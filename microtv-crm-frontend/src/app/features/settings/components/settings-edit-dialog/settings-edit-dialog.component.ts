@@ -9,6 +9,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
 export type SettingsDialogKind =
+  | 'auth-user'
   | 'role'
   | 'user-roles'
   | 'category'
@@ -28,6 +29,7 @@ export interface SettingsEditDialogData {
   title: string;
   submitLabel: string;
   value: Record<string, unknown>;
+  authUserMode?: 'create' | 'edit';
   roleOptions?: SettingsDialogRoleOption[];
   priorityOptions?: string[];
 }
@@ -69,8 +71,24 @@ export class SettingsEditDialogComponent {
     this.dialogRef.close(this.form.getRawValue());
   }
 
+  isAuthUserCreateMode(): boolean {
+    return this.data.kind === 'auth-user' && this.data.authUserMode === 'create';
+  }
+
   private buildForm(data: SettingsEditDialogData): FormGroup {
     switch (data.kind) {
+      case 'auth-user': {
+        const isCreateMode = data.authUserMode === 'create';
+        return this.fb.group({
+          email: [data.value['email'] ?? '', [Validators.required, Validators.email, Validators.maxLength(255)]],
+          display_name: [data.value['display_name'] ?? '', [Validators.required, Validators.maxLength(120)]],
+          password: [
+            data.value['password'] ?? '',
+            isCreateMode ? [Validators.required, Validators.minLength(8)] : []
+          ],
+          roles: [Array.isArray(data.value['roles']) ? data.value['roles'] : []]
+        });
+      }
       case 'role':
         return this.fb.group({
           role_label: [data.value['role_label'] ?? '', [Validators.required, Validators.maxLength(100)]],

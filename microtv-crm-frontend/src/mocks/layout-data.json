@@ -38,6 +38,7 @@
     {
       "section": "Sistema",
       "items": [
+        { "id": "profile", "moduleKey": "profile", "label": "My Profile", "icon": "person", "route": "/profile" },
         { "id": "reports", "moduleKey": "reports", "label": "Reportes", "icon": "bar_chart", "route": "/reports" },
         { "id": "settings", "moduleKey": "settings", "label": "Configuración", "icon": "settings", "route": "/settings" }
       ]

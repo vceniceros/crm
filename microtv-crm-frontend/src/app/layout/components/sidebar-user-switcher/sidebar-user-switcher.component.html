@@ -5,7 +5,7 @@
     [matMenuTriggerFor]="usersMenu"
     aria-label="Ver cuenta activa"
   >
-    <app-user-avatar [initials]="viewModel.activeUser.initials" [size]="44" />
+    <app-user-avatar [initials]="viewModel.activeUser.initials" [imageUrl]="viewModel.avatarUrl" [size]="44" />
 
     <div class="sidebar-user-switcher__copy">
       <p class="sidebar-user-switcher__name">{{ viewModel.activeUser.name }}</p>
@@ -18,7 +18,7 @@
   <mat-menu #usersMenu="matMenu" xPosition="before" yPosition="above" class="sidebar-user-switcher__menu-panel">
     <div class="sidebar-user-switcher__menu" aria-label="Cuenta activa del CRM">
       <div class="sidebar-user-switcher__account-card">
-        <app-user-avatar [initials]="viewModel.activeUser.initials" [size]="38" />
+        <app-user-avatar [initials]="viewModel.activeUser.initials" [imageUrl]="viewModel.avatarUrl" [size]="38" />
 
         <div class="sidebar-user-switcher__menu-copy">
           <span class="sidebar-user-switcher__menu-name">{{ viewModel.activeUser.name }}</span>
@@ -32,6 +32,11 @@
           <span class="sidebar-user-switcher__chip">{{ roleKey }}</span>
         }
       </div>
+
+      <button mat-menu-item type="button" (click)="goToProfile()">
+        <mat-icon>person</mat-icon>
+        <span>My Profile</span>
+      </button>
 
       <button mat-menu-item type="button" class="sidebar-user-switcher__logout" (click)="logout()">
         <mat-icon>logout</mat-icon>

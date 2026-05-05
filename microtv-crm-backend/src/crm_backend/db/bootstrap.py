@@ -232,6 +232,7 @@ def _ensure_extension_tables(session: Session) -> None:
     _ensure_task_attachment_columns(session, inspector)
     _ensure_ticket_attachment_columns(session, inspector)
     _ensure_ticket_columns(session, inspector)
+    _ensure_crm_user_columns(session, inspector)
     _ensure_satisfaction_columns(session, inspector)
 
 
@@ -366,6 +367,7 @@ def _ensure_ticket_columns(session: Session, inspector=None) -> None:
         ),
         ("closed_at", "ALTER TABLE tickets ADD COLUMN closed_at TIMESTAMPTZ"),
         ("requires_arrival_comment", "ALTER TABLE tickets ADD COLUMN requires_arrival_comment BOOLEAN NOT NULL DEFAULT FALSE"),
+        ("requires_video_evidence", "ALTER TABLE tickets ADD COLUMN requires_video_evidence BOOLEAN NOT NULL DEFAULT TRUE"),
         ("arrival_registered_at", "ALTER TABLE tickets ADD COLUMN arrival_registered_at TIMESTAMPTZ"),
         ("updated_at", "ALTER TABLE tickets ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"),
         ("deleted_at", "ALTER TABLE tickets ADD COLUMN deleted_at TIMESTAMPTZ"),
@@ -390,6 +392,14 @@ def _ensure_ticket_columns(session: Session, inspector=None) -> None:
         ticket_columns.add("arrival_comment_id")
         schema_changed = True
 
+    if "solution_comment_id" not in ticket_columns:
+        if bind.dialect.name == "postgresql":
+            session.execute(text("ALTER TABLE tickets ADD COLUMN solution_comment_id UUID"))
+        else:
+            session.execute(text("ALTER TABLE tickets ADD COLUMN solution_comment_id VARCHAR(36)"))
+        ticket_columns.add("solution_comment_id")
+        schema_changed = True
+
     if schema_changed:
         session.commit()
 
@@ -405,6 +415,24 @@ def _ensure_ticket_columns(session: Session, inspector=None) -> None:
                     "ALTER TABLE tickets "
                     "ADD CONSTRAINT fk_tickets_arrival_comment "
                     "FOREIGN KEY (arrival_comment_id) "
+                    "REFERENCES ticket_comments(ticket_comment_id) "
+                    "ON DELETE SET NULL"
+                )
+            )
+            session.commit()
+
+    if bind.dialect.name == "postgresql" and "solution_comment_id" in ticket_columns and "ticket_comments" in table_names:
+        fk_names = {
+            fk.get("name")
+            for fk in inspect(bind).get_foreign_keys("tickets")
+            if fk.get("name")
+        }
+        if "fk_tickets_solution_comment" not in fk_names:
+            session.execute(
+                text(
+                    "ALTER TABLE tickets "
+                    "ADD CONSTRAINT fk_tickets_solution_comment "
+                    "FOREIGN KEY (solution_comment_id) "
                     "REFERENCES ticket_comments(ticket_comment_id) "
                     "ON DELETE SET NULL"
                 )
@@ -532,13 +560,28 @@ def _ensure_ticket_columns(session: Session, inspector=None) -> None:
     session.execute(text("CREATE INDEX IF NOT EXISTS idx_tickets_assigned_user ON tickets(assigned_user_id)"))
     session.execute(text("CREATE INDEX IF NOT EXISTS idx_tickets_updated_at ON tickets(updated_at)"))
     session.execute(text("CREATE INDEX IF NOT EXISTS idx_tickets_requires_arrival_comment ON tickets(requires_arrival_comment)"))
+    session.execute(text("CREATE INDEX IF NOT EXISTS idx_tickets_requires_video_evidence ON tickets(requires_video_evidence)"))
     session.execute(text("CREATE INDEX IF NOT EXISTS idx_tickets_arrival_comment_id ON tickets(arrival_comment_id)"))
+    session.execute(text("CREATE INDEX IF NOT EXISTS idx_tickets_solution_comment_id ON tickets(solution_comment_id)"))
 
     if "ticket_comments" in table_names:
         comment_columns = {column["name"] for column in active_inspector.get_columns("ticket_comments")}
         if "location_id" not in comment_columns:
             session.execute(text("ALTER TABLE ticket_comments ADD COLUMN location_id UUID REFERENCES locations(location_id)"))
     session.commit()
+
+
+def _ensure_crm_user_columns(session: Session, inspector=None) -> None:
+    bind = session.get_bind()
+    active_inspector = inspector or inspect(bind)
+    table_names = set(active_inspector.get_table_names())
+    if "crm_users" not in table_names:
+        return
+
+    user_columns = {column["name"] for column in active_inspector.get_columns("crm_users")}
+    if "avatar_url" not in user_columns:
+        session.execute(text("ALTER TABLE crm_users ADD COLUMN avatar_url VARCHAR(500)"))
+        session.commit()
 
 
 def _ensure_satisfaction_columns(session: Session, inspector=None) -> None:

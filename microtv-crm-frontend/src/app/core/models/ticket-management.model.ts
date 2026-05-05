@@ -46,7 +46,7 @@ export interface TicketComment {
   ticket_comment_id: string;
   author_crm_user_id: string;
   author_display_name: string | null;
-  comment_type: 'general' | 'system' | 'closure' | string;
+  comment_type: 'general' | 'system' | 'closure' | 'arrival_registration' | 'closure_evidence' | string;
   body: string;
   created_at: string;
   location: TicketLocation | null;
@@ -126,8 +126,10 @@ export interface TicketSummary {
   survey_status_label?: string | null;
   has_active_survey?: boolean;
   requires_arrival_comment?: boolean;
+  requires_video_evidence?: boolean;
   arrival_registered_at?: string | null;
   arrival_comment_id?: string | null;
+  solution_comment_id?: string | null;
   has_arrival_registered?: boolean;
   can_register_arrival?: boolean;
   created_at: string;
@@ -150,6 +152,7 @@ export interface CreateTicketRequest {
   description: string;
   priority: TicketPriority;
   requires_arrival_comment?: boolean;
+  requires_video_evidence?: boolean;
   assigned_role_id: string | null;
   assigned_user_id: string | null;
 }

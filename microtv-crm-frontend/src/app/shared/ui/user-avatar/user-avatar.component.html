@@ -1,1 +1,7 @@
-<span class="user-avatar" [style.width.px]="size()" [style.height.px]="size()">{{ initials() }}</span>
+<span class="user-avatar" [style.width.px]="size()" [style.height.px]="size()">
+	@if (imageUrl()) {
+		<img [src]="imageUrl()" [alt]="initials()" loading="lazy" />
+	} @else {
+		{{ initials() }}
+	}
+</span>

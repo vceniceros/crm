@@ -18,7 +18,8 @@ const moduleRules: MockModuleAccessRule[] = [
   { moduleKey: 'clients', allowedRoles: ['admin', 'ejecutivo', 'deposito', 'tecnico'] },
   { moduleKey: 'billing', allowedRoles: ['admin', 'ejecutivo'] },
   { moduleKey: 'reports', allowedRoles: ['admin', 'ejecutivo'] },
-  { moduleKey: 'settings', allowedRoles: ['admin', 'ejecutivo', 'deposito', 'tecnico'] }
+  { moduleKey: 'settings', allowedRoles: ['admin', 'ejecutivo', 'deposito', 'tecnico'] },
+  { moduleKey: 'profile', allowedRoles: ['admin', 'ejecutivo', 'deposito', 'tecnico'] }
 ];
 
 const adminOnlyNavigationItemIds = new Set(['task-templates']);

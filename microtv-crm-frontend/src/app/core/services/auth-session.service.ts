@@ -6,7 +6,7 @@ import { BehaviorSubject, Observable, distinctUntilChanged, map, shareReplay, ta
 
 import { crmApiConfig } from '../config/crm-api.config';
 import { CurrentUser } from '../models/layout.model';
-import { CrmLoginResponse, LoginRequest, LoginSuccessResponse } from '../models/crm-auth.model';
+import { AuthenticatedUserResponse, CrmLoginResponse, LoginRequest, LoginSuccessResponse } from '../models/crm-auth.model';
 
 type AuthStatus = 'checking' | 'authenticated' | 'anonymous';
 
@@ -102,6 +102,21 @@ export class AuthSessionService {
     return this.stateSubject.value.session;
   }
 
+  updateSessionUser(patch: Partial<AuthenticatedUserResponse>): void {
+    const session = this.sessionSnapshot();
+    if (!session) {
+      return;
+    }
+
+    this.setAuthenticatedSession({
+      ...session,
+      user: {
+        ...session.user,
+        ...patch
+      }
+    });
+  }
+
   private setAuthenticatedSession(session: LoginSuccessResponse): void {
     if (this.isBrowser) {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
@@ -135,7 +150,8 @@ export class AuthSessionService {
     return {
       initials,
       name: displayName,
-      role: this.mapRoleLabel(session.user.primary_role)
+      role: this.mapRoleLabel(session.user.primary_role),
+      avatarUrl: this.resolvePublicUrl(session.user.avatar_url)
     };
   }
 
@@ -167,5 +183,23 @@ export class AuthSessionService {
 
   private buildUrl(path: string): string {
     return `${crmApiConfig.baseUrl}${path}`;
+  }
+
+  private resolvePublicUrl(rawUrl: string | null | undefined): string | null {
+    const normalized = rawUrl?.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    if (/^(https?:|blob:|data:)/i.test(normalized)) {
+      return normalized;
+    }
+
+    const normalizedPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
+    try {
+      return `${new URL(crmApiConfig.baseUrl).origin}${normalizedPath}`;
+    } catch {
+      return `${crmApiConfig.baseUrl.replace(/\/$/, '')}${normalizedPath}`;
+    }
   }
 }

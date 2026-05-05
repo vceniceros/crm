@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     auth_jwt_algorithm: str = Field(default="HS256")
     auth_jwt_issuer: str = Field(default="auth.crm.ycc.internal")
     auth_jwt_audience: str = Field(default="microtv-platform")
+    auth_service_recaptcha_token: str = Field(default="crm-backend")
     auto_provision_crm_role: bool = Field(default=True)
     crm_media_root: str = Field(default="public")
     crm_media_public_url: str = Field(default="/media")
@@ -150,6 +151,10 @@ class Settings(BaseSettings):
     @property
     def public_videos_dir(self) -> Path:
         return self.public_dir / "videos"
+
+    @property
+    def public_avatars_dir(self) -> Path:
+        return self.public_dir / "avatars"
 
     @property
     def product_images_dir(self) -> Path:

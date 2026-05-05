@@ -128,6 +128,11 @@ export const routes: Routes = [
 				canActivate: [adminOrExecutiveGuard],
 				loadComponent: () => import('./features/settings/components/settings-page/settings-page.component').then((module) => module.SettingsPageComponent),
 				data: { title: 'Configuración' }
+			},
+			{
+				path: 'profile',
+				loadComponent: () => import('./features/profile/components/profile-page/profile-page.component').then((module) => module.ProfilePageComponent),
+				data: { title: 'Mi perfil' }
 			}
 		]
 	},

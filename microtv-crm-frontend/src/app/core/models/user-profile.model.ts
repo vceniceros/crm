@@ -6,6 +6,7 @@ export interface MockUserProfile {
   role: MockUserRole;
   roleLabel: string;
   initials: string;
+  avatarUrl?: string | null;
 }
 
 export interface MockUsersData {

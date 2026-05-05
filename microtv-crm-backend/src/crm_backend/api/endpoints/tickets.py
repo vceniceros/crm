@@ -221,6 +221,21 @@ def add_ticket_comment(
     return _to_ticket_detail_response(actor=actor, ticket_service=ticket_service, ticket=ticket)
 
 
+@router.post(
+    "/{ticket_id}/comments/{comment_id}/mark-as-solution",
+    response_model=TicketDetailResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+)
+def mark_comment_as_solution(
+    ticket_id: str,
+    comment_id: str,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
+) -> TicketDetailResponse:
+    ticket = ticket_service.mark_comment_as_solution(actor, ticket_id, comment_id)
+    return _to_ticket_detail_response(actor=actor, ticket_service=ticket_service, ticket=ticket)
+
+
 @router.patch(
     "/{ticket_id}/status",
     response_model=TicketDetailResponse,

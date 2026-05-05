@@ -107,6 +107,18 @@ class Ticket(Base):
         nullable=True,
         index=True,
     )
+    solution_comment_id: Mapped[str | None] = mapped_column(
+        Uuid(as_uuid=False),
+        ForeignKey(
+            "ticket_comments.ticket_comment_id",
+            ondelete="SET NULL",
+            name="fk_tickets_solution_comment",
+            use_alter=True,
+        ),
+        nullable=True,
+        index=True,
+    )
+    requires_video_evidence: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -118,6 +130,11 @@ class Ticket(Base):
     created_by_user: Mapped["CrmUser"] = relationship("CrmUser", foreign_keys=[created_by_crm_user_id], lazy="joined")
     resolved_by_user: Mapped["CrmUser | None"] = relationship("CrmUser", foreign_keys=[resolved_by_crm_user_id], lazy="joined")
     closed_by_user: Mapped["CrmUser | None"] = relationship("CrmUser", foreign_keys=[closed_by_crm_user_id], lazy="joined")
+    solution_comment: Mapped["TicketComment | None"] = relationship(
+        "TicketComment",
+        foreign_keys=[solution_comment_id],
+        lazy="joined",
+    )
 
     comments: Mapped[list[TicketComment]] = relationship(
         "TicketComment",

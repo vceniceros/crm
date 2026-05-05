@@ -1,0 +1,126 @@
+:host {
+  display: block;
+}
+
+.profile-page {
+  display: grid;
+  gap: 1rem;
+}
+
+.profile-page__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: fit-content;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.6rem;
+  background: #e8f6ef;
+  color: #0f5132;
+  font-weight: 600;
+}
+
+.profile-page__status mat-icon {
+  font-size: 1.1rem;
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.profile-page__status--loading {
+  background: #eef3ff;
+  color: #1e3a8a;
+}
+
+.profile-page__status--error {
+  background: #fdecea;
+  color: #9f1239;
+}
+
+.profile-page__layout {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) minmax(20rem, 1fr);
+  grid-template-areas:
+    'identity details'
+    'security details';
+  gap: 1rem;
+}
+
+.profile-page__identity-card {
+  grid-area: identity;
+}
+
+.profile-page__details-card {
+  grid-area: details;
+}
+
+.profile-page__security-card {
+  grid-area: security;
+}
+
+.profile-page__identity-head {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.profile-page__identity-copy h2,
+.profile-page__identity-copy p {
+  margin: 0;
+}
+
+.profile-page__identity-copy h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.profile-page__identity-copy p {
+  margin-top: 0.25rem;
+  color: rgba(15, 23, 42, 0.72);
+}
+
+.profile-page__identity-actions {
+  margin-top: 1rem;
+}
+
+.profile-page__roles {
+  margin-top: 1rem;
+}
+
+.profile-page__form {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.profile-page__form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+:host-context(html.theme-dark) .profile-page__status {
+  background: rgba(49, 95, 74, 0.28);
+  color: #d8f3dc;
+}
+
+:host-context(html.theme-dark) .profile-page__status--loading {
+  background: rgba(45, 73, 130, 0.35);
+  color: #dbeafe;
+}
+
+:host-context(html.theme-dark) .profile-page__status--error {
+  background: rgba(140, 27, 47, 0.35);
+  color: #ffd7de;
+}
+
+:host-context(html.theme-dark) .profile-page__identity-copy p {
+  color: rgba(222, 230, 247, 0.78);
+}
+
+@media (max-width: 1024px) {
+  .profile-page__layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'identity'
+      'details'
+      'security';
+  }
+}

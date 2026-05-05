@@ -108,7 +108,29 @@
                       <p class="ticket-execution-page__timeline-author">{{ event.title }}</p>
                       <p class="ticket-execution-page__timeline-meta">{{ event.subtitle }} · {{ event.occurredAt | date: 'dd/MM/yyyy HH:mm' }}</p>
                     </div>
-                    <app-status-badge [label]="event.subtitle" [tone]="timelineTone(event)" />
+                    <div class="ticket-execution-page__timeline-head-actions">
+                      @if (event.isSolutionComment) {
+                        <div class="ticket-execution-page__timeline-solution-chip">
+                          <mat-icon>verified</mat-icon>
+                          <span>Solution</span>
+                        </div>
+                      }
+
+                      @if (event.commentId && canMarkCommentAsSolution(event)) {
+                        <button
+                          mat-icon-button
+                          type="button"
+                          [disabled]="isSaving()"
+                          (click)="markCommentAsSolution(event.commentId)"
+                          matTooltip="Mark as solution"
+                          aria-label="Mark as solution"
+                        >
+                          <mat-icon>check_circle</mat-icon>
+                        </button>
+                      }
+
+                      <app-status-badge [label]="event.subtitle" [tone]="timelineTone(event)" />
+                    </div>
                   </div>
 
                   @if (event.isArrivalComment) {
@@ -254,7 +276,7 @@
                 <mat-icon>sync</mat-icon>
                 <span>Cambiar estado</span>
               </button>
-              <button mat-menu-item type="button" (click)="selectPrimaryAction('close')" [disabled]="!canCloseTicket()">
+              <button mat-menu-item type="button" (click)="selectPrimaryAction('close')" [disabled]="!canCloseOrTransition()">
                 <mat-icon>task_alt</mat-icon>
                 <span>Cerrar ticket</span>
               </button>
@@ -266,10 +288,22 @@
 
           </div>
 
-          @if (selectedPrimaryAction() === 'close' && isCloseBlockedByArrivalRequirement()) {
-            <p class="ticket-execution-page__summary-caption">
-              Este ticket requiere registrar llegada antes de poder cerrarse. Agregá un comentario con multimedia y ubicación asociada.
-            </p>
+          @if (selectedPrimaryAction() === 'close' && (isCloseBlockedByArrivalRequirement() || isCloseBlockedByVideoRequirement())) {
+            <div class="close-requirements-panel">
+              <div class="close-requirements-panel__item" [class.close-requirements-panel__item--met]="!isCloseBlockedByArrivalRequirement()">
+                <mat-icon>{{ isCloseBlockedByArrivalRequirement() ? 'warning' : 'check_circle' }}</mat-icon>
+                <span [class.close-requirements-panel__text--met]="!isCloseBlockedByArrivalRequirement()">
+                  Register your arrival at the client's location before closing. Add a comment with location.
+                </span>
+              </div>
+
+              <div class="close-requirements-panel__item" [class.close-requirements-panel__item--met]="!isCloseBlockedByVideoRequirement()">
+                <mat-icon>{{ isCloseBlockedByVideoRequirement() ? 'warning' : 'check_circle' }}</mat-icon>
+                <span [class.close-requirements-panel__text--met]="!isCloseBlockedByVideoRequirement()">
+                  This ticket requires at least one video evidence attachment.
+                </span>
+              </div>
+            </div>
           }
 
           @if (showInventoryRequestDrawer()) {

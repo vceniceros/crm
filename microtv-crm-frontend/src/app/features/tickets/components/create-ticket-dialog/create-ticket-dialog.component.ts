@@ -9,6 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
 import { AppLocation } from '../../../../core/models/location.model';
 import { CrmUserOption } from '../../../../core/models/task-management.model';
@@ -40,6 +41,7 @@ interface PriorityOption {
     MatInputModule,
     MatProgressSpinnerModule,
     MatSelectModule,
+    MatSlideToggleModule,
     ReactiveFormsModule
   ],
   templateUrl: './create-ticket-dialog.component.html',
@@ -86,6 +88,7 @@ export class CreateTicketDialogComponent {
       nonNullable: true
     }),
     requires_arrival_comment: this.formBuilder.control(false, { nonNullable: true }),
+    requires_video_evidence: this.formBuilder.control(true, { nonNullable: true }),
     assigned_role_id: this.formBuilder.control<string | null>(null),
     assigned_user_id: this.formBuilder.control<string | null>(null),
     description: this.formBuilder.control('', {
@@ -304,6 +307,7 @@ export class CreateTicketDialogComponent {
       location_id: locationId,
       priority: this.form.controls.priority.getRawValue(),
       requires_arrival_comment: this.form.controls.requires_arrival_comment.getRawValue(),
+      requires_video_evidence: this.form.controls.requires_video_evidence.getRawValue(),
       assigned_role_id: this.form.controls.assigned_role_id.getRawValue(),
       assigned_user_id: this.form.controls.assigned_user_id.getRawValue()
     };

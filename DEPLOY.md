@@ -179,7 +179,7 @@ IMAGE_TARGET_FORMAT=webp
 VIDEO_MAX_SIZE_MB=50
 
 # Mapas (MapLibre)
-NEXT_PUBLIC_MAP_STYLE_URL=https://map.microtv.ar/argentina/styles/basic-preview/style.json
+NEXT_PUBLIC_MAP_STYLE_URL=https://crm.ycc.group/map-tiles/argentina/styles/basic-preview/style.json
 NEXT_PUBLIC_MAP_DEFAULT_LAT=-34.6037
 NEXT_PUBLIC_MAP_DEFAULT_LON=-58.3816
 NEXT_PUBLIC_MAP_DEFAULT_ZOOM=12
