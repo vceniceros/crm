@@ -73,6 +73,7 @@ def create_app() -> FastAPI:
         settings.satisfaction_videos_dir,
         settings.public_images_dir,
         settings.public_videos_dir,
+        settings.public_avatars_dir,
     ]
     for media_dir in media_dirs:
         try:
@@ -89,6 +90,7 @@ def create_app() -> FastAPI:
         app.mount("/images", StaticFiles(directory=settings.public_images_dir, check_dir=False), name="images")
     if settings.crm_media_public_url != "/videos":
         app.mount("/videos", StaticFiles(directory=settings.public_videos_dir, check_dir=False), name="videos")
+    app.mount("/avatars", StaticFiles(directory=settings.public_avatars_dir, check_dir=False), name="avatars")
     app.include_router(api_router)
 
     return app

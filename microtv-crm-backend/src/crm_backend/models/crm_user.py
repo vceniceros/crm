@@ -50,6 +50,7 @@ class CrmUser(Base):
     last_auth_roles_json: Mapped[list[str]] = mapped_column(JSON, default=list)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     initials: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     is_active_in_crm: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     last_seen_in_crm_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cached_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

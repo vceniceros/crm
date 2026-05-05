@@ -29,7 +29,7 @@
                 "output": "mocks"
               }
             ],
-            "styles": ["src/material-theme.scss", "src/styles.css"],
+            "styles": ["src/material-theme.scss", "src/styles.css", "node_modules/leaflet/dist/leaflet.css"],
             "server": "src/main.server.ts",
             "outputMode": "server",
             "security": {
@@ -77,7 +77,10 @@
           "defaultConfiguration": "development"
         },
         "test": {
-          "builder": "@angular/build:unit-test"
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "styles": ["src/material-theme.scss", "src/styles.css", "node_modules/leaflet/dist/leaflet.css"]
+          }
         }
       }
     }

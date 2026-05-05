@@ -113,6 +113,13 @@ export class TicketManagementService {
     );
   }
 
+  markCommentAsSolution(ticketId: string, commentId: string): Observable<TicketDetail> {
+    return this.request<TicketDetail>('post', `/tickets/${ticketId}/comments/${commentId}/mark-as-solution`).pipe(
+      map((ticket) => this.normalizeTicketDetail(ticket)),
+      tap(() => this.badgeRefreshSubject.next())
+    );
+  }
+
   updateTicketStatus(ticketId: string, payload: UpdateTicketStatusRequest): Observable<TicketDetail> {
     return this.request<TicketDetail>('patch', `/tickets/${ticketId}/status`, payload).pipe(
       map((ticket) => this.normalizeTicketDetail(ticket)),

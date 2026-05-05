@@ -13,7 +13,7 @@ from crm_backend.schemas.material_flow import InventoryDispatchResponse, Invento
 
 TicketStatusLiteral = Literal["OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "PENDING_APPROVAL", "CLOSED"]
 TicketPriorityLiteral = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
-TicketCommentTypeLiteral = Literal["general", "system", "closure"]
+TicketCommentTypeLiteral = Literal["general", "system", "closure", "arrival_registration", "closure_evidence"]
 
 
 class CreateTicketRequest(BaseModel):
@@ -23,6 +23,7 @@ class CreateTicketRequest(BaseModel):
     description: str = Field(..., min_length=1)
     priority: TicketPriorityLiteral = "MEDIUM"
     requires_arrival_comment: bool = False
+    requires_video_evidence: bool = True
     assigned_role_id: str | None = None
     assigned_user_id: str | None = None
 
@@ -162,8 +163,10 @@ class TicketSummaryResponse(BaseModel):
     survey_status_label: str | None = None
     has_active_survey: bool = False
     requires_arrival_comment: bool = False
+    requires_video_evidence: bool = True
     arrival_registered_at: datetime | None = None
     arrival_comment_id: str | None = None
+    solution_comment_id: str | None = None
     created_at: datetime
     updated_at: datetime
 

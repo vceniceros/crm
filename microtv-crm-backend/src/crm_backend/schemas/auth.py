@@ -78,6 +78,7 @@ class AuthenticatedUserResponse(BaseModel):
     auth_user_id: str
     email: str | None
     display_name: str | None
+    avatar_url: str | None = None
     primary_role: str
     role_keys: list[str]
     active_membership: ActiveMembershipResponse

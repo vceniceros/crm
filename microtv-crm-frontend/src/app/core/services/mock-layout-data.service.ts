@@ -23,7 +23,8 @@ export class MockLayoutDataService {
     map((user): CurrentUser => ({
       initials: user.initials,
       name: user.name,
-      role: user.roleLabel
+      role: user.roleLabel,
+      avatarUrl: user.avatarUrl ?? null
     })),
     shareReplay({ bufferSize: 1, refCount: true })
   );

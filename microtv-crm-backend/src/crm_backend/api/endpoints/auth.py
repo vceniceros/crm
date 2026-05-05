@@ -98,6 +98,7 @@ def _build_login_success_response(session: ResolvedCrmSession) -> LoginSuccessRe
             auth_user_id=session.crm_user.auth_user_id,
             email=session.crm_user.email,
             display_name=session.crm_user.display_name,
+            avatar_url=session.crm_user.avatar_url,
             primary_role=session.primary_role,
             role_keys=session.role_keys,
             active_membership=ActiveMembershipResponse(

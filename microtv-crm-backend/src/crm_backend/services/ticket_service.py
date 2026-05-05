@@ -120,6 +120,7 @@ class TicketApplicationService:
             status=TicketStatus.IN_PROGRESS.value if user is not None else TicketStatus.OPEN.value,
             priority=payload.priority,
             requires_arrival_comment=bool(payload.requires_arrival_comment),
+            requires_video_evidence=bool(payload.requires_video_evidence),
             assigned_role_id=role.crm_role_id if role is not None else None,
             assigned_user_id=user.crm_user_id if user is not None else None,
             created_by_crm_user_id=actor.crm_user.crm_user_id,
@@ -421,14 +422,13 @@ class TicketApplicationService:
         ticket_id: str,
         comment: str,
         attachment_ids: list[str],
+        *,
+        via_solution_comment: bool = False,
+        solution_comment_id: str | None = None,
     ) -> Ticket:
         ticket = self.get_ticket_detail(actor, ticket_id)
         self._ensure_ticket_operable(actor, ticket)
         self._ensure_no_pending_receipt_for_actor(actor, ticket)
-
-        normalized_comment = comment.strip()
-        if not normalized_comment:
-            raise TicketValidationError("No se puede cerrar un ticket sin comentario de cierre.")
         if ticket.status == TicketStatus.CLOSED.value:
             raise TicketConflictError("El ticket ya se encuentra cerrado.")
 
@@ -438,28 +438,41 @@ class TicketApplicationService:
                 "Agregá un comentario con multimedia y ubicación asociada."
             )
 
-        # Enforce closure video requirement.
-        if not attachment_ids:
-            raise TicketValidationError(
-                "El cierre del ticket requiere al menos un video de evidencia obligatorio."
-            )
-
         from_status = ticket.status
-        ticket_comment = TicketComment(
-            ticket_comment_id=str(uuid4()),
-            ticket_id=ticket.ticket_id,
-            author_crm_user_id=actor.crm_user.crm_user_id,
-            comment_type=TicketCommentType.CLOSURE_EVIDENCE.value,
-            body=normalized_comment,
-        )
-        ticket.comments.append(ticket_comment)
-        self._attach_files_to_comment(ticket, ticket_comment, attachment_ids)
+        ticket_comment_id: str | None = None
+        if via_solution_comment:
+            if not solution_comment_id:
+                raise TicketValidationError("Debes indicar un comentario para marcar como solución.")
 
-        # Validate that at least one closure attachment is a video.
-        if not self._comment_has_video(ticket, ticket_comment):
-            raise TicketValidationError(
-                "El cierre del ticket requiere al menos un video de evidencia adjunto."
+            solution_comment = next((item for item in ticket.comments if item.ticket_comment_id == solution_comment_id), None)
+            if solution_comment is None:
+                raise TicketValidationError("El comentario indicado no existe en este ticket.")
+            if solution_comment.comment_type != TicketCommentType.GENERAL.value:
+                raise TicketValidationError("Solo se pueden marcar como solución comentarios de tipo general.")
+
+            ticket.solution_comment_id = solution_comment.ticket_comment_id
+            ticket_comment_id = solution_comment.ticket_comment_id
+        else:
+            ticket.solution_comment_id = None
+            normalized_comment = comment.strip()
+            if not normalized_comment:
+                raise TicketValidationError("No se puede cerrar un ticket sin comentario de cierre.")
+
+            ticket_comment = TicketComment(
+                ticket_comment_id=str(uuid4()),
+                ticket_id=ticket.ticket_id,
+                author_crm_user_id=actor.crm_user.crm_user_id,
+                comment_type=TicketCommentType.CLOSURE_EVIDENCE.value,
+                body=normalized_comment,
             )
+            ticket.comments.append(ticket_comment)
+            self._attach_files_to_comment(ticket, ticket_comment, attachment_ids)
+            ticket_comment_id = ticket_comment.ticket_comment_id
+
+            if ticket.requires_video_evidence and not self._comment_has_video(ticket, ticket_comment):
+                raise TicketValidationError(
+                    "El cierre del ticket requiere al menos un video de evidencia adjunto."
+                )
 
         is_executive_closure = bool({"admin", "ejecutivo"}.intersection(actor.role_keys))
         if is_executive_closure:
@@ -490,14 +503,20 @@ class TicketApplicationService:
                 to_status=ticket.status,
                 action=TicketTransitionAction.CLOSE.value if is_executive_closure else TicketTransitionAction.SUBMIT_FOR_APPROVAL.value,
                 performed_by_crm_user_id=actor.crm_user.crm_user_id,
-                ticket_comment_id=ticket_comment.ticket_comment_id,
+                ticket_comment_id=ticket_comment_id,
             )
         )
         ticket.audit_events.append(
             TicketAuditEvent(
                 event_type="ticket.closed" if is_executive_closure else "ticket.pending_executive_approval",
                 actor_crm_user_id=actor.crm_user.crm_user_id,
-                payload_json={"from_status": from_status, "closed_by": actor.crm_user.crm_user_id, "to_status": ticket.status},
+                payload_json={
+                    "from_status": from_status,
+                    "closed_by": actor.crm_user.crm_user_id,
+                    "to_status": ticket.status,
+                    "via_solution_comment": via_solution_comment,
+                    "solution_comment_id": ticket.solution_comment_id,
+                },
             )
         )
         saved_ticket = self._ticket_repository.save(ticket)
@@ -518,6 +537,31 @@ class TicketApplicationService:
         except Exception:
             _logger.exception("Error sending close_ticket notification for ticket %s", saved_ticket.ticket_id)
         return saved_ticket
+
+    def mark_comment_as_solution(
+        self,
+        actor: ResolvedCrmSession,
+        ticket_id: str,
+        comment_id: str,
+    ) -> Ticket:
+        ticket = self.get_ticket_detail(actor, ticket_id)
+        self._ensure_ticket_operable(actor, ticket)
+        self._ensure_no_pending_receipt_for_actor(actor, ticket)
+
+        comment = next((item for item in ticket.comments if item.ticket_comment_id == comment_id), None)
+        if comment is None:
+            raise TicketValidationError("El comentario indicado no existe en este ticket.")
+        if comment.comment_type != TicketCommentType.GENERAL.value:
+            raise TicketValidationError("Solo los comentarios generales pueden marcarse como solución.")
+
+        return self.close_ticket(
+            actor,
+            ticket_id,
+            comment=comment.body,
+            attachment_ids=[],
+            via_solution_comment=True,
+            solution_comment_id=comment.ticket_comment_id,
+        )
 
     def approve_ticket(self, actor: ResolvedCrmSession, ticket_id: str, comment: str | None) -> Ticket:
         self._ensure_admin_or_executive(actor)

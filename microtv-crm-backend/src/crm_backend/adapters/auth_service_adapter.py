@@ -376,3 +376,22 @@ class AuthServiceAdapter:
             is_active=bool(payload.get("is_active", False)),
             roles=[str(role) for role in payload.get("roles", []) if isinstance(role, str)],
         )
+
+    def request_password_reset(self, *, email: str, recaptcha_token: str) -> None:
+        """Trigger auth forgot-password flow for the provided email."""
+
+        body = {
+            "email": email,
+            "recaptcha_token": recaptcha_token,
+        }
+        try:
+            with httpx.Client(base_url=self._settings.auth_base_url, timeout=self._settings.auth_timeout_seconds) as client:
+                response = client.post("/v1/auth/forgot-password", json=body)
+        except httpx.HTTPError as exc:
+            raise UpstreamAuthError() from exc
+
+        if response.status_code >= 500:
+            raise UpstreamAuthError("El servicio auth respondió con un error interno.")
+        if response.status_code >= 400:
+            detail = self._extract_error_detail(response)
+            raise AuthenticationContextError(detail)

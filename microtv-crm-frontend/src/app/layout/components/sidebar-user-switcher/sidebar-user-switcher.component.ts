@@ -1,5 +1,6 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { combineLatest, map } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -19,6 +20,7 @@ import { UserAvatarComponent } from '../../../shared/ui/user-avatar/user-avatar.
 export class SidebarUserSwitcherComponent {
   private readonly authSessionService = inject(AuthSessionService);
   private readonly mockUserContextService = inject(MockUserContextService);
+  private readonly router = inject(Router);
 
   readonly viewModel$ = combineLatest({
     activeUser: this.mockUserContextService.activeUser(),
@@ -27,9 +29,14 @@ export class SidebarUserSwitcherComponent {
     map(({ activeUser, session }) => ({
       activeUser,
       email: session?.user.email ?? 'Sin email',
-      roleKeys: session?.user.role_keys ?? []
+      roleKeys: session?.user.role_keys ?? [],
+      avatarUrl: activeUser.avatarUrl ?? null
     }))
   );
+
+  goToProfile(): void {
+    void this.router.navigate(['/profile']);
+  }
 
   logout(): void {
     this.authSessionService.logout();

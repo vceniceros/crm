@@ -52,7 +52,8 @@ export class MockUserContextService {
       name: displayName,
       role,
       roleLabel: this.mapRoleLabel(role),
-      initials: this.buildInitials(displayName)
+      initials: this.buildInitials(displayName),
+      avatarUrl: session.user.avatar_url ?? null
     };
   }
 

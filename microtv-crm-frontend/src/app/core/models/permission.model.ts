@@ -9,7 +9,8 @@ export type MockModuleKey =
   | 'clients'
   | 'billing'
   | 'reports'
-  | 'settings';
+  | 'settings'
+  | 'profile';
 
 export interface MockModuleAccessRule {
   moduleKey: MockModuleKey;

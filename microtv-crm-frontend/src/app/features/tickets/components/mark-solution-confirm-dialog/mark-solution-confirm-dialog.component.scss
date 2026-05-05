@@ -1,0 +1,9 @@
+p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+p + p {
+  margin-top: 0.5rem;
+}

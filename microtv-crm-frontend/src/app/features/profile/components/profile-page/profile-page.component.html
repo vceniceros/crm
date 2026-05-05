@@ -1,0 +1,101 @@
+<section class="profile-page">
+  <app-page-title eyebrow="Cuenta" title="My Profile" subtitle="Administrá tus datos personales y credenciales de acceso." />
+
+  @if (loading()) {
+    <section class="profile-page__status profile-page__status--loading" aria-live="polite">
+      <mat-spinner diameter="22" />
+      <span>Cargando perfil...</span>
+    </section>
+  }
+
+  @if (successMessage(); as successMessage) {
+    <section class="profile-page__status" aria-live="polite">
+      <mat-icon>check_circle</mat-icon>
+      <span>{{ successMessage }}</span>
+    </section>
+  }
+
+  @if (errorMessage(); as errorMessage) {
+    <section class="profile-page__status profile-page__status--error" aria-live="assertive">
+      <mat-icon>error</mat-icon>
+      <span>{{ errorMessage }}</span>
+    </section>
+  }
+
+  @if (!loading()) {
+    <div class="profile-page__layout">
+      <mat-card class="profile-page__identity-card">
+        <mat-card-content>
+          <div class="profile-page__identity-head">
+            <app-user-avatar [initials]="initials()" [imageUrl]="avatarUrl()" [size]="84" />
+
+            <div class="profile-page__identity-copy">
+              <h2>{{ form.controls.display_name.value || me()?.display_name || 'Usuario CRM' }}</h2>
+              <p>{{ form.controls.email.value || me()?.email || 'Sin email configurado' }}</p>
+            </div>
+          </div>
+
+          <div class="profile-page__identity-actions">
+            <input #avatarInput type="file" accept="image/*" hidden (change)="uploadAvatar(avatarInput)" />
+            <button mat-stroked-button type="button" (click)="avatarInput.click()" [disabled]="uploadingAvatar()">
+              <mat-icon>photo_camera</mat-icon>
+              <span>{{ uploadingAvatar() ? 'Subiendo...' : 'Cambiar avatar' }}</span>
+            </button>
+          </div>
+
+          <mat-chip-set class="profile-page__roles" aria-label="Roles asignados">
+            @for (role of me()?.roles ?? []; track role) {
+              <mat-chip>{{ role }}</mat-chip>
+            }
+          </mat-chip-set>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="profile-page__details-card">
+        <mat-card-header>
+          <mat-card-title>Datos personales</mat-card-title>
+          <mat-card-subtitle>Estos cambios impactan en tu sesión actual y en la cuenta de autenticación.</mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+          <form class="profile-page__form" [formGroup]="form" (ngSubmit)="saveProfile()">
+            <mat-form-field appearance="outline">
+              <mat-label>Nombre visible</mat-label>
+              <input matInput formControlName="display_name" maxlength="120" />
+              <mat-hint align="end">{{ form.controls.display_name.value.length }}/120</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Email</mat-label>
+              <input matInput type="email" formControlName="email" maxlength="255" />
+              @if (form.controls.email.invalid && form.controls.email.touched) {
+                <mat-error>Ingresá un email válido.</mat-error>
+              }
+            </mat-form-field>
+
+            <div class="profile-page__form-actions">
+              <button mat-flat-button color="primary" type="submit" [disabled]="saving() || form.invalid">
+                <mat-icon>save</mat-icon>
+                <span>{{ saving() ? 'Guardando...' : 'Guardar cambios' }}</span>
+              </button>
+            </div>
+          </form>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="profile-page__security-card">
+        <mat-card-header>
+          <mat-card-title>Seguridad</mat-card-title>
+          <mat-card-subtitle>Solicitá un email para restablecer tu contraseña.</mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+          <button mat-stroked-button type="button" [disabled]="requestingPasswordReset()" (click)="requestPasswordReset()">
+            <mat-icon>lock_reset</mat-icon>
+            <span>{{ requestingPasswordReset() ? 'Procesando...' : 'Solicitar reset de contraseña' }}</span>
+          </button>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  }
+</section>

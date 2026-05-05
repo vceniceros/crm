@@ -13,6 +13,7 @@ import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { forkJoin, from, switchMap } from 'rxjs';
 
 import { CrmUserOption } from '../../../../core/models/task-management.model';
@@ -41,6 +42,7 @@ import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.
 import { StatusBadgeComponent } from '../../../../shared/ui/status-badge/status-badge.component';
 import { UserAvatarComponent } from '../../../../shared/ui/user-avatar/user-avatar.component';
 import { SurveyLinkDialogComponent } from '../survey-link-dialog/survey-link-dialog.component';
+import { MarkSolutionConfirmDialogComponent } from '../mark-solution-confirm-dialog/mark-solution-confirm-dialog.component';
 import { TicketAttachmentsSectionComponent } from '../ticket-attachments-section/ticket-attachments-section.component';
 import { TicketDescriptionSectionComponent } from '../ticket-description-section/ticket-description-section.component';
 
@@ -63,12 +65,15 @@ type TicketDispatchDraftItem = {
 interface TicketTimelineEvent {
   id: string;
   anchorId?: string;
+  commentId?: string;
+  commentType?: string;
   occurredAt: string;
   title: string;
   subtitle: string;
   body: string;
   kind: 'comment' | 'status' | 'assignment' | 'request' | 'dispatch' | 'receipt';
   isArrivalComment?: boolean;
+  isSolutionComment?: boolean;
   attachments: TicketAttachment[];
   location?: AppLocation; // Location attached to comment
 }
@@ -86,6 +91,7 @@ interface TicketTimelineEvent {
     MatMenuModule,
     MatProgressSpinnerModule,
     MatSelectModule,
+    MatTooltipModule,
     PageTitleComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -256,6 +262,9 @@ export class TicketExecutionPageComponent {
   readonly isCloseBlockedByArrivalRequirement = computed(() => {
     return this.isArrivalRequired() && !this.hasArrivalRegistered() && this.canCloseOrTransition();
   });
+  readonly isCloseBlockedByVideoRequirement = computed(() => {
+    return Boolean(this.ticket()?.requires_video_evidence && !this.hasPendingCloseVideoEvidence() && this.canCloseOrTransition());
+  });
   readonly canApproveExecutiveClosure = computed(() => {
     const ticket = this.ticket();
     return Boolean(ticket && ticket.status === 'PENDING_APPROVAL' && (this.isAdmin() || this.isExecutive()));
@@ -377,15 +386,19 @@ export class TicketExecutionPageComponent {
 
     const commentEvents: TicketTimelineEvent[] = ticket.comments.map((comment) => {
       const isArrivalComment = Boolean(ticket.arrival_comment_id && ticket.arrival_comment_id === comment.ticket_comment_id);
+      const isSolutionComment = Boolean(ticket.solution_comment_id && ticket.solution_comment_id === comment.ticket_comment_id);
       return {
         id: `comment-${comment.ticket_comment_id}`,
         anchorId: `ticket-comment-${comment.ticket_comment_id}`,
+        commentId: comment.ticket_comment_id,
+        commentType: comment.comment_type,
         occurredAt: comment.created_at,
         title: comment.author_display_name || 'Usuario CRM',
         subtitle: this.timelineLabelByCommentType(comment.comment_type),
         body: comment.body,
         kind: 'comment',
         isArrivalComment,
+        isSolutionComment,
         attachments: comment.attachments,
         location: comment.location || undefined
       };
@@ -737,7 +750,7 @@ export class TicketExecutionPageComponent {
       return;
     }
 
-    if (!this.hasPendingCloseVideoEvidence()) {
+    if (ticket.requires_video_evidence && !this.hasPendingCloseVideoEvidence()) {
       this.errorMessage.set('El cierre del ticket requiere adjuntar al menos un video de evidencia.');
       return;
     }
@@ -1276,7 +1289,8 @@ export class TicketExecutionPageComponent {
     }
 
     if (this.selectedPrimaryAction() === 'close') {
-      return this.canCloseTicket() && Boolean(this.primaryCommentValue()) && this.hasPendingCloseVideoEvidence();
+      const videoRequirementMet = !this.ticket()?.requires_video_evidence || this.hasPendingCloseVideoEvidence();
+      return this.canCloseTicket() && Boolean(this.primaryCommentValue()) && videoRequirementMet;
     }
 
     return Boolean(this.primaryCommentValue());
@@ -1300,6 +1314,52 @@ export class TicketExecutionPageComponent {
       return 'Detalle opcional del cambio de estado';
     }
     return 'Describe diagnóstico, avance o bloqueo';
+  }
+
+  canMarkCommentAsSolution(event: TicketTimelineEvent): boolean {
+    return this.canCloseTicket() && event.kind === 'comment' && event.commentType === 'general';
+  }
+
+  markCommentAsSolution(commentId: string): void {
+    const ticket = this.ticket();
+    if (!ticket || !commentId || !this.canCloseTicket()) {
+      return;
+    }
+
+    this.dialog
+      .open(MarkSolutionConfirmDialogComponent, {
+        autoFocus: false,
+        maxWidth: 'calc(100vw - 1.5rem)',
+        width: '30rem'
+      })
+      .afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((confirmed: boolean | undefined) => {
+        if (!confirmed) {
+          return;
+        }
+
+        this.isSaving.set(true);
+        this.errorMessage.set(null);
+        this.successMessage.set(null);
+        this.ticketManagementService
+          .markCommentAsSolution(ticket.ticket_id, commentId)
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe({
+            next: (updatedTicket) => {
+              this.selectedPrimaryAction.set('comment');
+              this.finishCriticalAction(
+                updatedTicket.status === 'PENDING_APPROVAL'
+                  ? 'Ticket enviado a aprobación ejecutiva usando comentario como solución.'
+                  : 'Ticket cerrado usando comentario marcado como solución.'
+              );
+            },
+            error: (error: Error) => {
+              this.errorMessage.set(error.message);
+              this.isSaving.set(false);
+            }
+          });
+      });
   }
 
   toggleInventoryRequestDrawer(): void {
