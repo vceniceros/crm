@@ -233,6 +233,7 @@ def _ensure_extension_tables(session: Session) -> None:
     _ensure_ticket_attachment_columns(session, inspector)
     _ensure_ticket_columns(session, inspector)
     _ensure_crm_user_columns(session, inspector)
+    _ensure_crm_role_columns(session, inspector)
     _ensure_satisfaction_columns(session, inspector)
 
 
@@ -581,6 +582,53 @@ def _ensure_crm_user_columns(session: Session, inspector=None) -> None:
     user_columns = {column["name"] for column in active_inspector.get_columns("crm_users")}
     if "avatar_url" not in user_columns:
         session.execute(text("ALTER TABLE crm_users ADD COLUMN avatar_url VARCHAR(500)"))
+        session.commit()
+
+
+def _ensure_crm_role_columns(session: Session, inspector=None) -> None:
+    bind = session.get_bind()
+    active_inspector = inspector or inspect(bind)
+    table_names = set(active_inspector.get_table_names())
+    if "crm_roles" not in table_names:
+        return
+
+    role_columns = {column["name"] for column in active_inspector.get_columns("crm_roles")}
+    schema_changed = False
+
+    if "role_label" not in role_columns:
+        session.execute(text("ALTER TABLE crm_roles ADD COLUMN role_label VARCHAR(100) NOT NULL DEFAULT ''"))
+        schema_changed = True
+
+    if "description" not in role_columns:
+        session.execute(text("ALTER TABLE crm_roles ADD COLUMN description TEXT"))
+        schema_changed = True
+
+    if "is_active" not in role_columns:
+        session.execute(text("ALTER TABLE crm_roles ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE"))
+        schema_changed = True
+
+    if "created_at" not in role_columns:
+        if bind.dialect.name == "postgresql":
+            session.execute(text("ALTER TABLE crm_roles ADD COLUMN created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"))
+        else:
+            session.execute(text("ALTER TABLE crm_roles ADD COLUMN created_at DATETIME"))
+        schema_changed = True
+
+    if "updated_at" not in role_columns:
+        if bind.dialect.name == "postgresql":
+            session.execute(text("ALTER TABLE crm_roles ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"))
+        else:
+            session.execute(text("ALTER TABLE crm_roles ADD COLUMN updated_at DATETIME"))
+        schema_changed = True
+
+    if schema_changed:
+        session.execute(
+            text(
+                "UPDATE crm_roles "
+                "SET role_label = COALESCE(NULLIF(role_label, ''), role_key), "
+                "    is_active = COALESCE(is_active, TRUE)"
+            )
+        )
         session.commit()
 
 
