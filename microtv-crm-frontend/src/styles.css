@@ -169,6 +169,28 @@ html.theme-dark .mat-mdc-autocomplete-panel {
   border: 1px solid var(--border-subtle);
 }
 
+/* CDK overlay: select panel, autocomplete and options in dark mode */
+html.theme-dark .cdk-overlay-container .mat-mdc-select-panel,
+html.theme-dark .cdk-overlay-container .mat-mdc-autocomplete-panel {
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+}
+
+html.theme-dark .cdk-overlay-container .mat-mdc-option {
+  background: var(--surface-panel);
+  color: var(--text-primary);
+}
+
+html.theme-dark .cdk-overlay-container .mat-mdc-option:hover:not(.mdc-list-item--disabled),
+html.theme-dark .cdk-overlay-container .mat-mdc-option.mat-mdc-option-active {
+  background: color-mix(in srgb, var(--surface-panel) 80%, white 20%);
+}
+
+html.theme-dark .cdk-overlay-container .mat-mdc-option .mdc-list-item__primary-text {
+  color: var(--text-primary);
+}
+
 html.theme-dark .mat-mdc-option,
 html.theme-dark .mat-mdc-menu-item {
   color: var(--text-primary);

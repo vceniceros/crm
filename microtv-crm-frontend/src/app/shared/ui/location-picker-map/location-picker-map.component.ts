@@ -298,6 +298,18 @@ export class LocationPickerMapComponent implements AfterViewInit, OnChanges, OnD
     this.leafletModule = L;
     this.usingLeafletFallback = true;
 
+    // Fix Leaflet default marker icon assets (stripped by bundler)
+    const iconDefault = L.icon({
+      iconUrl: 'assets/leaflet/marker-icon.png',
+      iconRetinaUrl: 'assets/leaflet/marker-icon-2x.png',
+      shadowUrl: 'assets/leaflet/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41],
+    });
+    L.Marker.prototype.options.icon = iconDefault;
+
     const center = this.resolveInitialCenter();
     const zoom = this.resolveInitialZoom();
 
