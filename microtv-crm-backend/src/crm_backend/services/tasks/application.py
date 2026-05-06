@@ -194,8 +194,12 @@ class TaskApplicationService:
 
     def list_templates(self, actor: ResolvedCrmSession) -> list[TaskTemplate]:
         self._ensure_read_access(actor)
-        include_inactive = bool({"admin", "ejecutivo"}.intersection(actor.role_keys))
-        return self._template_repository.list(include_inactive=include_inactive)
+        try:
+            include_inactive = bool({"admin", "ejecutivo"}.intersection(actor.role_keys))
+            return self._template_repository.list(include_inactive=include_inactive)
+        except Exception:
+            _logger.exception("Failed to list task templates for actor %s", getattr(actor.crm_user, "crm_user_id", "unknown"))
+            return []
 
     def _apply_template_payload(self, template: TaskTemplate, payload: CreateTaskTemplateRequest | UpdateTaskTemplateRequest) -> None:
         for subtask_payload in sorted(payload.subtasks, key=lambda item: item.order_index):
@@ -249,28 +253,44 @@ class TaskApplicationService:
 
     def list_tasks_assigned_to_actor(self, actor: ResolvedCrmSession) -> list[Task]:
         self._ensure_read_access(actor)
-        return self._task_repository.list_tasks_assigned_to_user(actor.crm_user.crm_user_id)
+        try:
+            return self._task_repository.list_tasks_assigned_to_user(actor.crm_user.crm_user_id)
+        except Exception:
+            _logger.exception("Failed to list assigned tasks for actor %s", getattr(actor.crm_user, "crm_user_id", "unknown"))
+            return []
 
     def list_tracking_tasks_for_actor(self, actor: ResolvedCrmSession) -> list[Task]:
         self._ensure_read_access(actor)
-        if {"admin", "ejecutivo"}.intersection(actor.role_keys):
-            return self._task_repository.list_tracking_tasks_for_all_roles()
+        try:
+            if {"admin", "ejecutivo"}.intersection(actor.role_keys):
+                return self._task_repository.list_tracking_tasks_for_all_roles()
 
-        visible_roles = [role for role in actor.role_keys if role in {"deposito", "tecnico"}]
-        if not visible_roles:
+            visible_roles = [role for role in actor.role_keys if role in {"deposito", "tecnico"}]
+            if not visible_roles:
+                return []
+            return self._task_repository.list_tracking_tasks_for_roles(visible_roles)
+        except Exception:
+            _logger.exception("Failed to list tracking tasks for actor %s", getattr(actor.crm_user, "crm_user_id", "unknown"))
             return []
-        return self._task_repository.list_tracking_tasks_for_roles(visible_roles)
 
     def list_task_history_for_actor(self, actor: ResolvedCrmSession) -> list[Task]:
         self._ensure_admin_or_executive(actor)
-        return self._task_repository.list_completed_tasks()
+        try:
+            return self._task_repository.list_completed_tasks()
+        except Exception:
+            _logger.exception("Failed to list task history for actor %s", getattr(actor.crm_user, "crm_user_id", "unknown"))
+            return []
 
     def list_unassigned_subtasks_for_actor(self, actor: ResolvedCrmSession) -> list[Subtask]:
         self._ensure_read_access(actor)
-        visible_roles = [role for role in actor.role_keys if role in {"deposito", "tecnico"}]
-        if "admin" in actor.role_keys:
-            visible_roles = ["deposito", "tecnico", "ejecutivo", "admin"]
-        return self._task_repository.list_unassigned_subtasks_for_roles(visible_roles)
+        try:
+            visible_roles = [role for role in actor.role_keys if role in {"deposito", "tecnico"}]
+            if "admin" in actor.role_keys:
+                visible_roles = ["deposito", "tecnico", "ejecutivo", "admin"]
+            return self._task_repository.list_unassigned_subtasks_for_roles(visible_roles)
+        except Exception:
+            _logger.exception("Failed to list unassigned subtasks for actor %s", getattr(actor.crm_user, "crm_user_id", "unknown"))
+            return []
 
     def get_task_detail(self, actor: ResolvedCrmSession, task_id: str) -> Task:
         self._ensure_read_access(actor)
