@@ -155,23 +155,40 @@ class TicketApplicationService:
 
     def list_tickets_assigned_to_actor(self, actor: ResolvedCrmSession) -> list[Ticket]:
         self._ensure_read_access(actor)
-        return self._ticket_repository.list_tickets_assigned_to_user(actor.crm_user.crm_user_id)
+        try:
+            return self._ticket_repository.list_tickets_assigned_to_user(actor.crm_user.crm_user_id)
+        except Exception:
+            _logger.exception("Failed to list assigned tickets for actor %s", getattr(actor.crm_user, "crm_user_id", "unknown"))
+            return []
 
     def list_unassigned_tickets_for_actor(self, actor: ResolvedCrmSession) -> list[Ticket]:
         self._ensure_read_access(actor)
         role_ids = sorted(self._actor_role_ids(actor))
-        return self._ticket_repository.list_unassigned_tickets_for_roles(role_ids)
+        try:
+            return self._ticket_repository.list_unassigned_tickets_for_roles(role_ids)
+        except Exception:
+            _logger.exception("Failed to list unassigned tickets for actor %s", getattr(actor.crm_user, "crm_user_id", "unknown"))
+            return []
 
     def list_tracking_tickets_for_actor(self, actor: ResolvedCrmSession) -> list[Ticket]:
         self._ensure_read_access(actor)
-        if {"admin", "ejecutivo"}.intersection(actor.role_keys):
-            return self._ticket_repository.list_tracking_tickets_for_all_roles()
-        role_ids = sorted(self._actor_role_ids(actor))
-        return self._ticket_repository.list_tracking_tickets_for_roles(role_ids)
+        actor_role_keys = self._normalized_actor_role_keys(actor)
+        try:
+            if {"admin", "ejecutivo"}.intersection(actor_role_keys):
+                return self._ticket_repository.list_tracking_tickets_for_all_roles()
+            role_ids = sorted(self._actor_role_ids(actor))
+            return self._ticket_repository.list_tracking_tickets_for_roles(role_ids)
+        except Exception:
+            _logger.exception("Failed to list tracking tickets for actor %s", getattr(actor.crm_user, "crm_user_id", "unknown"))
+            return []
 
     def list_closed_tickets_for_actor(self, actor: ResolvedCrmSession) -> list[Ticket]:
         self._ensure_admin_or_executive(actor)
-        return self._ticket_repository.list_closed_tickets()
+        try:
+            return self._ticket_repository.list_closed_tickets()
+        except Exception:
+            _logger.exception("Failed to list closed tickets for actor %s", getattr(actor.crm_user, "crm_user_id", "unknown"))
+            return []
 
     def get_ticket_detail(self, actor: ResolvedCrmSession, ticket_id: str) -> Ticket:
         self._ensure_read_access(actor)
@@ -184,16 +201,21 @@ class TicketApplicationService:
 
     def list_assignable_roles(self, actor: ResolvedCrmSession) -> list[CrmRole]:
         self._ensure_read_access(actor)
-        roles = [role for role in self._role_repository.list_active() if self._is_operational_role(role.role_key)]
-        if {"admin", "ejecutivo"}.intersection(actor.role_keys):
-            return roles
+        actor_role_keys = self._normalized_actor_role_keys(actor)
+        try:
+            roles = [role for role in self._role_repository.list_active() if self._is_operational_role(role.role_key)]
+            if {"admin", "ejecutivo"}.intersection(actor_role_keys):
+                return roles
 
-        actor_role_ids = self._actor_role_ids(actor)
-        if {"tecnico", "deposito"}.intersection(actor.role_keys):
-            for role in roles:
-                if self._normalize_role_key(role.role_key) == "admin":
-                    actor_role_ids.add(role.crm_role_id)
-        return [role for role in roles if role.crm_role_id in actor_role_ids]
+            actor_role_ids = self._actor_role_ids(actor)
+            if {"tecnico", "deposito"}.intersection(actor_role_keys):
+                for role in roles:
+                    if self._normalize_role_key(role.role_key) == "admin":
+                        actor_role_ids.add(role.crm_role_id)
+            return [role for role in roles if role.crm_role_id in actor_role_ids]
+        except Exception:
+            _logger.exception("Failed to list assignable roles for actor %s", getattr(actor.crm_user, "crm_user_id", "unknown"))
+            return []
 
     def add_comment(
         self,
@@ -1138,12 +1160,24 @@ class TicketApplicationService:
         return None
 
     def _ensure_read_access(self, actor: ResolvedCrmSession) -> None:
-        if not self.OPERATIONAL_ROLE_KEYS.intersection(actor.role_keys):
+        if not self.OPERATIONAL_ROLE_KEYS.intersection(self._normalized_actor_role_keys(actor)):
             raise TicketAccessDeniedError("El usuario no tiene permisos para operar tickets.")
 
     def _ensure_admin_or_executive(self, actor: ResolvedCrmSession) -> None:
-        if not {"admin", "ejecutivo"}.intersection(actor.role_keys):
+        if not {"admin", "ejecutivo"}.intersection(self._normalized_actor_role_keys(actor)):
             raise TicketAccessDeniedError("La operación requiere rol administrador o ejecutivo.")
+
+    def _normalized_actor_role_keys(self, actor: ResolvedCrmSession) -> set[str]:
+        raw_role_keys = getattr(actor, "role_keys", None)
+        if raw_role_keys is None:
+            return set()
+
+        normalized_role_keys: set[str] = set()
+        for role_key in raw_role_keys:
+            normalized_role_key = self._normalize_role_key(role_key)
+            if normalized_role_key is not None:
+                normalized_role_keys.add(normalized_role_key)
+        return normalized_role_keys
 
     def _ensure_ticket_operable(self, actor: ResolvedCrmSession, ticket: Ticket) -> None:
         if {"admin", "ejecutivo"}.intersection(actor.role_keys):
