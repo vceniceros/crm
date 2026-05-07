@@ -1,5 +1,6 @@
 """Database bootstrap helpers."""
 
+import logging
 import os
 
 from sqlalchemy import inspect, select, text
@@ -7,6 +8,10 @@ from sqlalchemy.orm import Session
 
 from crm_backend.db import Base
 from crm_backend.models import CrmRole, CrmUser, CrmUserRole, StockCategory, StockProduct, Warehouse
+
+
+_logger = logging.getLogger(__name__)
+BOOTSTRAP_ADVISORY_LOCK_KEY = 4200142401
 
 
 ROLE_SEEDS = (
@@ -109,64 +114,98 @@ def initialize_database(session: Session) -> None:
         session: Active SQLAlchemy session.
     """
 
-    _ensure_schema_ready(session)
-    _ensure_extension_tables(session)
+    lock_acquired = _acquire_bootstrap_lock(session)
+    try:
+        _ensure_schema_ready(session)
+        _ensure_extension_tables(session)
 
-    existing_keys = {role.role_key for role in session.query(CrmRole).all()}
-    for role_key, role_label, description in ROLE_SEEDS:
-        if role_key in existing_keys:
-            continue
-        session.add(CrmRole(role_key=role_key, role_label=role_label, description=description))
+        existing_keys = {role.role_key for role in session.query(CrmRole).all()}
+        for role_key, role_label, description in ROLE_SEEDS:
+            if role_key in existing_keys:
+                continue
+            session.add(CrmRole(role_key=role_key, role_label=role_label, description=description))
 
-    warehouse = session.scalar(select(Warehouse).order_by(Warehouse.created_at.asc()))
-    if warehouse is None:
-        warehouse = Warehouse(warehouse_name="Deposito Principal", address="Buenos Aires, Argentina")
-        session.add(warehouse)
-        session.flush()
-
-    category_by_name = {category.name: category for category in session.query(StockCategory).all()}
-    for seed in STOCK_CATEGORY_SEEDS:
-        category = category_by_name.get(seed["name"])
-        if category is None:
-            category = StockCategory(category_name=seed["name"], is_active=True)
-            session.add(category)
+        warehouse = session.scalar(select(Warehouse).order_by(Warehouse.created_at.asc()))
+        if warehouse is None:
+            warehouse = Warehouse(warehouse_name="Deposito Principal", address="Buenos Aires, Argentina")
+            session.add(warehouse)
             session.flush()
-            category_by_name[seed["name"]] = category
-            continue
-        category.category_name = seed["name"]
-        category.is_active = True
 
-    persisted_products = session.query(StockProduct).all()
-    existing_products = {product.name for product in persisted_products}
-    existing_product_codes = {product.product_code for product in persisted_products if product.product_code}
-    for product in persisted_products:
-        if product.product_code:
-            continue
-        candidate_code = product.visible_product_code
-        if candidate_code in existing_product_codes:
-            candidate_code = f"PRD-{product.stock_product_id[:8].upper()}"
-        product.product_code = candidate_code
-        existing_product_codes.add(candidate_code)
+        category_by_name = {category.name: category for category in session.query(StockCategory).all()}
+        for seed in STOCK_CATEGORY_SEEDS:
+            category = category_by_name.get(seed["name"])
+            if category is None:
+                category = StockCategory(category_name=seed["name"], is_active=True)
+                session.add(category)
+                session.flush()
+                category_by_name[seed["name"]] = category
+                continue
+            category.category_name = seed["name"]
+            category.is_active = True
 
-    for seed in STOCK_PRODUCT_SEEDS:
-        if seed["name"] in existing_products:
-            continue
-        category = category_by_name[seed["category_name"]]
-        session.add(
-            StockProduct.create(
-                name=seed["name"],
-                product_code=StockProduct._build_product_code(name=seed["name"]),
-                stock_category_id=category.stock_category_id,
-                initial_stock=seed["stock"],
-                image_url=seed["image_url"],
-                requires_tracking=False,
-                actor_crm_user_id=None,
-                warehouse_id=warehouse.warehouse_id,
+        persisted_products = session.query(StockProduct).all()
+        existing_products = {product.name for product in persisted_products}
+        existing_product_codes = {product.product_code for product in persisted_products if product.product_code}
+        for product in persisted_products:
+            if product.product_code:
+                continue
+            candidate_code = product.visible_product_code
+            if candidate_code in existing_product_codes:
+                candidate_code = f"PRD-{product.stock_product_id[:8].upper()}"
+            product.product_code = candidate_code
+            existing_product_codes.add(candidate_code)
+
+        for seed in STOCK_PRODUCT_SEEDS:
+            if seed["name"] in existing_products:
+                continue
+            category = category_by_name[seed["category_name"]]
+            session.add(
+                StockProduct.create(
+                    name=seed["name"],
+                    product_code=StockProduct._build_product_code(name=seed["name"]),
+                    stock_category_id=category.stock_category_id,
+                    initial_stock=seed["stock"],
+                    image_url=seed["image_url"],
+                    requires_tracking=False,
+                    actor_crm_user_id=None,
+                    warehouse_id=warehouse.warehouse_id,
+                )
             )
-        )
 
-    _ensure_seed_tech_user(session)
-    session.commit()
+        _ensure_seed_tech_user(session)
+        session.commit()
+    finally:
+        if lock_acquired:
+            _release_bootstrap_lock(session)
+
+
+def _acquire_bootstrap_lock(session: Session) -> bool:
+    bind = session.get_bind()
+    if bind.dialect.name != "postgresql":
+        return False
+
+    session.execute(
+        text("SELECT pg_advisory_lock(:lock_key)"),
+        {"lock_key": BOOTSTRAP_ADVISORY_LOCK_KEY},
+    )
+    return True
+
+
+def _release_bootstrap_lock(session: Session) -> None:
+    try:
+        session.rollback()
+    except Exception:
+        pass
+
+    try:
+        session.execute(
+            text("SELECT pg_advisory_unlock(:lock_key)"),
+            {"lock_key": BOOTSTRAP_ADVISORY_LOCK_KEY},
+        )
+        session.commit()
+    except Exception:
+        session.rollback()
+        _logger.exception("Failed to release bootstrap advisory lock")
 
 
 def _ensure_seed_tech_user(session: Session) -> None:
