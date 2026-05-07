@@ -13,7 +13,15 @@
   <mat-card-content>
     @if (canEdit()) {
       <div class="ticket-attachments-section__actions">
-        <input #fileInput type="file" accept="image/*,video/*" capture="environment" multiple hidden (change)="onFileSelection($event)" />
+        <input
+          #fileInput
+          type="file"
+          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.mov"
+          capture="environment"
+          multiple
+          hidden
+          (change)="onFileSelection($event)"
+        />
 
         <button mat-stroked-button type="button" (click)="fileInput.click()">
           <mat-icon>upload_file</mat-icon>

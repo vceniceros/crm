@@ -333,7 +333,53 @@ export class TicketManagementService {
       return throwError(() => new Error(apiMessage));
     }
 
+    const validationDetail = (error as { error?: { detail?: unknown } })?.error?.detail;
+    const validationMessage = this.extractValidationMessage(validationDetail);
+    if (validationMessage) {
+      return throwError(() => new Error(validationMessage));
+    }
+
     return throwError(() => new Error('No se pudo completar la operación de tickets.'));
+  }
+
+  private extractValidationMessage(detail: unknown): string | null {
+    if (typeof detail === 'string' && detail.trim()) {
+      return detail.trim();
+    }
+
+    if (!Array.isArray(detail)) {
+      return null;
+    }
+
+    const messages = detail
+      .map((item) => {
+        if (!item || typeof item !== 'object') {
+          return null;
+        }
+
+        const candidate = item as { msg?: unknown; loc?: unknown };
+        if (typeof candidate.msg !== 'string' || !candidate.msg.trim()) {
+          return null;
+        }
+
+        if (!Array.isArray(candidate.loc) || candidate.loc.length === 0) {
+          return candidate.msg.trim();
+        }
+
+        const loc = candidate.loc
+          .map((segment) => (typeof segment === 'string' || typeof segment === 'number' ? String(segment) : ''))
+          .filter((segment) => segment.length > 0)
+          .join('.');
+
+        return loc ? `${loc}: ${candidate.msg.trim()}` : candidate.msg.trim();
+      })
+      .filter((item): item is string => Boolean(item));
+
+    if (!messages.length) {
+      return null;
+    }
+
+    return messages.join(' | ');
   }
 
   private normalizeTicketDetail(ticket: TicketDetail): TicketDetail {
