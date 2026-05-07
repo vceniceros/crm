@@ -6,8 +6,15 @@ BACKEND_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="$BACKEND_DIR/.env"
 
 DB_URL=""
-if [ -f "$ENV_FILE" ]; then
-  DB_URL="$(grep -E '^DATABASE_URL=' "$ENV_FILE" | tail -n 1 | cut -d '=' -f 2- || true)"
+DB_SOURCE=""
+USE_FALLBACK="false"
+
+if [ -n "${MIGRATION_DATABASE_URL:-}" ]; then
+  DB_URL="$MIGRATION_DATABASE_URL"
+  DB_SOURCE='MIGRATION_DATABASE_URL'
+elif [ -f "$ENV_FILE" ]; then
+  DB_URL="$(grep -E '^[[:space:]]*DATABASE_URL[[:space:]]*=' "$ENV_FILE" | tail -n 1 | sed -E 's/^[[:space:]]*DATABASE_URL[[:space:]]*=[[:space:]]*//' || true)"
+  DB_SOURCE="$ENV_FILE"
   DB_URL="${DB_URL%\"}"
   DB_URL="${DB_URL#\"}"
   DB_URL="${DB_URL%\'}"
@@ -15,14 +22,46 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 if [ -n "$DB_URL" ]; then
-  # SQLAlchemy URL -> psql URL
-  DB_URL="${DB_URL/postgresql+psycopg:/postgresql:}"
-  PSQL=(psql -X -v ON_ERROR_STOP=1 "$DB_URL")
-  echo "Usando DATABASE_URL de $ENV_FILE"
-else
+  case "$DB_URL" in
+    postgresql+psycopg://*)
+      # SQLAlchemy URL -> libpq URL
+      DB_URL="${DB_URL/postgresql+psycopg:\/\//postgresql://}"
+      ;;
+    postgresql://*)
+      ;;
+    postgres://*)
+      DB_URL="${DB_URL/postgres:\/\//postgresql://}"
+      ;;
+    sqlite://*|sqlite3://*)
+      echo "WARNING: DATABASE_URL apunta a SQLite en $DB_SOURCE."
+      echo "WARNING: Se usara fallback PostgreSQL (127.0.0.1:5432/crm) para esta migracion."
+      USE_FALLBACK="true"
+      ;;
+    *)
+      if [ "$DB_SOURCE" = "MIGRATION_DATABASE_URL" ]; then
+        echo "ERROR: MIGRATION_DATABASE_URL tiene un esquema no soportado."
+        echo "Soportados: postgresql+psycopg://, postgresql://, postgres://"
+        exit 1
+      fi
+
+      echo "WARNING: DATABASE_URL tiene un esquema no soportado en $DB_SOURCE."
+      echo "WARNING: Se usara fallback PostgreSQL (127.0.0.1:5432/crm) para esta migracion."
+      USE_FALLBACK="true"
+      ;;
+  esac
+
+  if [ "$USE_FALLBACK" != "true" ]; then
+    PSQL=(psql -X -v ON_ERROR_STOP=1 "$DB_URL")
+    echo "Usando DATABASE_URL de $DB_SOURCE"
+  fi
+fi
+
+if [ "$USE_FALLBACK" = "true" ] || [ -z "$DB_URL" ]; then
   # Fallback legacy values.
   PSQL=(psql -X -v ON_ERROR_STOP=1 -U ycc -h 127.0.0.1 -p 5432 -d crm)
-  echo "DATABASE_URL no encontrado en $ENV_FILE; usando conexion fallback 127.0.0.1:5432/crm"
+  if [ "$USE_FALLBACK" = "false" ]; then
+    echo "DATABASE_URL no encontrado en $ENV_FILE; usando conexion fallback 127.0.0.1:5432/crm"
+  fi
 fi
 
 echo "=== Iniciando migraciones de produccion ==="
