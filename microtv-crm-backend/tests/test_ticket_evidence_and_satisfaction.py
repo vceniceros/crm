@@ -415,7 +415,7 @@ class TestSatisfactionFormLifecycle:
         )
         assert form_resp.status_code == 403, form_resp.text
 
-    def test_cannot_generate_form_for_closed_ticket_without_executive_approval(self, client, db_session, tmp_path) -> None:
+    def test_can_generate_form_for_closed_ticket_without_executive_approval(self, client, db_session, tmp_path) -> None:
         tech = _seed_user(
             db_session,
             role_key="tecnico_campo",
@@ -451,7 +451,7 @@ class TestSatisfactionFormLifecycle:
             f"/tickets/{ticket_id}/generate-survey",
             headers=_auth("admin-token"),
         )
-        assert form_resp.status_code == 403, form_resp.text
+        assert form_resp.status_code == 200, form_resp.text
 
     def test_public_form_returns_safe_info(self, client, db_session, tmp_path) -> None:
         tech = _seed_user(
@@ -564,7 +564,7 @@ class TestSatisfactionFormLifecycle:
 
 
 class TestTicketExportHistory:
-    def test_export_requires_executive_approval(self, client, db_session, tmp_path) -> None:
+    def test_export_allows_closed_ticket_without_executive_approval(self, client, db_session, tmp_path) -> None:
         tech = _seed_user(
             db_session,
             role_key="tecnico_campo",
@@ -596,7 +596,7 @@ class TestTicketExportHistory:
         assert close_resp.status_code == 200, close_resp.text
 
         export_resp = client.get(f"/tickets/{ticket_id}/export", headers=_auth("admin-token"))
-        assert export_resp.status_code == 403, export_resp.text
+        assert export_resp.status_code == 200, export_resp.text
 
     def test_export_returns_zip_with_pdf_and_media(self, client, db_session, tmp_path) -> None:
         tech = _seed_user(

@@ -1575,7 +1575,7 @@ export class TicketExecutionPageComponent {
   }
 
   timelineAttachmentUrl(attachment: TicketAttachment): string | null {
-    return this.toAbsoluteMediaUrl(attachment.previewUrl) ?? this.toAbsoluteMediaUrl(attachment.publicUrl) ?? this.toAbsoluteMediaUrl(attachment.storagePath);
+    return this.toAbsoluteMediaUrl(attachment.publicUrl) ?? this.toAbsoluteMediaUrl(attachment.previewUrl) ?? this.toAbsoluteMediaUrl(attachment.storagePath);
   }
 
   openAttachmentInNewTab(url: string): void {
@@ -1861,6 +1861,11 @@ export class TicketExecutionPageComponent {
       .replace(/^\/+/, '');
 
     if (!normalizedPath || /^[a-z]:\//i.test(normalizedPath)) {
+      return null;
+    }
+
+    // Ignore opaque ids without path/extension and let caller fall back to other URL fields.
+    if (!normalizedPath.includes('/') && !normalizedPath.includes('.')) {
       return null;
     }
 

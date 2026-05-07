@@ -16,7 +16,7 @@
         <input
           #cameraInput
           type="file"
-          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.mov"
+          accept="image/*,video/*"
           capture="environment"
           hidden
           (change)="onFileSelection($event)"
@@ -31,12 +31,12 @@
           (change)="onFileSelection($event)"
         />
 
-        <button mat-stroked-button type="button" (click)="cameraInput.click()">
+        <button mat-stroked-button type="button" (click)="triggerFileInput(cameraInput)">
           <mat-icon>photo_camera</mat-icon>
           <span>Cámara</span>
         </button>
 
-        <button mat-stroked-button type="button" (click)="galleryInput.click()">
+        <button mat-stroked-button type="button" (click)="triggerFileInput(galleryInput)">
           <mat-icon>photo_library</mat-icon>
           <span>Galería</span>
         </button>

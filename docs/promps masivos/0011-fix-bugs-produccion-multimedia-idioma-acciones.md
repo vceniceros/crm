@@ -207,9 +207,9 @@ En dispositivos Android, al adjuntar multimedia a un comentario de ticket, la ap
 
 ## Checklist de verificación post-implementación
 
-- [ ] Bug 1: Tocar un adjunto en el historial de un comentario abre la imagen/video en una nueva pestaña del navegador, no navega al dashboard
-- [ ] Bug 2: El panel de requisitos de cierre muestra texto en español
-- [ ] Bug 3: En un ticket `CLOSED`, el usuario admin/ejecutivo ve los botones "Exportar historial" y "Generar encuesta"
-- [ ] Bug 4: Un usuario de cualquier rol puede auto-asignarse tickets en la pestaña "Sin asignar en mi rol"
-- [ ] Bug 5: Ambos controles en el formulario de creación son `mat-checkbox` con labels en español
-- [ ] Bug 6 (Android): Al adjuntar multimedia en un comentario, se muestran dos botones — "Cámara" y "Galería" — que abren el origen correcto cada uno
+- [ -] Bug 1: Tocar un adjunto en el historial de un comentario abre la imagen/video en una nueva pestaña del navegador, no navega al dashboard: estan los links pero la imagen y el video esta rotos, es como si no estuviese bien puesta la ruta
+- [x ] Bug 2: El panel de requisitos de cierre muestra texto en español: esta correcto
+- [ -] Bug 3: En un ticket `CLOSED`, el usuario admin/ejecutivo ve los botones "Exportar historial" y "Generar encuesta": ambos tiran errores (adjunto en el mensaje)
+- [x ] Bug 4: Un usuario de cualquier rol puede auto-asignarse tickets en la pestaña "Sin asignar en mi rol": esta correcto
+- [ x] Bug 5: Ambos controles en el formulario de creación son `mat-checkbox` con labels en español : esta correcto
+- [-] Bug 6 (Android): Al adjuntar multimedia en un comentario, se muestran dos botones — "Cámara" y "Galería" — que abren el origen correcto cada uno: si bien muestra ambos botones el boton de camara me abre la galeria

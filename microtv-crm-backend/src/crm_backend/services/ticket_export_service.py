@@ -89,9 +89,9 @@ class TicketExportService:
         """
         if not {"admin", "ejecutivo"}.intersection(actor.role_keys):
             raise TicketAccessDeniedError("Solo admin o ejecutivo pueden exportar el desarrollo de un ticket.")
-        if ticket.status != TicketStatus.CLOSED.value or not ticket.approved_by_executive:
+        if ticket.status != TicketStatus.CLOSED.value:
             raise TicketAccessDeniedError(
-                "Solo se puede exportar historial de tickets cerrados y aprobados por ejecutivo."
+                "Solo se puede exportar historial de tickets cerrados."
             )
 
         zip_buffer = io.BytesIO()
