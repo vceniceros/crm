@@ -434,6 +434,16 @@
   text-decoration: none;
 }
 
+.ticket-execution-page__timeline-attachments img,
+.ticket-execution-page__timeline-attachments video {
+  width: 9rem;
+  height: 6rem;
+  border-radius: 0.6rem;
+  object-fit: cover;
+  border: 1px solid rgba(23, 24, 26, 0.15);
+  cursor: pointer;
+}
+
 .ticket-execution-page__timeline-location-badge,
 .ticket-execution-page__timeline-arrival-badge {
   display: inline-flex;
