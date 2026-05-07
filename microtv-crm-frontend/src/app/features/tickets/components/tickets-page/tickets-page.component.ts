@@ -115,8 +115,7 @@ export class TicketsPageComponent {
   readonly trackingVisibleRows = computed(() => this.applyTicketListState(this.trackingRows(), 'tracking'));
   readonly historyVisibleRows = computed(() => this.applyTicketListState(this.historyRows(), 'history'));
   readonly canSelfAssignUnassignedTickets = computed(() => {
-    const roles = this.currentRoles();
-    return roles.some((role) => role === 'tecnico' || role === 'deposito');
+    return this.currentRoles().length > 0;
   });
 
   constructor() {
@@ -299,7 +298,7 @@ export class TicketsPageComponent {
       assignedUserId: ticket.assigned_user_id,
       assignedRoleId: ticket.assigned_role_id,
       assignedRoleKey: ticket.assigned_role_key,
-      isExecutiveApprovedClosed: ticket.status === 'CLOSED' && Boolean(ticket.approved_by_executive),
+      isExecutiveApprovedClosed: ticket.status === 'CLOSED',
       hasSurveyGenerated: Boolean(ticket.survey_generated_at),
       surveyStatusLabel: ticket.survey_status_label ?? null,
       surveyCompletedAt: ticket.survey_completed_at ?? null,

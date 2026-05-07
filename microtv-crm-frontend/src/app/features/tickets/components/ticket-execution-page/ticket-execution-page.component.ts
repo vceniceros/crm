@@ -16,6 +16,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { forkJoin, from, switchMap } from 'rxjs';
 
+import { crmApiConfig } from '../../../../core/config/crm-api.config';
 import { CrmUserOption } from '../../../../core/models/task-management.model';
 import { InventoryProduct } from '../../../../core/models/inventory-product.model';
 import { AppLocation } from '../../../../core/models/location.model';
@@ -123,6 +124,7 @@ export class TicketExecutionPageComponent {
   private readonly ticketManagementService = inject(TicketManagementService);
   private readonly locationPickerService = inject(LocationPickerService);
   private readonly locationLinkService = inject(LocationLinkService);
+  private readonly backendOrigin = this.resolveBackendOrigin();
   private activeCommentLocationRequest = 0;
   private commentLocationWatchdogId: ReturnType<typeof setTimeout> | null = null;
 
@@ -289,7 +291,7 @@ export class TicketExecutionPageComponent {
     if (!ticket) {
       return false;
     }
-    return ticket.status === 'CLOSED' && Boolean(ticket.approved_by_executive) && (this.isAdmin() || this.isExecutive());
+    return ticket.status === 'CLOSED' && (this.isAdmin() || this.isExecutive());
   });
   readonly hasGeneratedSurvey = computed(() => Boolean(this.ticket()?.survey_generated_at));
   readonly ticketRoles = signal<Array<{ crm_role_id: string; role_key: string; role_label: string }>>([]);
@@ -1572,6 +1574,18 @@ export class TicketExecutionPageComponent {
     return 'neutral';
   }
 
+  timelineAttachmentUrl(attachment: TicketAttachment): string | null {
+    return this.toAbsoluteMediaUrl(attachment.previewUrl) ?? this.toAbsoluteMediaUrl(attachment.publicUrl) ?? this.toAbsoluteMediaUrl(attachment.storagePath);
+  }
+
+  openAttachmentInNewTab(url: string): void {
+    if (!url) {
+      return;
+    }
+
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
   trackByCommentId(_: number, comment: TicketDetail['comments'][number]): string {
     return comment.ticket_comment_id;
   }
@@ -1826,6 +1840,39 @@ export class TicketExecutionPageComponent {
       return `${window.location.origin}${path}`;
     }
     return `${window.location.origin}/survey/${token}`;
+  }
+
+  private toAbsoluteMediaUrl(path: string | null | undefined): string | null {
+    const normalized = path?.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    if (/^(https?:|blob:|data:)/i.test(normalized)) {
+      return normalized;
+    }
+
+    const slashNormalized = normalized.replace(/\\/g, '/');
+    const lowerPath = slashNormalized.toLowerCase();
+    const publicMarker = '/public/';
+    const publicIndex = lowerPath.lastIndexOf(publicMarker);
+    const normalizedPath = (publicIndex >= 0 ? slashNormalized.slice(publicIndex + publicMarker.length) : slashNormalized)
+      .replace(/^\/?public\//i, '')
+      .replace(/^\/+/, '');
+
+    if (!normalizedPath || /^[a-z]:\//i.test(normalizedPath)) {
+      return null;
+    }
+
+    return `${this.backendOrigin}/${normalizedPath}`;
+  }
+
+  private resolveBackendOrigin(): string {
+    try {
+      return new URL(crmApiConfig.baseUrl).origin;
+    } catch {
+      return crmApiConfig.baseUrl.replace(/\/$/, '');
+    }
   }
 
   private ticketId(): string {

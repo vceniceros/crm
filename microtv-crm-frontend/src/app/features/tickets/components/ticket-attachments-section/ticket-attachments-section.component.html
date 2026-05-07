@@ -14,18 +14,31 @@
     @if (canEdit()) {
       <div class="ticket-attachments-section__actions">
         <input
-          #fileInput
+          #cameraInput
           type="file"
           accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.mov"
           capture="environment"
+          hidden
+          (change)="onFileSelection($event)"
+        />
+
+        <input
+          #galleryInput
+          type="file"
+          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.mov"
           multiple
           hidden
           (change)="onFileSelection($event)"
         />
 
-        <button mat-stroked-button type="button" (click)="fileInput.click()">
-          <mat-icon>upload_file</mat-icon>
-          <span>{{ uploadButtonLabel() }}</span>
+        <button mat-stroked-button type="button" (click)="cameraInput.click()">
+          <mat-icon>photo_camera</mat-icon>
+          <span>Cámara</span>
+        </button>
+
+        <button mat-stroked-button type="button" (click)="galleryInput.click()">
+          <mat-icon>photo_library</mat-icon>
+          <span>Galería</span>
         </button>
 
         <p class="ticket-attachments-section__hint">{{ hintText() }}</p>

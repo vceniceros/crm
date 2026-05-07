@@ -152,7 +152,19 @@
                   @if (event.attachments.length) {
                     <div class="ticket-execution-page__timeline-attachments">
                       @for (attachment of event.attachments; track attachment.id) {
-                        <a [href]="attachment.previewUrl || attachment.publicUrl" target="_blank" rel="noopener noreferrer">{{ attachment.fileName }}</a>
+                        @if (timelineAttachmentUrl(attachment); as attachmentUrl) {
+                          @if (attachment.kind === 'image') {
+                            <img [src]="attachmentUrl" [alt]="attachment.fileName" (click)="openAttachmentInNewTab(attachmentUrl)" />
+                          } @else if (attachment.kind === 'video') {
+                            <video controls preload="metadata" (click)="openAttachmentInNewTab(attachmentUrl)">
+                              <source [src]="attachmentUrl" [type]="attachment.fileType || 'video/mp4'" />
+                            </video>
+                          } @else {
+                            <a [href]="attachmentUrl" target="_blank" rel="noopener noreferrer">{{ attachment.fileName }}</a>
+                          }
+                        } @else {
+                          <span>{{ attachment.fileName }}</span>
+                        }
                       }
                     </div>
                   }
@@ -293,14 +305,14 @@
               <div class="close-requirements-panel__item" [class.close-requirements-panel__item--met]="!isCloseBlockedByArrivalRequirement()">
                 <mat-icon>{{ isCloseBlockedByArrivalRequirement() ? 'warning' : 'check_circle' }}</mat-icon>
                 <span [class.close-requirements-panel__text--met]="!isCloseBlockedByArrivalRequirement()">
-                  Register your arrival at the client's location before closing. Add a comment with location.
+                  Registrá tu llegada al cliente antes de cerrar. Agregá un comentario con ubicación.
                 </span>
               </div>
 
               <div class="close-requirements-panel__item" [class.close-requirements-panel__item--met]="!isCloseBlockedByVideoRequirement()">
                 <mat-icon>{{ isCloseBlockedByVideoRequirement() ? 'warning' : 'check_circle' }}</mat-icon>
                 <span [class.close-requirements-panel__text--met]="!isCloseBlockedByVideoRequirement()">
-                  This ticket requires at least one video evidence attachment.
+                  Este ticket requiere al menos un video de evidencia adjunto.
                 </span>
               </div>
             </div>
