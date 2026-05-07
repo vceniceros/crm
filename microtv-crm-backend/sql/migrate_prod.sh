@@ -80,8 +80,20 @@ constraint_exists() {
   "${PSQL[@]}" -t -A -c "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = '$constraint_name');" | tr -d '[:space:]'
 }
 
+is_truthy() {
+  local value="${1:-}"
+  case "$value" in
+    t|true|1|y|yes)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 run_migration "$SCRIPT_DIR/20260414_task_schema_v4_delta.sql"
-if [ "$(constraint_exists 'chk_template_subtasks_next_assignment_policy')" = "true" ]; then
+if is_truthy "$(constraint_exists 'chk_template_subtasks_next_assignment_policy')"; then
   echo "--- Saltando: $SCRIPT_DIR/20260414_task_schema_v4_1_hardening.sql (hardening ya aplicado)"
 else
   run_migration "$SCRIPT_DIR/20260414_task_schema_v4_1_hardening.sql"
@@ -108,8 +120,11 @@ echo "col_video_evidence|col_arrival_comment|table_notifications|active_roles_co
 echo "$verification_output"
 
 if [[ "$verification_output" != true\|true\|true\|* ]]; then
-  echo "ERROR: Verificacion final del schema invalida: $verification_output"
-  exit 1
+  IFS='|' read -r col_video col_arrival table_notifications active_roles <<< "$verification_output"
+  if ! is_truthy "$col_video" || ! is_truthy "$col_arrival" || ! is_truthy "$table_notifications"; then
+    echo "ERROR: Verificacion final del schema invalida: $verification_output"
+    exit 1
+  fi
 fi
 
 echo "=== Migraciones completadas ==="
