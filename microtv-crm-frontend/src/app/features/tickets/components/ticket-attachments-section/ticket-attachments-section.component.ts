@@ -43,6 +43,23 @@ export class TicketAttachmentsSectionComponent {
     return attachment.id;
   }
 
+  triggerFileInput(input: HTMLInputElement): void {
+    if (!input) {
+      return;
+    }
+
+    // Reset value so the same file can be selected again after retries.
+    input.value = '';
+
+    const picker = (input as HTMLInputElement & { showPicker?: () => void }).showPicker;
+    if (typeof picker === 'function') {
+      picker.call(input);
+      return;
+    }
+
+    input.click();
+  }
+
   iconFor(attachment: TicketAttachment): string {
     if (attachment.kind === 'image') {
       return 'image';

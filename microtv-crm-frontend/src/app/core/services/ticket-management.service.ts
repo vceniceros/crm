@@ -1,7 +1,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable, Subject, throwError } from 'rxjs';
-import { catchError, map, tap } from 'rxjs/operators';
+import { Observable, Subject, from, throwError } from 'rxjs';
+import { catchError, map, mergeMap, tap } from 'rxjs/operators';
 
 import { crmApiConfig } from '../config/crm-api.config';
 import {
@@ -272,7 +272,7 @@ export class TicketManagementService {
         headers,
         responseType: 'blob'
       })
-      .pipe(catchError((error) => this.handleRequestError(error)));
+      .pipe(catchError((error) => this.handleBlobRequestError(error, 'No se pudo exportar el historial del ticket.')));
   }
 
   exportTicketDevelopment(ticketId: string): Observable<Blob> {
@@ -340,6 +340,49 @@ export class TicketManagementService {
     }
 
     return throwError(() => new Error('No se pudo completar la operación de tickets.'));
+  }
+
+  private handleBlobRequestError(error: unknown, fallbackMessage: string): Observable<never> {
+    const blobPayload = (error as { error?: unknown })?.error;
+    if (!(blobPayload instanceof Blob)) {
+      return this.handleRequestError(error);
+    }
+
+    return from(blobPayload.text()).pipe(
+      map((text) => this.extractApiMessageFromBlobText(text) || this.fallbackMessageByStatus((error as { status?: number })?.status, fallbackMessage)),
+      mergeMap((message) => throwError(() => new Error(message)))
+    );
+  }
+
+  private extractApiMessageFromBlobText(rawText: string): string | null {
+    const normalized = rawText?.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(normalized) as {
+        error?: { message?: unknown };
+        detail?: unknown;
+      };
+
+      const apiMessage = parsed?.error?.message;
+      if (typeof apiMessage === 'string' && apiMessage.trim()) {
+        return apiMessage.trim();
+      }
+
+      return this.extractValidationMessage(parsed?.detail);
+    } catch {
+      return normalized;
+    }
+  }
+
+  private fallbackMessageByStatus(status: number | undefined, fallbackMessage: string): string {
+    if (status === 403) {
+      return 'No tenés permisos para esta acción en el estado actual del ticket.';
+    }
+
+    return fallbackMessage;
   }
 
   private extractValidationMessage(detail: unknown): string | null {
@@ -439,6 +482,11 @@ export class TicketManagementService {
       .replace(/^\/+/, '');
 
     if (!normalizedPath || /^[a-z]:\//i.test(normalizedPath)) {
+      return null;
+    }
+
+    // Avoid treating opaque ids/tokens as direct media URLs.
+    if (!normalizedPath.includes('/') && !normalizedPath.includes('.')) {
       return null;
     }
 

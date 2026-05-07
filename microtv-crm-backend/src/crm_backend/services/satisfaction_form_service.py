@@ -104,9 +104,9 @@ class PublicSatisfactionFormService:
         if not {"admin", "ejecutivo"}.intersection(actor.role_keys):
             raise TicketAccessDeniedError("Solo admin o ejecutivo pueden generar formularios de satisfacción.")
 
-        if ticket.status != TicketStatus.CLOSED.value or not ticket.approved_by_executive:
+        if ticket.status != TicketStatus.CLOSED.value:
             raise TicketAccessDeniedError(
-                "Solo se puede generar encuesta en tickets cerrados y aprobados por ejecutivo."
+                "Solo se puede generar encuesta en tickets cerrados."
             )
 
         # Allow only one active (non-expired, non-revoked) form per ticket at a time.
