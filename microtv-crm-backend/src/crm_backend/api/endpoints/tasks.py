@@ -1,5 +1,6 @@
 """HTTP endpoints for the task module."""
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Response, UploadFile, status
@@ -27,6 +28,27 @@ from crm_backend.services.auth_service import ResolvedCrmSession
 
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
+_logger = logging.getLogger(__name__)
+
+
+def _safe_task_summary_list(items: list[object]) -> list[TaskSummaryResponse]:
+    response: list[TaskSummaryResponse] = []
+    for index, item in enumerate(items):
+        try:
+            response.append(TaskSummaryResponse.model_validate(item))
+        except Exception:
+            _logger.exception("Failed to serialize task summary item at index %s", index)
+    return response
+
+
+def _safe_unassigned_subtask_list(items: list[object]) -> list[UnassignedSubtaskQueueResponse]:
+    response: list[UnassignedSubtaskQueueResponse] = []
+    for index, item in enumerate(items):
+        try:
+            response.append(_map_unassigned_subtask(item))
+        except Exception:
+            _logger.exception("Failed to serialize unassigned subtask item at index %s", index)
+    return response
 
 
 def _map_unassigned_subtask(subtask) -> UnassignedSubtaskQueueResponse:
@@ -165,7 +187,7 @@ def list_my_assigned_tasks(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     task_service: TaskApplicationService = Depends(get_task_application_service),
 ) -> list[TaskSummaryResponse]:
-    return [TaskSummaryResponse.model_validate(item) for item in task_service.list_tasks_assigned_to_actor(actor)]
+    return _safe_task_summary_list(task_service.list_tasks_assigned_to_actor(actor))
 
 
 @router.get(
@@ -177,7 +199,7 @@ def list_tracking_tasks_for_me(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     task_service: TaskApplicationService = Depends(get_task_application_service),
 ) -> list[TaskSummaryResponse]:
-    return [TaskSummaryResponse.model_validate(item) for item in task_service.list_tracking_tasks_for_actor(actor)]
+    return _safe_task_summary_list(task_service.list_tracking_tasks_for_actor(actor))
 
 
 @router.get(
@@ -189,7 +211,7 @@ def list_task_history_for_me(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     task_service: TaskApplicationService = Depends(get_task_application_service),
 ) -> list[TaskSummaryResponse]:
-    return [TaskSummaryResponse.model_validate(item) for item in task_service.list_task_history_for_actor(actor)]
+    return _safe_task_summary_list(task_service.list_task_history_for_actor(actor))
 
 
 @router.get(
@@ -201,7 +223,7 @@ def list_unassigned_subtasks_for_my_roles(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     task_service: TaskApplicationService = Depends(get_task_application_service),
 ) -> list[UnassignedSubtaskQueueResponse]:
-    return [_map_unassigned_subtask(item) for item in task_service.list_unassigned_subtasks_for_actor(actor)]
+    return _safe_unassigned_subtask_list(task_service.list_unassigned_subtasks_for_actor(actor))
 
 
 @router.post(

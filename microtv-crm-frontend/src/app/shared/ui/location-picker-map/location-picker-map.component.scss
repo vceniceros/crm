@@ -188,3 +188,11 @@
 :host-context(html.theme-dark) ::ng-deep .leaflet-container {
   background: #1a1f2e;
 }
+
+:host-context(.theme-dark) .location-picker-map__shell {
+  background: var(--surface-container, #1a1f2e);
+}
+
+:host-context(.theme-dark) ::ng-deep .leaflet-container {
+  background: #1a1f2e;
+}
