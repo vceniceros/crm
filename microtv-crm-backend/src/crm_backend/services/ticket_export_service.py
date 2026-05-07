@@ -293,7 +293,7 @@ class TicketExportService:
                     if attachment_path is None:
                         continue
                     if attachment.attachment_type == TicketAttachmentType.PHOTO.value:
-                        self._embed_image(story, attachment_path, Image, PILImage, small)
+                        self._embed_image(story, attachment_path, Image, PILImage, Paragraph, small)
                     else:
                         # Video/document: reference as text
                         fname = _sanitize_zip_name(attachment_path.name)
@@ -371,6 +371,7 @@ class TicketExportService:
         image_path: Path,
         Image,  # reportlab Image  # noqa: N803
         PILImage,  # Pillow Image  # noqa: N803
+        Paragraph,
         caption_style,
     ) -> None:
         path = image_path

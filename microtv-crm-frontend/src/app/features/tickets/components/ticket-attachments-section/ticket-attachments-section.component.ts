@@ -43,18 +43,32 @@ export class TicketAttachmentsSectionComponent {
     return attachment.id;
   }
 
-  triggerFileInput(input: HTMLInputElement): void {
+  openCameraInput(input: HTMLInputElement): void {
     if (!input) {
       return;
     }
 
-    // Reset value so the same file can be selected again after retries.
+    input.value = '';
+
+    // On Android, direct click tends to respect capture better than showPicker.
+    input.click();
+  }
+
+  openGalleryInput(input: HTMLInputElement): void {
+    if (!input) {
+      return;
+    }
+
     input.value = '';
 
     const picker = (input as HTMLInputElement & { showPicker?: () => void }).showPicker;
     if (typeof picker === 'function') {
-      picker.call(input);
-      return;
+      try {
+        picker.call(input);
+        return;
+      } catch {
+        // Fall back to click below.
+      }
     }
 
     input.click();
