@@ -1873,10 +1873,17 @@ export class TicketExecutionPageComponent {
   }
 
   private resolveBackendOrigin(): string {
+    const browserOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+    const normalizedBaseUrl = (crmApiConfig.baseUrl || '').trim();
+
+    if (!normalizedBaseUrl) {
+      return browserOrigin;
+    }
+
     try {
-      return new URL(crmApiConfig.baseUrl).origin;
+      return new URL(normalizedBaseUrl, browserOrigin).origin;
     } catch {
-      return crmApiConfig.baseUrl.replace(/\/$/, '');
+      return browserOrigin;
     }
   }
 
