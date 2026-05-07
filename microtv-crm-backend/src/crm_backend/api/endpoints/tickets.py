@@ -1,6 +1,7 @@
 """HTTP endpoints for the ticket module."""
 
 from datetime import UTC, datetime
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Response, UploadFile, status
@@ -40,6 +41,17 @@ from crm_backend.services.ticket_service import TicketApplicationService
 
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
+_logger = logging.getLogger(__name__)
+
+
+def _safe_ticket_summary_list(items: list[object]) -> list[TicketSummaryResponse]:
+    response: list[TicketSummaryResponse] = []
+    for index, item in enumerate(items):
+        try:
+            response.append(TicketSummaryResponse.model_validate(item))
+        except Exception:
+            _logger.exception("Failed to serialize ticket summary item at index %s", index)
+    return response
 
 
 def _to_ticket_detail_response(
@@ -92,23 +104,26 @@ def list_assignable_roles(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
 ) -> list[TicketRoleOptionResponse]:
-    roles = ticket_service.list_assignable_roles(actor)
-    response: list[TicketRoleOptionResponse] = []
-    for role in roles:
-        role_id = str(getattr(role, "crm_role_id", "") or "").strip()
-        role_key = str(getattr(role, "role_key", "") or "").strip()
-        role_label = str(getattr(role, "role_label", "") or "").strip()
-        if not role_id or not role_key or not role_label:
-            continue
-        response.append(
-            TicketRoleOptionResponse(
-                crm_role_id=role_id,
-                role_key=role_key,
-                role_label=role_label,
+    try:
+        roles = ticket_service.list_assignable_roles(actor)
+        response: list[TicketRoleOptionResponse] = []
+        for role in roles:
+            role_id = str(getattr(role, "crm_role_id", "") or "").strip()
+            role_key = str(getattr(role, "role_key", "") or "").strip()
+            role_label = str(getattr(role, "role_label", "") or "").strip()
+            if not role_id or not role_key or not role_label:
+                continue
+            response.append(
+                TicketRoleOptionResponse(
+                    crm_role_id=role_id,
+                    role_key=role_key,
+                    role_label=role_label,
+                )
             )
-        )
-
-    return response
+        return response
+    except Exception:
+        _logger.exception("Failed to serialize assignable roles for actor %s", getattr(actor.crm_user, "crm_user_id", "unknown"))
+        return []
 
 
 @router.post(
@@ -134,7 +149,7 @@ def list_my_assigned_tickets(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
 ) -> list[TicketSummaryResponse]:
-    return [TicketSummaryResponse.model_validate(item) for item in ticket_service.list_tickets_assigned_to_actor(actor)]
+    return _safe_ticket_summary_list(ticket_service.list_tickets_assigned_to_actor(actor))
 
 
 @router.get(
@@ -146,7 +161,7 @@ def list_unassigned_tickets_for_my_roles(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
 ) -> list[TicketSummaryResponse]:
-    return [TicketSummaryResponse.model_validate(item) for item in ticket_service.list_unassigned_tickets_for_actor(actor)]
+    return _safe_ticket_summary_list(ticket_service.list_unassigned_tickets_for_actor(actor))
 
 
 @router.get(
@@ -158,7 +173,7 @@ def list_tracking_tickets_for_me(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
 ) -> list[TicketSummaryResponse]:
-    return [TicketSummaryResponse.model_validate(item) for item in ticket_service.list_tracking_tickets_for_actor(actor)]
+    return _safe_ticket_summary_list(ticket_service.list_tracking_tickets_for_actor(actor))
 
 
 @router.get(
@@ -170,7 +185,7 @@ def list_closed_tickets_for_me(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
 ) -> list[TicketSummaryResponse]:
-    return [TicketSummaryResponse.model_validate(item) for item in ticket_service.list_closed_tickets_for_actor(actor)]
+    return _safe_ticket_summary_list(ticket_service.list_closed_tickets_for_actor(actor))
 
 
 @router.get(

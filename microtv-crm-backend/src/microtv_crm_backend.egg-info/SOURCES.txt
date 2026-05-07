@@ -16,6 +16,7 @@ src/crm_backend/api/endpoints/dashboard.py
 src/crm_backend/api/endpoints/health.py
 src/crm_backend/api/endpoints/inventory_flow.py
 src/crm_backend/api/endpoints/locations.py
+src/crm_backend/api/endpoints/me.py
 src/crm_backend/api/endpoints/notifications.py
 src/crm_backend/api/endpoints/public_tickets.py
 src/crm_backend/api/endpoints/reports.py
@@ -68,6 +69,7 @@ src/crm_backend/schemas/crm_users.py
 src/crm_backend/schemas/dashboard.py
 src/crm_backend/schemas/locations.py
 src/crm_backend/schemas/material_flow.py
+src/crm_backend/schemas/me.py
 src/crm_backend/schemas/notifications.py
 src/crm_backend/schemas/reports.py
 src/crm_backend/schemas/settings.py
