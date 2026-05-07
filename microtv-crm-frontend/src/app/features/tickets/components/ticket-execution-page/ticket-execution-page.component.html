@@ -154,9 +154,9 @@
                       @for (attachment of event.attachments; track attachment.id) {
                         @if (timelineAttachmentUrl(attachment); as attachmentUrl) {
                           @if (attachment.kind === 'image') {
-                            <img [src]="attachmentUrl" [alt]="attachment.fileName" (click)="openAttachmentInNewTab(attachmentUrl)" />
+                            <img [src]="attachmentUrl" [alt]="attachment.fileName" width="144" height="96" (click)="openAttachmentInNewTab(attachmentUrl)" />
                           } @else if (attachment.kind === 'video') {
-                            <video controls preload="metadata" (click)="openAttachmentInNewTab(attachmentUrl)">
+                            <video controls preload="metadata" width="144" height="96" (click)="openAttachmentInNewTab(attachmentUrl)">
                               <source [src]="attachmentUrl" [type]="attachment.fileType || 'video/mp4'" />
                             </video>
                           } @else {
