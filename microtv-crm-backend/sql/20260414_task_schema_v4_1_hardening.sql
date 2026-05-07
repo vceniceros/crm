@@ -292,47 +292,120 @@ ALTER TABLE subtask_checklist_items
     ALTER COLUMN template_checklist_item_id SET NOT NULL;
 
 -- 2. Domain checks for new textual enums.
-ALTER TABLE template_subtasks
-    ADD CONSTRAINT chk_template_subtasks_next_assignment_policy
-    CHECK (next_assignment_policy IN ('role_queue_auto', 'default_user_auto', 'manual_required')) NOT VALID;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_template_subtasks_next_assignment_policy'
+    ) THEN
+        ALTER TABLE template_subtasks
+            ADD CONSTRAINT chk_template_subtasks_next_assignment_policy
+            CHECK (next_assignment_policy IN ('role_queue_auto', 'default_user_auto', 'manual_required')) NOT VALID;
+    END IF;
+END $$;
 
-ALTER TABLE subtasks
-    ADD CONSTRAINT chk_subtasks_status_domain
-    CHECK (status IN ('locked', 'pending_assignment', 'assigned', 'in_progress', 'completed', 'rejected', 'on_hold')) NOT VALID,
-    ADD CONSTRAINT chk_subtasks_next_assignment_policy
-    CHECK (next_assignment_policy IN ('role_queue_auto', 'default_user_auto', 'manual_required')) NOT VALID,
-    ADD CONSTRAINT chk_subtasks_completed_consistency
-    CHECK (
-        (status = 'completed' AND is_completed = TRUE AND completed_at IS NOT NULL)
-        OR (status <> 'completed' AND is_completed = FALSE AND completed_at IS NULL)
-    ) NOT VALID;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_subtasks_status_domain'
+    ) THEN
+        ALTER TABLE subtasks
+            ADD CONSTRAINT chk_subtasks_status_domain
+            CHECK (status IN ('locked', 'pending_assignment', 'assigned', 'in_progress', 'completed', 'rejected', 'on_hold')) NOT VALID;
+    END IF;
 
-ALTER TABLE template_subtask_checklist_items
-    ADD CONSTRAINT chk_template_subtask_checklist_items_item_type
-    CHECK (item_type IN ('checkbox', 'text')) NOT VALID;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_subtasks_next_assignment_policy'
+    ) THEN
+        ALTER TABLE subtasks
+            ADD CONSTRAINT chk_subtasks_next_assignment_policy
+            CHECK (next_assignment_policy IN ('role_queue_auto', 'default_user_auto', 'manual_required')) NOT VALID;
+    END IF;
 
-ALTER TABLE subtask_checklist_items
-    ADD CONSTRAINT chk_subtask_checklist_items_item_type
-    CHECK (item_type IN ('checkbox', 'text')) NOT VALID;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_subtasks_completed_consistency'
+    ) THEN
+        ALTER TABLE subtasks
+            ADD CONSTRAINT chk_subtasks_completed_consistency
+            CHECK (
+                (status = 'completed' AND is_completed = TRUE AND completed_at IS NOT NULL)
+                OR (status <> 'completed' AND is_completed = FALSE AND completed_at IS NULL)
+            ) NOT VALID;
+    END IF;
+END $$;
 
-ALTER TABLE task_comments
-    ADD CONSTRAINT chk_task_comments_comment_type
-    CHECK (comment_type IN ('general', 'transition', 'progress')) NOT VALID;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_template_subtask_checklist_items_item_type'
+    ) THEN
+        ALTER TABLE template_subtask_checklist_items
+            ADD CONSTRAINT chk_template_subtask_checklist_items_item_type
+            CHECK (item_type IN ('checkbox', 'text')) NOT VALID;
+    END IF;
+END $$;
 
-ALTER TABLE subtask_transitions
-    ADD CONSTRAINT chk_subtask_transitions_action
-    CHECK (action IN ('claim_subtask', 'start_subtask', 'close_subtask', 'reject_subtask', 'put_on_hold')) NOT VALID,
-    ADD CONSTRAINT chk_subtask_transitions_from_status
-    CHECK (from_status IN ('locked', 'pending_assignment', 'assigned', 'in_progress', 'completed', 'rejected', 'on_hold')) NOT VALID,
-    ADD CONSTRAINT chk_subtask_transitions_to_status
-    CHECK (to_status IN ('locked', 'pending_assignment', 'assigned', 'in_progress', 'completed', 'rejected', 'on_hold')) NOT VALID;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_subtask_checklist_items_item_type'
+    ) THEN
+        ALTER TABLE subtask_checklist_items
+            ADD CONSTRAINT chk_subtask_checklist_items_item_type
+            CHECK (item_type IN ('checkbox', 'text')) NOT VALID;
+    END IF;
+END $$;
 
-ALTER TABLE tasks
-    ADD CONSTRAINT chk_tasks_finalization_consistency
-    CHECK (
-        (status = 'COMPLETED' AND is_finalized = TRUE AND finalized_at IS NOT NULL)
-        OR (status <> 'COMPLETED' AND is_finalized = FALSE AND finalized_at IS NULL AND finalized_by_crm_user_id IS NULL)
-    ) NOT VALID;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_task_comments_comment_type'
+    ) THEN
+        ALTER TABLE task_comments
+            ADD CONSTRAINT chk_task_comments_comment_type
+            CHECK (comment_type IN ('general', 'transition', 'progress')) NOT VALID;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_subtask_transitions_action'
+    ) THEN
+        ALTER TABLE subtask_transitions
+            ADD CONSTRAINT chk_subtask_transitions_action
+            CHECK (action IN ('claim_subtask', 'start_subtask', 'close_subtask', 'reject_subtask', 'put_on_hold')) NOT VALID;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_subtask_transitions_from_status'
+    ) THEN
+        ALTER TABLE subtask_transitions
+            ADD CONSTRAINT chk_subtask_transitions_from_status
+            CHECK (from_status IN ('locked', 'pending_assignment', 'assigned', 'in_progress', 'completed', 'rejected', 'on_hold')) NOT VALID;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_subtask_transitions_to_status'
+    ) THEN
+        ALTER TABLE subtask_transitions
+            ADD CONSTRAINT chk_subtask_transitions_to_status
+            CHECK (to_status IN ('locked', 'pending_assignment', 'assigned', 'in_progress', 'completed', 'rejected', 'on_hold')) NOT VALID;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_tasks_finalization_consistency'
+    ) THEN
+        ALTER TABLE tasks
+            ADD CONSTRAINT chk_tasks_finalization_consistency
+            CHECK (
+                (status = 'COMPLETED' AND is_finalized = TRUE AND finalized_at IS NOT NULL)
+                OR (status <> 'COMPLETED' AND is_finalized = FALSE AND finalized_at IS NULL AND finalized_by_crm_user_id IS NULL)
+            ) NOT VALID;
+    END IF;
+END $$;
 
 -- 3. Remove transitional defaults once data is normalized.
 ALTER TABLE template_subtasks
