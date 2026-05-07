@@ -47,7 +47,6 @@ class BaseTaskMediaUploadStrategy:
         self._target_dir = target_dir
         self._public_prefix = public_prefix.rstrip("/")
         self._max_bytes = max_bytes
-        self._target_dir.mkdir(parents=True, exist_ok=True)
 
     def supports(self, upload: UploadFile) -> bool:
         return self._content_type_is_allowed(upload) or self._extension_is_allowed(upload.filename)
@@ -57,7 +56,11 @@ class BaseTaskMediaUploadStrategy:
         suffix = self._resolve_suffix(upload)
         file_name = f"{uuid4().hex}{suffix}"
         destination = self._target_dir / file_name
-        destination.write_bytes(content)
+        try:
+            self._target_dir.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
+        except OSError as exc:
+            raise InvalidTaskAttachmentError("No se pudo acceder al almacenamiento de multimedia.") from exc
 
         return StoredTaskMedia(
             file_name=file_name,
