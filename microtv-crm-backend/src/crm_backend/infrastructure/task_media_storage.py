@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import errno
+import logging
 from pathlib import Path
 from typing import Protocol
 from uuid import uuid4
@@ -12,6 +14,9 @@ from fastapi import UploadFile
 from crm_backend.core.config import Settings
 from crm_backend.core.exceptions import InvalidTaskAttachmentError
 from crm_backend.models.task_execution import TaskAttachmentType
+
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -60,7 +65,13 @@ class BaseTaskMediaUploadStrategy:
             self._target_dir.mkdir(parents=True, exist_ok=True)
             destination.write_bytes(content)
         except OSError as exc:
-            raise InvalidTaskAttachmentError("No se pudo acceder al almacenamiento de multimedia.") from exc
+            _logger.exception(
+                "Media storage write failed. target_dir=%s destination=%s errno=%s",
+                self._target_dir,
+                destination,
+                getattr(exc, "errno", None),
+            )
+            raise InvalidTaskAttachmentError(self._storage_error_message(exc)) from exc
 
         return StoredTaskMedia(
             file_name=file_name,
@@ -117,6 +128,16 @@ class BaseTaskMediaUploadStrategy:
 
     def _type_error_message(self) -> str:
         raise NotImplementedError
+
+    def _storage_error_message(self, exc: OSError) -> str:
+        error_number = getattr(exc, "errno", None)
+        if error_number in {errno.EACCES, errno.EPERM}:
+            return "No se pudo acceder al almacenamiento de multimedia: permisos insuficientes en la carpeta de destino."
+        if error_number == errno.EROFS:
+            return "No se pudo acceder al almacenamiento de multimedia: el filesystem de destino está en modo solo lectura."
+        if error_number == errno.ENOSPC:
+            return "No se pudo acceder al almacenamiento de multimedia: no hay espacio disponible en disco."
+        return "No se pudo acceder al almacenamiento de multimedia."
 
 
 class ImageTaskMediaUploadStrategy(BaseTaskMediaUploadStrategy):
