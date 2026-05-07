@@ -13,6 +13,7 @@ from crm_backend.api.dependencies import (
     get_ticket_application_service,
     get_ticket_export_service,
 )
+from crm_backend.core.exceptions import InvalidTaskAttachmentError
 from crm_backend.schemas import (
     ApproveTicketRequest,
     AssignTicketRequest,
@@ -356,13 +357,22 @@ def reopen_ticket(
 )
 async def upload_ticket_attachments(
     ticket_id: str,
-    files: Annotated[list[UploadFile], File(...)],
+    files: Annotated[list[UploadFile] | None, File(alias="files")] = None,
+    file: Annotated[UploadFile | None, File(alias="file")] = None,
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     ticket_service: TicketApplicationService = Depends(get_ticket_application_service),
 ) -> list[TicketAttachmentResponse]:
+    resolved_files = list(files or [])
+    if file is not None:
+        resolved_files.append(file)
+    if not resolved_files:
+        raise InvalidTaskAttachmentError(
+            "No se recibieron archivos en el formulario multipart. Usá el campo 'files' (o 'file' para uno solo)."
+        )
+
     return [
         TicketAttachmentResponse.model_validate(item)
-        for item in await ticket_service.upload_ticket_attachments(actor, ticket_id, files)
+        for item in await ticket_service.upload_ticket_attachments(actor, ticket_id, resolved_files)
     ]
 
 
