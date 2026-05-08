@@ -417,21 +417,20 @@
 
 .ticket-execution-page__timeline-attachments {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
   margin-top: 0.7rem;
 }
 
-.ticket-execution-page__timeline-attachments a {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.3rem 0.6rem;
-  border-radius: 999px;
-  border: 1px solid rgba(23, 24, 26, 0.1);
-  color: var(--text-primary);
-  font-size: 0.78rem;
-  font-weight: 600;
-  text-decoration: none;
+.ticket-execution-page__timeline-attachment-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+
+  img,
+  video {
+    width: 100%;
+    max-height: 22rem;
+  }
 }
 
 .ticket-execution-page__timeline-location-badge,
