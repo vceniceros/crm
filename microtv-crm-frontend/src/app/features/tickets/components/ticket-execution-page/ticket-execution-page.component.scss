@@ -419,11 +419,10 @@
   display: flex;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  margin-top: 0.7rem;
 }
 
 .ticket-execution-page__timeline-attachment-slide {
-  flex: 0 0 100%;
+  flex: 0 0 fit-content;
   scroll-snap-align: start;
 
   img,
@@ -545,4 +544,5 @@
     width: 100%;
     min-height: 2.85rem;
   }
+
 }
