@@ -1848,7 +1848,11 @@ export class TicketExecutionPageComponent {
       return null;
     }
 
-    if (/^(https?:|blob:|data:)/i.test(normalized)) {
+    if (/^https?:/i.test(normalized)) {
+      return this.rewriteAbsoluteMediaUrl(normalized);
+    }
+
+    if (/^(blob:|data:)/i.test(normalized)) {
       return normalized;
     }
 
@@ -1856,9 +1860,11 @@ export class TicketExecutionPageComponent {
     const lowerPath = slashNormalized.toLowerCase();
     const publicMarker = '/public/';
     const publicIndex = lowerPath.lastIndexOf(publicMarker);
-    const normalizedPath = (publicIndex >= 0 ? slashNormalized.slice(publicIndex + publicMarker.length) : slashNormalized)
+    const normalizedPath = this.stripBackendPathPrefix(
+      (publicIndex >= 0 ? slashNormalized.slice(publicIndex + publicMarker.length) : slashNormalized)
       .replace(/^\/?public\//i, '')
-      .replace(/^\/+/, '');
+      .replace(/^\/+/, '')
+    );
 
     if (!normalizedPath || /^[a-z]:\//i.test(normalizedPath)) {
       return null;
@@ -1872,6 +1878,67 @@ export class TicketExecutionPageComponent {
     return `${this.backendOrigin}/${normalizedPath}`;
   }
 
+  private rewriteAbsoluteMediaUrl(url: string): string {
+    const browserOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+
+    try {
+      const backend = new URL(this.backendOrigin, browserOrigin);
+      const absolute = new URL(url);
+
+      if (absolute.origin !== backend.origin) {
+        return url;
+      }
+
+      const backendPath = backend.pathname.replace(/\/+$/, '');
+      if (!backendPath || backendPath === '/') {
+        return url;
+      }
+
+      if (absolute.pathname.startsWith(`${backendPath}/`)) {
+        return url;
+      }
+
+      if (absolute.pathname.startsWith('/media/')) {
+        absolute.pathname = `${backendPath}${absolute.pathname}`;
+        return absolute.toString();
+      }
+
+      return url;
+    } catch {
+      return url;
+    }
+  }
+
+  private stripBackendPathPrefix(normalizedPath: string): string {
+    const backendPathPrefix = this.backendPathPrefix();
+    if (!backendPathPrefix) {
+      return normalizedPath;
+    }
+
+    const lowerPath = normalizedPath.toLowerCase();
+    const lowerPrefix = `${backendPathPrefix.toLowerCase()}/`;
+    if (lowerPath === backendPathPrefix.toLowerCase()) {
+      return '';
+    }
+
+    if (lowerPath.startsWith(lowerPrefix)) {
+      return normalizedPath.slice(backendPathPrefix.length + 1);
+    }
+
+    return normalizedPath;
+  }
+
+  private backendPathPrefix(): string {
+    const browserOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+
+    try {
+      const parsed = new URL(this.backendOrigin, browserOrigin);
+      return parsed.pathname.replace(/^\/+|\/+$/g, '');
+    } catch {
+      return '';
+    }
+  }
+
   private resolveBackendOrigin(): string {
     const browserOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
     const normalizedBaseUrl = (crmApiConfig.baseUrl || '').trim();
@@ -1881,7 +1948,9 @@ export class TicketExecutionPageComponent {
     }
 
     try {
-      return new URL(normalizedBaseUrl, browserOrigin).origin;
+      const parsed = new URL(normalizedBaseUrl, browserOrigin);
+      const normalizedPath = parsed.pathname.replace(/\/+$/, '');
+      return normalizedPath ? `${parsed.origin}${normalizedPath}` : parsed.origin;
     } catch {
       return browserOrigin;
     }
