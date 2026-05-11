@@ -54,6 +54,14 @@ import { StatusBadgeComponent } from '../../../../shared/ui/status-badge/status-
 import { UserAvatarComponent } from '../../../../shared/ui/user-avatar/user-avatar.component';
 
 type DispatchIdentifierType = 'none' | 'serial' | 'barcode';
+type TaskExecutionSectionId =
+  | 'subtasks_flow'
+  | 'required_materials'
+  | 'dispatches'
+  | 'requests'
+  | 'subtask_operation'
+  | 'subtask_transitions'
+  | 'subtask_comments';
 
 type DispatchDraftItem = InventoryDispatchItemWriteRequest & {
   draft_id: string;
@@ -122,6 +130,15 @@ export class TaskExecutionPageComponent {
   readonly isPreFormResponseVisible = signal(false);
   readonly isAndroidCompact = signal(this.detectAndroidCompactLayout());
   readonly nonSubtaskSectionsExpanded = signal(!this.detectAndroidCompactLayout());
+  readonly sectionCollapseState = signal<Record<TaskExecutionSectionId, boolean>>({
+    subtasks_flow: false,
+    required_materials: false,
+    dispatches: false,
+    requests: false,
+    subtask_operation: false,
+    subtask_transitions: false,
+    subtask_comments: false,
+  });
   readonly actionOptions = TASK_ACTION_OPTIONS;
   readonly operationForm = this.formBuilder.group({
     items: this.formBuilder.array([]),
@@ -131,6 +148,9 @@ export class TaskExecutionPageComponent {
   readonly adminAssignmentForm = this.formBuilder.group({
     assigned_crm_user_id: this.formBuilder.control<string | null>(null, { validators: [Validators.required] }),
     notes: this.formBuilder.control<string | null>(null)
+  });
+  readonly internalCommentForm = this.formBuilder.group({
+    body: this.formBuilder.control('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(4000)] })
   });
   readonly requestComposerForm = this.formBuilder.group({
     product_id: this.formBuilder.control('', { validators: [Validators.required], nonNullable: true }),
@@ -214,6 +234,24 @@ export class TaskExecutionPageComponent {
   });
   readonly canOperateTask = computed(() => this.task()?.current_assigned_crm_user_id === this.currentUserId());
   readonly canManageTaskLinks = computed(() => this.isAdmin() || this.isExecutive());
+  readonly isSelectedSubtaskFinal = computed(() => {
+    const subtask = this.selectedSubtask();
+    const allSubtasks = this.task()?.subtasks ?? [];
+    if (!subtask || !allSubtasks.length) {
+      return false;
+    }
+
+    const maxOrder = Math.max(...allSubtasks.map((item) => item.order_index));
+    return subtask.order_index === maxOrder;
+  });
+  readonly requiresArrivalRegistration = computed(() => {
+    const currentTask = this.task();
+    return Boolean(currentTask?.requires_arrival_comment && !currentTask.arrival_registered_at);
+  });
+  readonly requiresVideoEvidenceForCurrentClose = computed(() => {
+    const currentTask = this.task();
+    return Boolean(currentTask?.requires_video_evidence && this.isSelectedSubtaskFinal());
+  });
 
   constructor() {
     if (typeof globalThis.addEventListener === 'function') {
@@ -1084,6 +1122,68 @@ export class TaskExecutionPageComponent {
     this.pendingAttachments.update((current) => [...current, ...attachments]);
   }
 
+  isSectionCollapsed(section: TaskExecutionSectionId): boolean {
+    return this.sectionCollapseState()[section];
+  }
+
+  toggleSection(section: TaskExecutionSectionId): void {
+    this.sectionCollapseState.update((state) => ({
+      ...state,
+      [section]: !state[section],
+    }));
+  }
+
+  addInternalComment(): void {
+    const currentTask = this.task();
+    const subtask = this.selectedSubtask();
+    if (!currentTask || !subtask || !this.subtaskCanBeOperated(subtask) || this.isSaving()) {
+      return;
+    }
+
+    const body = this.internalCommentForm.controls.body.getRawValue().trim();
+    if (!body) {
+      this.internalCommentForm.controls.body.markAsTouched();
+      this.showOperationError('Escribí un comentario interno antes de guardarlo.');
+      return;
+    }
+
+    if (this.requiresArrivalRegistration()) {
+      if (!currentTask.location_id) {
+        this.showOperationError('Para registrar llegada, la tarea debe tener ubicación cargada.');
+        return;
+      }
+      if (!this.pendingAttachments().length) {
+        this.showOperationError('Para registrar llegada, agregá al menos un adjunto (foto o video).');
+        return;
+      }
+    }
+
+    this.isSaving.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    this.taskManagementService
+      .addTaskComment(currentTask.task_id, {
+        body,
+        location_id: currentTask.location_id,
+        attachment_ids: this.pendingAttachments().map((attachment) => attachment.id)
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (task) => {
+          this.internalCommentForm.reset({ body: '' });
+          const infoSuffix = this.requiresArrivalRegistration()
+            ? ' Si este pedido requería llegada, quedó registrada automáticamente.'
+            : '';
+          this.updateTask(task, `Comentario interno guardado.${infoSuffix}`);
+        },
+        error: (error: Error) => {
+          this.showOperationError(error.message);
+          this.isSaving.set(false);
+        }
+      });
+  }
+
   removeAttachment(attachmentId: string): void {
     this.taskManagementService
       .deleteTaskAttachment(attachmentId)
@@ -1218,6 +1318,7 @@ export class TaskExecutionPageComponent {
 
     this.operationForm.controls.comment.setValue('');
     this.operationForm.controls.next_assigned_crm_user_id.setValue(null);
+    this.internalCommentForm.controls.body.setValue('');
     this.adminAssignmentForm.reset({
       assigned_crm_user_id: subtask.assigned_crm_user_id,
       notes: null
