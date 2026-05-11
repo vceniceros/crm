@@ -223,7 +223,44 @@ export class InventoryService {
       return normalizedImageUrl;
     }
 
-    return new URL(normalizedImageUrl, `${crmApiConfig.baseUrl}/`).toString();
+    const backendOrigin = this.resolveBackendOrigin();
+    const slashNormalized = normalizedImageUrl.replace(/\\/g, '/');
+    const lowerPath = slashNormalized.toLowerCase();
+
+    const mediaMarker = '/media/';
+    const compactMediaMarker = 'media/';
+    const publicMarker = '/public/';
+    const compactPublicMarker = 'public/';
+
+    const mediaIndex = lowerPath.lastIndexOf(mediaMarker);
+    if (mediaIndex >= 0) {
+      return `${backendOrigin}${slashNormalized.slice(mediaIndex)}`;
+    }
+
+    if (lowerPath.startsWith(compactMediaMarker)) {
+      return `${backendOrigin}/${slashNormalized.replace(/^\/+/, '')}`;
+    }
+
+    const publicIndex = lowerPath.lastIndexOf(publicMarker);
+    if (publicIndex >= 0) {
+      return `${backendOrigin}/${slashNormalized.slice(publicIndex + publicMarker.length).replace(/^\/+/, '')}`;
+    }
+
+    if (lowerPath.startsWith(compactPublicMarker)) {
+      return `${backendOrigin}/${slashNormalized.slice(compactPublicMarker.length).replace(/^\/+/, '')}`;
+    }
+
+    const normalizedPath = slashNormalized.startsWith('/') ? slashNormalized : `/${slashNormalized}`;
+    return `${backendOrigin}${normalizedPath}`;
+  }
+
+  private resolveBackendOrigin(): string {
+    try {
+      const locationOrigin = globalThis.location?.origin ?? 'http://localhost';
+      return new URL(crmApiConfig.baseUrl, locationOrigin).origin;
+    } catch {
+      return crmApiConfig.baseUrl.replace(/\/$/, '');
+    }
   }
 
   private buildTable(items: InventoryProduct[]): InventoryTableData {

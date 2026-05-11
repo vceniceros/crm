@@ -1,8 +1,5 @@
-los archiivos de imagen te redirigen al crm (posible hardcodeo de url en el crm)
-Register your arrival at the client's location before closing. Add a comment with location.
-This ticket requires at least one video evidence attachment.Esta en ingles en vez de castellano
-no estas ni la opcion de exportar historial ni la de formulario de satisfaccion al cerrar un ticket 
-desaparecio el boton de auto asignar ticket
-mismo toggle para marcar comentario de llegada y para marcar obligatoriedad de video de cierre
-
-
+1. en el menu de deposito la imagen de los productos muestra solo el placehold y no laimagen en si cargada del producto
+2. en las subtareas el usuario por defecto deberia mostrarse por nombre y no id
+3. fixear el menu de subtareas en tema oscuro
+4. alinear la vista ejecutivo para que en los pedidios  el "flujo de subtareas quede al lado del productos necesarios y abajo de eso lo comentarios / checkboxes"
+5. al editar el formulario lanza error 500 

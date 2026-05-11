@@ -50,7 +50,7 @@
           }
         </div>
 
-        <mat-menu #assigneeMenu="matMenu" xPosition="before">
+        <mat-menu #assigneeMenu="matMenu" xPosition="before" panelClass="task-execution-page__assignee-menu-panel">
           <div class="task-execution-page__assignee-menu" [formGroup]="adminAssignmentForm" (click)="$event.stopPropagation()">
             <p class="task-execution-page__summary-caption">Reasignar subtarea actual del rol {{ formatRoleKey(currentAssignableSubtask()?.responsible_role_key) }}.</p>
 
@@ -153,6 +153,61 @@
       </mat-card>
     }
 
+    <ng-template #requiredMaterialsCard>
+      <mat-card class="task-execution-page__execution-card">
+        <mat-card-header>
+          <mat-card-title>Materiales requeridos</mat-card-title>
+          <mat-card-subtitle>Comparación real entre lo mínimo del template y lo ya despachado.</mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+          @if (task.required_materials.length) {
+            <div class="task-execution-page__material-list">
+              @for (material of task.required_materials; track material.required_material_id) {
+                <article class="task-execution-page__material-row">
+                  <div>
+                    <strong>{{ material.product_name }}</strong>
+                    <span>{{ material.product_code }}{{ material.requires_tracking ? ' · tracking unitario' : '' }}</span>
+                  </div>
+                  <div>
+                    <strong>{{ totalDispatchedFor(material) }} / {{ material.quantity_required }}</strong>
+                    <span>{{ totalDispatchedFor(material) >= material.quantity_required ? 'Cubierto' : 'Pendiente' }}</span>
+                  </div>
+                </article>
+              }
+            </div>
+          } @else {
+            <p class="task-execution-page__summary-caption">Esta tarea no tiene productos mínimos heredados.</p>
+          }
+        </mat-card-content>
+      </mat-card>
+    </ng-template>
+
+    <ng-template #subtasksFlowCard>
+      <mat-card class="task-execution-page__timeline-card">
+        <mat-card-header>
+          <mat-card-title>Subtareas del flujo</mat-card-title>
+          <mat-card-subtitle>Mostramos el estado real de cada etapa y destacamos la subtarea activa.</mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+          <div class="task-execution-page__subtasks-list">
+            @for (subtask of task.subtasks; track subtask.subtask_id) {
+              <button type="button" class="task-execution-page__subtask-entry" [class.task-execution-page__subtask-entry--active]="selectedSubtask()?.subtask_id === subtask.subtask_id" (click)="selectSubtask(subtask.subtask_id)">
+                <div>
+                  <p class="task-execution-page__meta-label">Subtarea {{ subtask.order_index + 1 }}</p>
+                  <strong>{{ subtask.subtask_title }}</strong>
+                  <span>{{ formatRoleKey(subtask.responsible_role_key) }}</span>
+                </div>
+
+                <app-status-badge [label]="formatTaskStatus(subtask.status)" [tone]="timelineTone(subtask.status)" />
+              </button>
+            }
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </ng-template>
+
     <details class="task-execution-page__mobile-collapse" [class.task-execution-page__mobile-collapse--interactive]="shouldCollapseNonSubtaskSections()" [open]="nonSubtaskSectionsExpanded()" (toggle)="onNonSubtaskSectionsToggled($any($event.target).open)">
       <summary class="task-execution-page__mobile-collapse-summary">Resumen, materiales y logística</summary>
 
@@ -205,34 +260,8 @@
       }
 
       <div class="task-execution-page__materials-grid">
-      @if (!isFieldTechnician()) {
-      <mat-card class="task-execution-page__execution-card">
-        <mat-card-header>
-          <mat-card-title>Materiales requeridos</mat-card-title>
-          <mat-card-subtitle>Comparación real entre lo mínimo del template y lo ya despachado.</mat-card-subtitle>
-        </mat-card-header>
-
-        <mat-card-content>
-          @if (task.required_materials.length) {
-            <div class="task-execution-page__material-list">
-              @for (material of task.required_materials; track material.required_material_id) {
-                <article class="task-execution-page__material-row">
-                  <div>
-                    <strong>{{ material.product_name }}</strong>
-                    <span>{{ material.product_code }}{{ material.requires_tracking ? ' · tracking unitario' : '' }}</span>
-                  </div>
-                  <div>
-                    <strong>{{ totalDispatchedFor(material) }} / {{ material.quantity_required }}</strong>
-                    <span>{{ totalDispatchedFor(material) >= material.quantity_required ? 'Cubierto' : 'Pendiente' }}</span>
-                  </div>
-                </article>
-              }
-            </div>
-          } @else {
-            <p class="task-execution-page__summary-caption">Esta tarea no tiene productos mínimos heredados.</p>
-          }
-        </mat-card-content>
-      </mat-card>
+      @if (!isFieldTechnician() && !isExecutive()) {
+      <ng-container [ngTemplateOutlet]="requiredMaterialsCard"></ng-container>
       }
 
       @if (canViewDispatchSection()) {
@@ -499,32 +528,18 @@
       </div>
     </details>
 
-    <div class="task-execution-page__content">
-      <mat-card class="task-execution-page__timeline-card">
-        <mat-card-header>
-          <mat-card-title>Subtareas del flujo</mat-card-title>
-          <mat-card-subtitle>Mostramos el estado real de cada etapa y destacamos la subtarea activa.</mat-card-subtitle>
-        </mat-card-header>
-
-        <mat-card-content>
-          <div class="task-execution-page__subtasks-list">
-            @for (subtask of task.subtasks; track subtask.subtask_id) {
-              <button type="button" class="task-execution-page__subtask-entry" [class.task-execution-page__subtask-entry--active]="selectedSubtask()?.subtask_id === subtask.subtask_id" (click)="selectSubtask(subtask.subtask_id)">
-                <div>
-                  <p class="task-execution-page__meta-label">Subtarea {{ subtask.order_index + 1 }}</p>
-                  <strong>{{ subtask.subtask_title }}</strong>
-                  <span>{{ formatRoleKey(subtask.responsible_role_key) }}</span>
-                </div>
-
-                <app-status-badge [label]="formatTaskStatus(subtask.status)" [tone]="timelineTone(subtask.status)" />
-              </button>
-            }
-          </div>
-        </mat-card-content>
-      </mat-card>
+    <div class="task-execution-page__content" [class.task-execution-page__content--executive]="isExecutive()">
+      @if (isExecutive()) {
+        <div class="task-execution-page__executive-top">
+          <ng-container [ngTemplateOutlet]="subtasksFlowCard"></ng-container>
+          <ng-container [ngTemplateOutlet]="requiredMaterialsCard"></ng-container>
+        </div>
+      } @else {
+        <ng-container [ngTemplateOutlet]="subtasksFlowCard"></ng-container>
+      }
 
       @if (selectedSubtask(); as selectedSubtask) {
-        <mat-card class="task-execution-page__execution-card">
+        <mat-card class="task-execution-page__execution-card" [class.task-execution-page__execution-card--full]="isExecutive()">
           <mat-card-header>
             <mat-card-title>{{ selectedSubtask.subtask_title }}</mat-card-title>
             <mat-card-subtitle>{{ selectedSubtask.subtask_description || 'Sin descripción operativa.' }}</mat-card-subtitle>
@@ -632,7 +647,7 @@
                   <mat-icon>play_circle</mat-icon>
                   <span>Ejecutar acción final</span>
                 </button>
-                <mat-menu #actionsMenu="matMenu">
+                <mat-menu #actionsMenu="matMenu" panelClass="task-execution-page__actions-menu-panel">
                   @for (action of actionOptions; track action.value) {
                     <button mat-menu-item type="button" (click)="executeAction(action.value)" [disabled]="!canExecuteFinalAction(selectedSubtask)">
                       <mat-icon>{{ action.icon }}</mat-icon>

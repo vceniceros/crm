@@ -197,6 +197,29 @@ body.theme-dark .cdk-overlay-container .mat-mdc-option .mdc-list-item__primary-t
   color: var(--text-primary);
 }
 
+html.theme-dark .cdk-overlay-container .task-execution-page__assignee-menu-panel,
+html.theme-dark .cdk-overlay-container .task-execution-page__actions-menu-panel,
+body.theme-dark .cdk-overlay-container .task-execution-page__assignee-menu-panel,
+body.theme-dark .cdk-overlay-container .task-execution-page__actions-menu-panel {
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+}
+
+html.theme-dark .cdk-overlay-container .task-execution-page__assignee-menu-panel .mat-mdc-menu-item,
+html.theme-dark .cdk-overlay-container .task-execution-page__actions-menu-panel .mat-mdc-menu-item,
+body.theme-dark .cdk-overlay-container .task-execution-page__assignee-menu-panel .mat-mdc-menu-item,
+body.theme-dark .cdk-overlay-container .task-execution-page__actions-menu-panel .mat-mdc-menu-item {
+  color: var(--text-primary);
+}
+
+html.theme-dark .cdk-overlay-container .task-execution-page__actions-menu-panel .mat-mdc-menu-item:hover,
+html.theme-dark .cdk-overlay-container .task-execution-page__actions-menu-panel .mat-mdc-menu-item.cdk-focused,
+body.theme-dark .cdk-overlay-container .task-execution-page__actions-menu-panel .mat-mdc-menu-item:hover,
+body.theme-dark .cdk-overlay-container .task-execution-page__actions-menu-panel .mat-mdc-menu-item.cdk-focused {
+  background: rgba(233, 237, 246, 0.12);
+}
+
 html.theme-dark .mat-mdc-option,
 html.theme-dark .mat-mdc-menu-item {
   color: var(--text-primary);
