@@ -3,7 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from crm_backend.models import TaskTemplate, TaskTemplateItem, TaskTemplateSubtask, TemplateMaterial
+from crm_backend.models import TaskTemplate, TaskTemplateItem, TaskTemplatePreForm, TaskTemplateSubtask, TemplateMaterial
 
 
 class TaskTemplateRepository:
@@ -16,6 +16,7 @@ class TaskTemplateRepository:
         statement = select(TaskTemplate).options(
             selectinload(TaskTemplate.subtasks).selectinload(TaskTemplateSubtask.items),
             selectinload(TaskTemplate.required_materials).selectinload(TemplateMaterial.product),
+            selectinload(TaskTemplate.pre_form).selectinload(TaskTemplatePreForm.fields),
         )
         if not include_inactive:
             statement = statement.where(TaskTemplate.is_active.is_(True))
@@ -28,6 +29,7 @@ class TaskTemplateRepository:
             .options(
                 selectinload(TaskTemplate.subtasks).selectinload(TaskTemplateSubtask.items),
                 selectinload(TaskTemplate.required_materials).selectinload(TemplateMaterial.product),
+                selectinload(TaskTemplate.pre_form).selectinload(TaskTemplatePreForm.fields),
             )
             .where(TaskTemplate.template_id == template_id)
         )

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
-from datetime import UTC, datetime
+import secrets
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import UploadFile
+from sqlalchemy import select
 
 from crm_backend.core.exceptions import TaskAccessDeniedError, TaskConflictError, TaskNotFoundError, TaskTemplateNotFoundError, TaskValidationError, SubtaskNotFoundError
 from crm_backend.core.exceptions import InvalidTaskAttachmentError, TaskAttachmentNotFoundError
@@ -15,7 +18,9 @@ from crm_backend.models import (
     NextAssignmentPolicy,
     Subtask,
     SubtaskAssignment,
+    SubtaskType,
     TaskAttachment,
+    TaskAttachmentType,
     SubtaskItemValue,
     SubtaskStatus,
     SubtaskTransition,
@@ -23,9 +28,13 @@ from crm_backend.models import (
     TaskAuditEvent,
     TaskComment,
     TaskCommentType,
+    Location,
+    TaskPreFormInstance,
     TaskStatus,
     TaskTemplate,
     TaskTemplateItem,
+    TaskTemplatePreForm,
+    TaskTemplatePreFormField,
     TaskTemplateSubtask,
     TemplateItemType,
     TransitionAction,
@@ -76,14 +85,25 @@ class TaskBuilder:
             task_title=(payload.task_title or template.template_name).strip(),
             task_description=payload.task_description if payload.task_description is not None else template.description,
             status=TaskStatus.PENDING.value,
+            requires_arrival_comment=(
+                template.requires_arrival_comment if payload.requires_arrival_comment is None else bool(payload.requires_arrival_comment)
+            ),
+            requires_video_evidence=(
+                template.requires_video_evidence if payload.requires_video_evidence is None else bool(payload.requires_video_evidence)
+            ),
             created_by_crm_user_id=actor.crm_user.crm_user_id,
         )
 
         ordered_subtasks = sorted(template.subtasks, key=lambda item: item.order_index)
+        has_pre_form_subtask = any(
+            (item.subtask_type or SubtaskType.STANDARD.value) == SubtaskType.PRE_FORM.value
+            for item in ordered_subtasks
+        )
         for index, template_subtask in enumerate(ordered_subtasks):
             status = SubtaskStatus.LOCKED.value
             assigned_crm_user_id = None
-            if index == 0:
+            subtask_type = template_subtask.subtask_type or SubtaskType.STANDARD.value
+            if index == 0 and not has_pre_form_subtask and subtask_type != SubtaskType.PRE_FORM.value:
                 assigned_crm_user_id = template_subtask.default_responsible_crm_user_id
                 status = (
                     SubtaskStatus.ASSIGNED.value
@@ -102,6 +122,7 @@ class TaskBuilder:
                 default_responsible_crm_user_id=template_subtask.default_responsible_crm_user_id,
                 close_comment_required=template_subtask.close_comment_required,
                 next_assignment_policy=template_subtask.next_assignment_policy,
+                subtask_type=subtask_type,
                 status=status,
             )
             for template_item in sorted(template_subtask.items, key=lambda item: item.item_order):
@@ -114,7 +135,7 @@ class TaskBuilder:
                         is_required=template_item.is_required,
                     )
                 )
-            if index == 0:
+            if index == 0 and not has_pre_form_subtask and subtask_type != SubtaskType.PRE_FORM.value:
                 task.current_assigned_crm_user_id = assigned_crm_user_id
                 task.status = TaskStatus.IN_PROGRESS.value
             task.subtasks.append(subtask)
@@ -152,6 +173,9 @@ class TaskApplicationService:
             is_active=True,
             template_name=payload.template_name.strip(),
             description=payload.description,
+            requires_arrival_comment=bool(payload.requires_arrival_comment),
+            requires_video_evidence=bool(payload.requires_video_evidence),
+            requires_pre_form=bool(payload.requires_pre_form),
             created_by_crm_user_id=actor.crm_user.crm_user_id,
         )
         self._apply_template_payload(template, payload)
@@ -173,7 +197,11 @@ class TaskApplicationService:
 
         template.template_name = payload.template_name.strip()
         template.description = payload.description
+        template.requires_arrival_comment = bool(payload.requires_arrival_comment)
+        template.requires_video_evidence = bool(payload.requires_video_evidence)
+        template.requires_pre_form = bool(payload.requires_pre_form)
         template.subtasks.clear()
+        template.pre_form = None
         self._apply_template_payload(template, payload)
         self._task_material_flow.sync_template_materials(template, payload)
         return self._template_repository.save(template)
@@ -202,16 +230,53 @@ class TaskApplicationService:
             return []
 
     def _apply_template_payload(self, template: TaskTemplate, payload: CreateTaskTemplateRequest | UpdateTaskTemplateRequest) -> None:
-        for subtask_payload in sorted(payload.subtasks, key=lambda item: item.order_index):
+        if template.requires_pre_form and payload.pre_form is not None:
+            pre_form = TaskTemplatePreForm(
+                title=(payload.pre_form.title or "").strip() or None,
+                instructions=(payload.pre_form.instructions or "").strip() or None,
+            )
+            for field_payload in sorted(payload.pre_form.fields, key=lambda item: item.order_index):
+                pre_form.fields.append(
+                    TaskTemplatePreFormField(
+                        label=field_payload.label.strip(),
+                        field_type=field_payload.field_type,
+                        is_required=bool(field_payload.is_required),
+                        order_index=field_payload.order_index,
+                        placeholder=(field_payload.placeholder or "").strip() or None,
+                    )
+                )
+            template.pre_form = pre_form
+
+        if template.requires_pre_form:
+            template.subtasks.append(
+                TaskTemplateSubtask(
+                    subtask_title="Formulario previo del cliente",
+                    subtask_description="El cliente completa este formulario antes de iniciar el trabajo.",
+                    order_index=0,
+                    responsible_role_key="ejecutivo",
+                    default_responsible_crm_user_id=None,
+                    close_comment_required=False,
+                    next_assignment_policy=NextAssignmentPolicy.MANUAL_REQUIRED.value,
+                    subtask_type=SubtaskType.PRE_FORM.value,
+                )
+            )
+
+        order_offset = 1 if template.requires_pre_form else 0
+        for user_subtask_index, subtask_payload in enumerate(sorted(payload.subtasks, key=lambda item: item.order_index)):
             self._validate_default_user(subtask_payload.default_responsible_crm_user_id, subtask_payload.responsible_role_key)
             template_subtask = TaskTemplateSubtask(
                 subtask_title=subtask_payload.subtask_title.strip(),
                 subtask_description=subtask_payload.subtask_description,
-                order_index=subtask_payload.order_index,
+                order_index=user_subtask_index + order_offset,
                 responsible_role_key=subtask_payload.responsible_role_key,
                 default_responsible_crm_user_id=subtask_payload.default_responsible_crm_user_id,
                 close_comment_required=subtask_payload.close_comment_required,
                 next_assignment_policy=subtask_payload.next_assignment_policy,
+                subtask_type=(
+                    SubtaskType.STANDARD.value
+                    if template.requires_pre_form and subtask_payload.subtask_type == SubtaskType.PRE_FORM.value
+                    else subtask_payload.subtask_type
+                ),
             )
             for item_payload in sorted(subtask_payload.items, key=lambda item: item.item_order):
                 template_subtask.items.append(
@@ -231,6 +296,14 @@ class TaskApplicationService:
             raise TaskTemplateNotFoundError()
 
         task = self._task_builder.build(template, actor, payload)
+        if template.requires_pre_form and template.pre_form is not None:
+            task.pre_form_instances.append(
+                TaskPreFormInstance(
+                    template_pre_form_id=template.pre_form.form_id,
+                    token_hash=self._hash_token(secrets.token_urlsafe(48)),
+                    expires_at=datetime.now(UTC) + timedelta(hours=72),
+                )
+            )
         self._task_material_flow.materialize_task_requirements(task, template)
         for subtask in task.subtasks:
             if subtask.assigned_crm_user_id is None:
@@ -305,6 +378,59 @@ class TaskApplicationService:
         if any(subtask.responsible_role_key in actor.role_keys for subtask in task.subtasks):
             return task
         raise TaskAccessDeniedError("El usuario no puede consultar esta tarea.")
+
+    def add_task_comment(
+        self,
+        actor: ResolvedCrmSession,
+        task_id: str,
+        *,
+        body: str,
+        location_id: str | None,
+        attachment_ids: list[str],
+        comment_type: str = TaskCommentType.GENERAL.value,
+    ) -> Task:
+        task = self.get_task_detail(actor, task_id)
+        self._ensure_task_operable(actor, task)
+
+        normalized_body = body.strip()
+        if not normalized_body:
+            raise TaskValidationError("El comentario no puede estar vacío.")
+
+        resolved_location_id: str | None = None
+        if location_id:
+            location = self._task_repository.session.get(Location, location_id)
+            if location is None:
+                raise TaskValidationError("La ubicación indicada para el comentario no existe.")
+            resolved_location_id = location.location_id
+
+        comment = TaskComment(
+            task_id=task.task_id,
+            subtask_id=task.current_subtask_id,
+            author_crm_user_id=actor.crm_user.crm_user_id,
+            location_id=resolved_location_id,
+            comment_type=comment_type,
+            body=normalized_body,
+        )
+        task.comments.append(comment)
+        self._attach_files_to_comment(task, comment, attachment_ids, actor)
+        self._try_register_arrival_from_comment(
+            actor=actor,
+            task=task,
+            comment=comment,
+            has_multimedia=bool(attachment_ids),
+        )
+        task.audit_events.append(
+            TaskAuditEvent(
+                event_type="task.comment_added",
+                actor_crm_user_id=actor.crm_user.crm_user_id,
+                payload_json={
+                    "comment_type": comment_type,
+                    "task_comment_id": comment.task_comment_id,
+                    "location_id": resolved_location_id,
+                },
+            )
+        )
+        return self._task_repository.save(task)
 
     def claim_unassigned_subtask(self, actor: ResolvedCrmSession, subtask_id: str) -> Task:
         self._ensure_read_access(actor)
@@ -452,6 +578,10 @@ class TaskApplicationService:
             raise TaskNotFoundError()
         if not self._is_task_pending_executive_approval(task):
             raise TaskConflictError("La tarea no está pendiente de aprobación ejecutiva.")
+        if task.requires_arrival_comment and task.arrival_registered_at is None:
+            raise TaskConflictError("Este pedido requiere llegada registrada antes de aprobar el cierre final.")
+        if task.requires_video_evidence and not self._task_has_closure_video_evidence(task):
+            raise TaskConflictError("Este pedido requiere evidencia en video para aprobar el cierre final.")
 
         previous_assigned_crm_user_id = task.current_assigned_crm_user_id
         previous_subtask_id = task.current_subtask_id
@@ -478,7 +608,7 @@ class TaskApplicationService:
                     task_id=task.task_id,
                     subtask_id=None,
                     author_crm_user_id=actor.crm_user.crm_user_id,
-                    comment_type=TaskCommentType.GENERAL.value,
+                    comment_type=TaskCommentType.CLOSURE.value,
                     body=comment,
                 )
             )
@@ -633,6 +763,8 @@ class TaskApplicationService:
 
         task = subtask.task
         self._ensure_subtask_is_operable_by_actor(actor, subtask)
+        if payload.action == TransitionAction.CLOSE_SUBTASK.value:
+            self._validate_task_close_requirements(task, subtask, payload.attachment_ids)
         flow_service = AdvanceTaskFlowService(
             self._task_repository,
             self._user_repository,
@@ -739,6 +871,121 @@ class TaskApplicationService:
         self._task_repository.session.delete(attachment)
         self._task_repository.session.commit()
 
+    def _attach_files_to_comment(
+        self,
+        task: Task,
+        comment: TaskComment,
+        attachment_ids: list[str],
+        actor: ResolvedCrmSession,
+    ) -> None:
+        if not attachment_ids:
+            return
+
+        self._task_repository.session.flush()
+
+        attachments = list(
+            self._task_repository.session.scalars(
+                select(TaskAttachment).where(TaskAttachment.attachment_id.in_(attachment_ids))
+            ).all()
+        )
+        if len(attachments) != len(set(attachment_ids)):
+            raise TaskValidationError("Uno o más adjuntos indicados no existen.")
+
+        for attachment in attachments:
+            if attachment.task_id != task.task_id:
+                raise TaskValidationError("Los adjuntos deben pertenecer a la misma tarea del comentario.")
+            if attachment.uploaded_by_crm_user_id != actor.crm_user.crm_user_id and "admin" not in actor.role_keys:
+                raise TaskAccessDeniedError("No podés asociar adjuntos subidos por otro usuario.")
+            if attachment.task_comment_id is not None:
+                raise TaskValidationError("Uno de los adjuntos ya fue asociado a otro comentario.")
+            attachment.task_comment_id = comment.task_comment_id
+
+    def _try_register_arrival_from_comment(
+        self,
+        *,
+        actor: ResolvedCrmSession,
+        task: Task,
+        comment: TaskComment,
+        has_multimedia: bool,
+    ) -> None:
+        if not has_multimedia:
+            return
+        if not comment.location_id:
+            return
+        if not task.requires_arrival_comment:
+            return
+        if task.arrival_registered_at is not None or task.arrival_comment_id is not None:
+            return
+
+        self._task_repository.session.flush()
+        task.arrival_registered_at = datetime.now(UTC)
+        task.arrival_comment_id = comment.task_comment_id
+        if comment.comment_type == TaskCommentType.GENERAL.value:
+            comment.comment_type = TaskCommentType.ARRIVAL_REGISTRATION.value
+
+        task.audit_events.append(
+            TaskAuditEvent(
+                event_type="task.arrival_registered",
+                actor_crm_user_id=actor.crm_user.crm_user_id,
+                payload_json={
+                    "task_comment_id": comment.task_comment_id,
+                    "location_id": comment.location_id,
+                },
+            )
+        )
+
+    def _attachment_ids_have_video(self, task: Task, attachment_ids: list[str]) -> bool:
+        if not attachment_ids:
+            return False
+
+        attachments = list(
+            self._task_repository.session.scalars(
+                select(TaskAttachment).where(TaskAttachment.attachment_id.in_(attachment_ids))
+            ).all()
+        )
+        if len(attachments) != len(set(attachment_ids)):
+            raise TaskValidationError("Uno o más adjuntos indicados no existen.")
+
+        for attachment in attachments:
+            if attachment.task_id != task.task_id:
+                raise TaskValidationError("Los adjuntos de cierre deben pertenecer a la misma tarea.")
+
+        return any(attachment.attachment_type == TaskAttachmentType.VIDEO.value for attachment in attachments)
+
+    def _task_has_closure_video_evidence(self, task: Task) -> bool:
+        closure_comment_ids = {
+            comment.task_comment_id
+            for comment in task.comments
+            if comment.comment_type == TaskCommentType.CLOSURE_EVIDENCE.value
+        }
+        if not closure_comment_ids:
+            return False
+
+        return any(
+            attachment.attachment_type == TaskAttachmentType.VIDEO.value
+            for attachment in self._task_repository.session.scalars(
+                select(TaskAttachment).where(TaskAttachment.task_id == task.task_id)
+            ).all()
+            if attachment.task_comment_id in closure_comment_ids
+        )
+
+    def _validate_task_close_requirements(self, task: Task, subtask: Subtask, attachment_ids: list[str]) -> None:
+        next_subtask = next((item for item in task.subtasks if item.order_index == subtask.order_index + 1), None)
+        if next_subtask is not None:
+            return
+
+        if task.requires_arrival_comment and task.arrival_registered_at is None:
+            raise TaskValidationError(
+                "Este pedido requiere registrar llegada antes del cierre final. Agregá un comentario con ubicación y multimedia."
+            )
+
+        if task.requires_video_evidence and not self._attachment_ids_have_video(task, attachment_ids):
+            raise TaskValidationError("El cierre final requiere al menos un video adjunto como evidencia.")
+
+    @staticmethod
+    def _hash_token(raw_token: str) -> str:
+        return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
     def _build_close_validator_chain(self, base_chain: ActorPermissionValidator) -> ActorPermissionValidator:
         actor_validator = ActorPermissionValidator()
         actor_validator.set_next(StateActionValidator()).set_next(RequiredCommentValidator()).set_next(
@@ -796,6 +1043,29 @@ class TaskApplicationService:
         self._ensure_read_access(actor)
         if subtask.assigned_crm_user_id != actor.crm_user.crm_user_id:
             raise TaskAccessDeniedError("La subtarea solo puede ser operada por el usuario asignado.")
+
+    def _ensure_task_operable(self, actor: ResolvedCrmSession, task: Task) -> None:
+        self._ensure_read_access(actor)
+        if {"admin", "ejecutivo"}.intersection(actor.role_keys):
+            return
+
+        actor_id = actor.crm_user.crm_user_id
+        if task.current_assigned_crm_user_id == actor_id:
+            return
+
+        if any(
+            subtask.assigned_crm_user_id == actor_id
+            and subtask.status in {
+                SubtaskStatus.ASSIGNED.value,
+                SubtaskStatus.IN_PROGRESS.value,
+                SubtaskStatus.REJECTED.value,
+                SubtaskStatus.ON_HOLD.value,
+            }
+            for subtask in task.subtasks
+        ):
+            return
+
+        raise TaskAccessDeniedError("Solo el operador activo o perfiles ejecutivo/admin pueden comentar en este pedido.")
 
     def _validate_default_user(self, crm_user_id: str | None, role_key: str) -> None:
         if crm_user_id is None:

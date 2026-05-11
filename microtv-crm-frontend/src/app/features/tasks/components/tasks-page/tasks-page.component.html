@@ -2,8 +2,8 @@
   <div class="tasks-page__header">
     <app-page-title
       eyebrow="Operación diaria"
-      title="Tareas operativas"
-      subtitle="Seguimiento real de tareas, subtareas sin asignar por rol y creación de nuevas instancias desde templates activos."
+      title="Pedidos operativos"
+      subtitle="Seguimiento real de pedidos, subtareas sin asignar por rol y creación de nuevas instancias desde templates activos."
     />
 
     <div class="tasks-page__actions">
@@ -44,8 +44,8 @@
   @if (isAdminOrExecutive()) {
     <mat-card class="tasks-page__create-card">
       <mat-card-header>
-        <mat-card-title>Crear tarea desde template</mat-card-title>
-        <mat-card-subtitle>Instanciá una tarea real asociando cliente y datos iniciales obligatorios.</mat-card-subtitle>
+        <mat-card-title>Crear pedido desde template</mat-card-title>
+        <mat-card-subtitle>Instanciá un pedido real asociando cliente y datos iniciales obligatorios.</mat-card-subtitle>
       </mat-card-header>
 
       <mat-card-content>
@@ -69,16 +69,21 @@
           </mat-form-field>
 
           <mat-form-field appearance="outline">
-            <mat-label>Título de la tarea</mat-label>
+            <mat-label>Título del pedido</mat-label>
             <input matInput formControlName="task_title" />
           </mat-form-field>
+
+          <div class="tasks-page__create-form-full tasks-page__task-meta">
+            <mat-checkbox formControlName="requires_arrival_comment">Requiere registro de llegada</mat-checkbox>
+            <mat-checkbox formControlName="requires_video_evidence">Requiere video para cierre final</mat-checkbox>
+          </div>
 
           <div class="tasks-page__create-form-full tasks-page__location-panel">
             <div class="tasks-page__location-header">
               <div>
                 <p class="tasks-page__label">Ubicación operativa</p>
                 <h3>{{ selectedLocationLabel() }}</h3>
-                <p class="tasks-page__location-caption">Seleccioná el punto real en mapa. El sistema persiste la ubicación y usa su `location_id` automáticamente.</p>
+                <p class="tasks-page__location-caption">Seleccioná el punto real en mapa. El sistema persiste la ubicación y usa su location_id automáticamente.</p>
               </div>
 
               <div class="tasks-page__location-actions">
@@ -131,7 +136,7 @@
           <div class="tasks-page__create-actions">
             <button mat-flat-button color="primary" type="submit" [disabled]="isCreatingTask()">
               <mat-icon>{{ isCreatingTask() ? 'hourglass_top' : 'task_alt' }}</mat-icon>
-              <span>{{ isCreatingTask() ? 'Creando...' : 'Crear tarea' }}</span>
+              <span>{{ isCreatingTask() ? 'Creando...' : 'Crear pedido' }}</span>
             </button>
           </div>
         </form>
@@ -143,7 +148,7 @@
     <mat-card class="tasks-page__message">
       <mat-card-content>
         <mat-spinner diameter="32"></mat-spinner>
-        <p>Cargando tablero real de tareas...</p>
+        <p>Cargando tablero real de pedidos...</p>
       </mat-card-content>
     </mat-card>
   } @else {
@@ -179,7 +184,7 @@
                   <mat-card-content>
                     <div class="tasks-page__task-top">
                       <div>
-                        <p class="tasks-page__label">Tarea</p>
+                        <p class="tasks-page__label">Pedido</p>
                         <h2>{{ task.task_title }}</h2>
                       </div>
                       <app-status-badge [label]="taskStatusLabel(task)" [tone]="toTaskTone(task.status)" />
@@ -250,7 +255,7 @@
                     </div>
 
                     <div class="tasks-page__task-meta">
-                      <span>Tarea: {{ queueItem.task_title }}</span>
+                      <span>Pedido: {{ queueItem.task_title }}</span>
                       <span>Cliente: {{ queueItem.client_name }}</span>
                       <span>Template: {{ queueItem.template_name }}</span>
                       <span>Rol: {{ formatRoleKey(queueItem.responsible_role_key) }}</span>
@@ -299,7 +304,7 @@
                     <mat-card-content>
                       <div class="tasks-page__task-top">
                         <div>
-                          <p class="tasks-page__label">Tarea</p>
+                            <p class="tasks-page__label">Pedido</p>
                           <h2>{{ task.task_title }}</h2>
                         </div>
                         <app-status-badge [label]="taskStatusLabel(task)" [tone]="toTaskTone(task.status)" />
@@ -317,7 +322,7 @@
                     <mat-card-actions align="end">
                       @if (canApproveTask(task)) {
                         <button mat-stroked-button type="button" (click)="rejectTask(task.task_id)">Rechazar cierre</button>
-                        <button mat-flat-button color="primary" type="button" (click)="approveTask(task.task_id)">Aprobar tarea</button>
+                        <button mat-flat-button color="primary" type="button" (click)="approveTask(task.task_id)">Aprobar pedido</button>
                       }
                       <a mat-button [routerLink]="['/tasks', task.task_id]">Ver detalle</a>
                     </mat-card-actions>
@@ -330,7 +335,7 @@
       }
 
       @if (isAdminOrExecutive()) {
-        <mat-tab [label]="isHandset() ? 'Historial' : 'Historial de tareas'">
+        <mat-tab [label]="isHandset() ? 'Historial' : 'Historial de pedidos'">
           <div class="tasks-page__tab-content">
             <app-listing-controls
               [searchValue]="listState('history').search"
@@ -361,7 +366,7 @@
                     <mat-card-content>
                       <div class="tasks-page__task-top">
                         <div>
-                          <p class="tasks-page__label">Tarea</p>
+                          <p class="tasks-page__label">Pedido</p>
                           <h2>{{ task.task_title }}</h2>
                         </div>
                         <app-status-badge [label]="taskStatusLabel(task)" [tone]="toTaskTone(task.status)" />

@@ -1,0 +1,46 @@
+.public-task-pre-form-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(255, 174, 74, 0.18), transparent 42%),
+    radial-gradient(circle at 85% 10%, rgba(64, 156, 255, 0.2), transparent 44%),
+    #f4f7fb;
+}
+
+.public-task-pre-form-page__card {
+  width: min(760px, 100%);
+}
+
+.public-task-pre-form-page__loading {
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
+  color: #243447;
+}
+
+.public-task-pre-form-page__instructions {
+  margin: 0 0 1rem;
+  color: #465b72;
+}
+
+.public-task-pre-form-page__fields {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.public-task-pre-form-page__full-width {
+  width: 100%;
+}
+
+.public-task-pre-form-page__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+}
+
+.public-task-pre-form-page__error {
+  color: #b3261e;
+  margin: 0.25rem 0 0;
+}

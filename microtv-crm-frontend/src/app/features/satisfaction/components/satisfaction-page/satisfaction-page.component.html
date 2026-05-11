@@ -17,8 +17,8 @@
         @if (response()!.comment) {
           <p>Comentario: {{ response()!.comment }}</p>
         }
-        @if (response()!.media_count > 0) {
-          <p>Adjuntos: {{ response()!.media_count }}</p>
+        @if (responseMediaCount() > 0) {
+          <p>Adjuntos: {{ responseMediaCount() }}</p>
         }
       </mat-card-content>
     </mat-card>
@@ -36,15 +36,7 @@
     <mat-card class="satisfaction-page__card">
       <mat-card-header>
         <mat-card-title>Encuesta de satisfacción</mat-card-title>
-        <mat-card-subtitle>
-          Ticket #{{ formInfo()!.ticket_number }}
-          @if (formInfo()!.client_name) {
-            · {{ formInfo()!.client_name }}
-          }
-          @if (formInfo()!.location_name) {
-            · {{ formInfo()!.location_name }}
-          }
-        </mat-card-subtitle>
+        <mat-card-subtitle>{{ formPrimaryLabel() }} @if (formSecondaryLabel()) { · {{ formSecondaryLabel() }} }</mat-card-subtitle>
       </mat-card-header>
       <mat-card-content>
         <form [formGroup]="satisfactionForm" (ngSubmit)="onSubmit()">
@@ -87,19 +79,21 @@
             <textarea matInput formControlName="comment" rows="4" maxlength="2000"></textarea>
           </mat-form-field>
 
-          <div class="satisfaction-page__media">
-            <app-ticket-attachments-section
-              [attachments]="pendingAttachments()"
-              [canEdit]="true"
-              sectionTitle="Evidencia multimedia (opcional)"
-              editableSubtitle="Podés adjuntar fotos o videos para respaldar tu calificación."
-              uploadButtonLabel="Agregar imágenes o videos"
-              hintText="Formatos admitidos: JPG, PNG, WEBP, MP4, WEBM, MOV."
-              emptyMessage="No se seleccionaron archivos todavía."
-              (attachmentsSelected)="onSurveyFilesSelected($event)"
-              (attachmentRemoved)="onSurveyAttachmentRemoved($event)"
-            />
-          </div>
+          @if (!isTaskMode()) {
+            <div class="satisfaction-page__media">
+              <app-ticket-attachments-section
+                [attachments]="pendingAttachments()"
+                [canEdit]="true"
+                sectionTitle="Evidencia multimedia (opcional)"
+                editableSubtitle="Podés adjuntar fotos o videos para respaldar tu calificación."
+                uploadButtonLabel="Agregar imágenes o videos"
+                hintText="Formatos admitidos: JPG, PNG, WEBP, MP4, WEBM, MOV."
+                emptyMessage="No se seleccionaron archivos todavía."
+                (attachmentsSelected)="onSurveyFilesSelected($event)"
+                (attachmentRemoved)="onSurveyAttachmentRemoved($event)"
+              />
+            </div>
+          }
 
           @if (errorMessage()) {
             <p class="satisfaction-page__error">{{ errorMessage() }}</p>

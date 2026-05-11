@@ -37,6 +37,8 @@ import {
   TaskAction,
   TaskComment,
   TaskDetail,
+  TaskPreFormStatusResponse,
+  TaskSatisfactionFormStatusResponse,
   TASK_ACTION_OPTIONS,
   toTaskTone
 } from '../../../../core/models/task-management.model';
@@ -113,6 +115,8 @@ export class TaskExecutionPageComponent {
   readonly pendingAttachments = signal<TaskAttachment[]>([]);
   readonly nextAssigneeOptions = signal<CrmUserOption[]>([]);
   readonly subtaskAssigneeOptions = signal<CrmUserOption[]>([]);
+  readonly taskSatisfactionStatus = signal<TaskSatisfactionFormStatusResponse | null>(null);
+  readonly taskPreFormStatus = signal<TaskPreFormStatusResponse | null>(null);
   readonly isAndroidCompact = signal(this.detectAndroidCompactLayout());
   readonly nonSubtaskSectionsExpanded = signal(!this.detectAndroidCompactLayout());
   readonly actionOptions = TASK_ACTION_OPTIONS;
@@ -205,6 +209,7 @@ export class TaskExecutionPageComponent {
     };
   });
   readonly canOperateTask = computed(() => this.task()?.current_assigned_crm_user_id === this.currentUserId());
+  readonly canManageTaskLinks = computed(() => this.isAdmin() || this.isExecutive());
 
   constructor() {
     if (typeof globalThis.addEventListener === 'function') {
@@ -845,6 +850,69 @@ export class TaskExecutionPageComponent {
       });
   }
 
+  exportCurrentTask(): void {
+    const currentTask = this.task();
+    if (!currentTask || !this.canManageTaskLinks()) {
+      return;
+    }
+
+    this.taskManagementService.exportTaskHistory(currentTask.task_id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (blob) => {
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = `pedido_${currentTask.task_id}.zip`;
+        anchor.click();
+        URL.revokeObjectURL(objectUrl);
+        this.snackBar.open('Exportación de pedido generada.', 'Cerrar', { duration: 3000 });
+      },
+      error: (error: Error) => this.showOperationError(error.message),
+    });
+  }
+
+  generateTaskSatisfactionLink(): void {
+    const currentTask = this.task();
+    if (!currentTask || !this.canManageTaskLinks()) {
+      return;
+    }
+
+    this.taskManagementService.generateTaskSatisfactionForm(currentTask.task_id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: async (response) => {
+        const absoluteLink = `${window.location.origin}${response.survey_path}`;
+        try {
+          await navigator.clipboard.writeText(absoluteLink);
+          this.snackBar.open('Link de encuesta copiado al portapapeles.', 'Cerrar', { duration: 3500 });
+        } catch {
+          window.prompt('Link de encuesta generado. Copialo:', absoluteLink);
+        }
+        this.loadTaskSatisfactionStatus(currentTask.task_id);
+      },
+      error: (error: Error) => this.showOperationError(error.message),
+    });
+  }
+
+  generateTaskPreFormLink(): void {
+    const currentTask = this.task();
+    if (!currentTask || !this.canManageTaskLinks()) {
+      return;
+    }
+
+    this.taskManagementService.generateTaskPreFormLink(currentTask.task_id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: async (response) => {
+        const relativePath = response.form_link_path ?? '';
+        const absoluteLink = `${window.location.origin}${relativePath}`;
+        try {
+          await navigator.clipboard.writeText(absoluteLink);
+          this.snackBar.open('Link de formulario previo copiado al portapapeles.', 'Cerrar', { duration: 3500 });
+        } catch {
+          window.prompt('Link de formulario previo generado. Copialo:', absoluteLink);
+        }
+        this.loadTaskPreFormStatus(currentTask.task_id);
+      },
+      error: (error: Error) => this.showOperationError(error.message),
+    });
+  }
+
   subtaskCanBeOperated(subtask: Subtask): boolean {
     return this.canEditSubtask(subtask) && ['assigned', 'in_progress'].includes(subtask.status);
   }
@@ -1043,6 +1111,8 @@ export class TaskExecutionPageComponent {
         this.pageError.set(null);
         this.selectedSubtaskId.set(task.current_subtask_id ?? task.subtasks[0]?.subtask_id ?? null);
         this.rebuildOperationForm();
+        this.loadTaskSatisfactionStatus(task.task_id);
+        this.loadTaskPreFormStatus(task.task_id);
         this.isLoading.set(false);
       },
       error: (error: Error) => {
@@ -1062,6 +1132,8 @@ export class TaskExecutionPageComponent {
         this.task.set(task);
         this.successMessage.set(message);
         this.errorMessage.set(null);
+        this.loadTaskSatisfactionStatus(task.task_id);
+        this.loadTaskPreFormStatus(task.task_id);
         this.isSaving.set(false);
       },
       error: (error: Error) => {
@@ -1174,6 +1246,20 @@ export class TaskExecutionPageComponent {
         checkbox_value: itemType === 'checkbox' ? Boolean(control.get('checkbox_value')?.value) : undefined,
         text_value: itemType === 'text' ? (String(control.get('text_value')?.value ?? '').trim() || null) : undefined
       };
+    });
+  }
+
+  private loadTaskSatisfactionStatus(taskId: string): void {
+    this.taskManagementService.getTaskSatisfactionFormStatus(taskId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (status) => this.taskSatisfactionStatus.set(status),
+      error: () => this.taskSatisfactionStatus.set(null),
+    });
+  }
+
+  private loadTaskPreFormStatus(taskId: string): void {
+    this.taskManagementService.getTaskPreFormStatus(taskId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (status) => this.taskPreFormStatus.set(status),
+      error: () => this.taskPreFormStatus.set(null),
     });
   }
 

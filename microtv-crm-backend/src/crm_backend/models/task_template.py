@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from crm_backend.db.base import Base
+
+if TYPE_CHECKING:
+    from crm_backend.models.task_execution import TaskTemplatePreForm
 
 
 class TemplateItemType(StrEnum):
@@ -27,6 +31,13 @@ class NextAssignmentPolicy(StrEnum):
     MANUAL_REQUIRED = "manual_required"
 
 
+class SubtaskType(StrEnum):
+    """Supported task subtask types."""
+
+    STANDARD = "standard"
+    PRE_FORM = "pre_form"
+
+
 class TaskTemplate(Base):
     """Reusable operational task template."""
 
@@ -36,6 +47,9 @@ class TaskTemplate(Base):
     template_name: Mapped[str] = mapped_column(String(255), index=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    requires_arrival_comment: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    requires_video_evidence: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    requires_pre_form: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_by_crm_user_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -52,6 +66,13 @@ class TaskTemplate(Base):
         back_populates="template",
         cascade="all, delete-orphan",
         order_by="TemplateMaterial.created_at",
+        lazy="selectin",
+    )
+    pre_form: Mapped["TaskTemplatePreForm | None"] = relationship(
+        "TaskTemplatePreForm",
+        back_populates="template",
+        cascade="all, delete-orphan",
+        uselist=False,
         lazy="selectin",
     )
 
@@ -74,6 +95,7 @@ class TaskTemplateSubtask(Base):
     )
     close_comment_required: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     next_assignment_policy: Mapped[str] = mapped_column(String(50), default=NextAssignmentPolicy.ROLE_QUEUE_AUTO.value)
+    subtask_type: Mapped[str] = mapped_column(String(50), default=SubtaskType.STANDARD.value, server_default=SubtaskType.STANDARD.value)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     template: Mapped[TaskTemplate] = relationship("TaskTemplate", back_populates="subtasks")

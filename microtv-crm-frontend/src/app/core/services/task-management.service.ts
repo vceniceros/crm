@@ -8,17 +8,26 @@ import {
   ApproveTaskRequest,
   AssignSubtaskRequest,
   ClientSummary,
+  CreateTaskCommentRequest,
   CreateLocationRequest,
   CrmUserOption,
   CreateTaskFromTemplateRequest,
+  GenerateTaskSatisfactionFormResponse,
+  PublicTaskPreFormInfoResponse,
+  PublicTaskSatisfactionFormInfoResponse,
   PersistedLocation,
   CreateTaskTemplateRequest,
   ExecuteSubtaskActionRequest,
   RejectTaskApprovalRequest,
   SetTaskTemplateActivationRequest,
   TaskDetail,
+  TaskPreFormStatusResponse,
+  TaskSatisfactionFormStatusResponse,
+  TaskSatisfactionResponseDetailResponse,
   TaskSummary,
   TaskTemplate,
+  SubmitTaskPreFormRequest,
+  SubmitTaskSatisfactionFormRequest,
   UnassignedSubtaskQueueItem,
   UpdateSubtaskProgressRequest,
   UpdateTaskTemplateRequest
@@ -183,6 +192,73 @@ export class TaskManagementService {
 
     return this.http
       .delete<void>(`${crmApiConfig.baseUrl}/tasks/attachments/${attachmentId}`, { headers })
+      .pipe(catchError((error) => this.handleRequestError(error)));
+  }
+
+  addTaskComment(taskId: string, payload: CreateTaskCommentRequest): Observable<TaskDetail> {
+    return this.request<TaskDetail>('post', `/tasks/${taskId}/comments`, payload).pipe(
+      map((task) => this.normalizeTaskDetail(task))
+    );
+  }
+
+  exportTaskHistory(taskId: string): Observable<Blob> {
+    const headers = this.buildAuthHeaders();
+    if (!headers) {
+      return throwError(() => new Error('No hay una sesión autenticada válida para operar tareas.'));
+    }
+
+    return this.http
+      .get(`${crmApiConfig.baseUrl}/tasks/${taskId}/export`, {
+        headers,
+        responseType: 'blob'
+      })
+      .pipe(catchError((error) => this.handleRequestError(error)));
+  }
+
+  generateTaskSatisfactionForm(taskId: string): Observable<GenerateTaskSatisfactionFormResponse> {
+    return this.request<GenerateTaskSatisfactionFormResponse>('post', `/tasks/${taskId}/satisfaction-form`);
+  }
+
+  getTaskSatisfactionFormStatus(taskId: string): Observable<TaskSatisfactionFormStatusResponse> {
+    return this.request<TaskSatisfactionFormStatusResponse>('get', `/tasks/${taskId}/satisfaction-form/status`);
+  }
+
+  getTaskSatisfactionResponse(taskId: string): Observable<TaskSatisfactionResponseDetailResponse> {
+    return this.request<TaskSatisfactionResponseDetailResponse>('get', `/tasks/${taskId}/satisfaction-response`);
+  }
+
+  generateTaskPreFormLink(taskId: string): Observable<TaskPreFormStatusResponse> {
+    return this.request<TaskPreFormStatusResponse>('post', `/tasks/${taskId}/pre-form/generate`);
+  }
+
+  getTaskPreFormStatus(taskId: string): Observable<TaskPreFormStatusResponse> {
+    return this.request<TaskPreFormStatusResponse>('get', `/tasks/${taskId}/pre-form/status`);
+  }
+
+  getPublicTaskSatisfactionForm(token: string): Observable<PublicTaskSatisfactionFormInfoResponse> {
+    return this.http
+      .get<PublicTaskSatisfactionFormInfoResponse>(`${crmApiConfig.baseUrl}/public/tasks/satisfaction/${encodeURIComponent(token)}`)
+      .pipe(catchError((error) => this.handleRequestError(error)));
+  }
+
+  submitPublicTaskSatisfactionForm(
+    token: string,
+    payload: SubmitTaskSatisfactionFormRequest
+  ): Observable<TaskSatisfactionResponseDetailResponse> {
+    return this.http
+      .post<TaskSatisfactionResponseDetailResponse>(`${crmApiConfig.baseUrl}/public/tasks/satisfaction/${encodeURIComponent(token)}`, payload)
+      .pipe(catchError((error) => this.handleRequestError(error)));
+  }
+
+  getPublicTaskPreForm(token: string): Observable<PublicTaskPreFormInfoResponse> {
+    return this.http
+      .get<PublicTaskPreFormInfoResponse>(`${crmApiConfig.baseUrl}/pre-form/${encodeURIComponent(token)}`)
+      .pipe(catchError((error) => this.handleRequestError(error)));
+  }
+
+  submitPublicTaskPreForm(token: string, payload: SubmitTaskPreFormRequest): Observable<{ status: string }> {
+    return this.http
+      .post<{ status: string }>(`${crmApiConfig.baseUrl}/pre-form/${encodeURIComponent(token)}`, payload)
       .pipe(catchError((error) => this.handleRequestError(error)));
   }
 

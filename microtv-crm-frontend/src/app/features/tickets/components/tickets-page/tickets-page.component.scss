@@ -61,9 +61,9 @@
   justify-items: center;
   gap: 0.75rem;
   padding: 2.2rem 1rem;
-  border: 1px solid rgba(23, 24, 26, 0.08);
+  border: 1px solid var(--border-subtle);
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.75);
+  background: color-mix(in srgb, var(--surface-panel) 88%, var(--surface-soft) 12%);
 }
 
 .tickets-page__loading p {
@@ -88,9 +88,9 @@
   gap: 0.8rem;
   align-items: start;
   padding: 1rem 1.1rem;
-  border: 1px dashed rgba(23, 24, 26, 0.14);
+  border: 1px dashed var(--border-subtle);
   border-radius: 1rem;
-  background: rgba(248, 249, 251, 0.9);
+  background: color-mix(in srgb, var(--surface-panel) 82%, var(--surface-soft) 18%);
 }
 
 .tickets-page__empty-state mat-icon {

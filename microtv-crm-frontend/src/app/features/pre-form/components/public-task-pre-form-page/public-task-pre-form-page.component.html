@@ -1,0 +1,90 @@
+<div class="public-task-pre-form-page">
+  @if (isLoading()) {
+    <div class="public-task-pre-form-page__loading">
+      <mat-spinner diameter="48"></mat-spinner>
+      <p>Cargando formulario previo...</p>
+    </div>
+  } @else if (errorMessage()) {
+    <mat-card class="public-task-pre-form-page__card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar color="warn">error</mat-icon>
+        <mat-card-title>Formulario no disponible</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <p>{{ errorMessage() }}</p>
+      </mat-card-content>
+    </mat-card>
+  } @else if (isSubmitted()) {
+    <mat-card class="public-task-pre-form-page__card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar color="primary">check_circle</mat-icon>
+        <mat-card-title>Formulario enviado</mat-card-title>
+        <mat-card-subtitle>Gracias. La información quedó registrada correctamente.</mat-card-subtitle>
+      </mat-card-header>
+    </mat-card>
+  } @else if (formInfo(); as formInfo) {
+    <mat-card class="public-task-pre-form-page__card">
+      <mat-card-header>
+        <mat-card-title>{{ formInfo.title || 'Formulario previo' }}</mat-card-title>
+        <mat-card-subtitle>
+          Pedido: {{ formInfo.task_title }}
+          @if (formInfo.client_name) {
+            · {{ formInfo.client_name }}
+          }
+          @if (formInfo.location_name) {
+            · {{ formInfo.location_name }}
+          }
+        </mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        @if (formInfo.instructions) {
+          <p class="public-task-pre-form-page__instructions">{{ formInfo.instructions }}</p>
+        }
+
+        <form [formGroup]="preForm" (ngSubmit)="onSubmit()">
+          <div class="public-task-pre-form-page__fields">
+            @for (field of formInfo.fields; track field.field_id) {
+              <div class="public-task-pre-form-page__field-row">
+                @if (isCheckboxField(field)) {
+                  <mat-checkbox [formControlName]="fieldControlName(field)">
+                    {{ field.label }} @if (field.is_required) { * }
+                  </mat-checkbox>
+                } @else if (field.field_type === 'TEXTAREA') {
+                  <mat-form-field appearance="outline" class="public-task-pre-form-page__full-width">
+                    <mat-label>{{ field.label }} @if (field.is_required) { * }</mat-label>
+                    <textarea matInput rows="4" [placeholder]="field.placeholder || ''" [formControlName]="fieldControlName(field)"></textarea>
+                  </mat-form-field>
+                } @else if (field.field_type === 'FILE') {
+                  <mat-form-field appearance="outline" class="public-task-pre-form-page__full-width">
+                    <mat-label>{{ field.label }} @if (field.is_required) { * }</mat-label>
+                    <input matInput [placeholder]="field.placeholder || 'Referencia del archivo (URL o detalle)'" [formControlName]="fieldControlName(field)" />
+                  </mat-form-field>
+                } @else {
+                  <mat-form-field appearance="outline" class="public-task-pre-form-page__full-width">
+                    <mat-label>{{ field.label }} @if (field.is_required) { * }</mat-label>
+                    <input matInput [type]="inputType(field.field_type)" [placeholder]="field.placeholder || ''" [formControlName]="fieldControlName(field)" />
+                  </mat-form-field>
+                }
+              </div>
+            }
+          </div>
+
+          @if (errorMessage()) {
+            <p class="public-task-pre-form-page__error">{{ errorMessage() }}</p>
+          }
+
+          <div class="public-task-pre-form-page__actions">
+            <button mat-flat-button color="primary" type="submit" [disabled]="isSubmitting() || preForm.invalid">
+              @if (isSubmitting()) {
+                <mat-spinner diameter="20"></mat-spinner>
+              } @else {
+                Enviar formulario
+              }
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+  }
+</div>

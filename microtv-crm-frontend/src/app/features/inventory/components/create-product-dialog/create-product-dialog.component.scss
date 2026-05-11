@@ -11,9 +11,14 @@
 
 .create-product-dialog__intro {
   padding: 1rem 1.1rem;
-  border: 1px solid rgba(23, 24, 26, 0.08);
+  border: 1px solid var(--border-subtle);
   border-radius: 1rem;
-  background: linear-gradient(180deg, rgba(25, 118, 210, 0.06), rgba(255, 255, 255, 0.94));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--accent-blue) 16%, var(--surface-panel) 84%),
+      color-mix(in srgb, var(--surface-panel) 90%, var(--surface-soft) 10%)
+    );
 }
 
 .create-product-dialog__intro-title,
@@ -47,9 +52,9 @@
   display: grid;
   gap: 0.35rem;
   padding: 1rem;
-  border: 1px dashed rgba(23, 24, 26, 0.2);
+  border: 1px dashed var(--border-subtle);
   border-radius: 1rem;
-  background: rgba(248, 249, 251, 0.9);
+  background: color-mix(in srgb, var(--surface-panel) 86%, var(--surface-soft) 14%);
 }
 
 .create-product-dialog__upload-label {

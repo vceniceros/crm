@@ -25,9 +25,9 @@
 
     <div class="task-execution-page__header">
       <app-page-title
-        eyebrow="Ejecución de tarea"
+        eyebrow="Ejecución de pedido"
         [title]="task.task_title"
-        [subtitle]="task.task_description || 'Seguimiento operativo real de la tarea y sus subtareas.'"
+        [subtitle]="task.task_description || 'Seguimiento operativo real del pedido y sus subtareas.'"
       />
 
       <div class="task-execution-page__header-side">
@@ -83,8 +83,66 @@
             </div>
           </div>
         </mat-menu>
+
+        @if (canManageTaskLinks()) {
+          <div class="task-execution-page__header-actions">
+            <button mat-stroked-button type="button" (click)="exportCurrentTask()">
+              <mat-icon>download</mat-icon>
+              <span>Exportar pedido</span>
+            </button>
+
+            <button mat-stroked-button type="button" (click)="generateTaskSatisfactionLink()">
+              <mat-icon>poll</mat-icon>
+              <span>Generar encuesta</span>
+            </button>
+
+            <button mat-stroked-button type="button" (click)="generateTaskPreFormLink()">
+              <mat-icon>description</mat-icon>
+              <span>Generar formulario previo</span>
+            </button>
+          </div>
+        }
       </div>
     </div>
+
+    @if (task.requires_arrival_comment && !task.arrival_registered_at) {
+      <mat-card class="task-execution-page__flash task-execution-page__flash--error">
+        <mat-card-content>
+          <mat-icon>location_on</mat-icon>
+          <p>Falta registrar llegada. El cierre final del pedido se bloquea hasta que exista comentario de llegada.</p>
+        </mat-card-content>
+      </mat-card>
+    }
+
+    @if (canManageTaskLinks()) {
+      <mat-card class="task-execution-page__summary-card">
+        <mat-card-content>
+          <p class="task-execution-page__summary-label">Encuesta de satisfacción</p>
+          <p class="task-execution-page__summary-caption">
+            @if (taskSatisfactionStatus(); as status) {
+              {{ status.status_label === 'pendiente' ? 'Link activo' : 'Sin link activo' }}
+              @if (status.expires_at) {
+                · vence {{ status.expires_at | date: 'dd/MM/yyyy HH:mm' }}
+              }
+            } @else {
+              Sin estado disponible.
+            }
+          </p>
+
+          <p class="task-execution-page__summary-label">Formulario previo</p>
+          <p class="task-execution-page__summary-caption">
+            @if (taskPreFormStatus(); as preFormStatus) {
+              {{ preFormStatus.status_label === 'pendiente' ? 'Token activo' : 'Sin token activo' }}
+              @if (preFormStatus.submitted_at) {
+                · enviado {{ preFormStatus.submitted_at | date: 'dd/MM/yyyy HH:mm' }}
+              }
+            } @else {
+              Sin estado disponible.
+            }
+          </p>
+        </mat-card-content>
+      </mat-card>
+    }
 
     @if (successMessage(); as successMessage) {
       <mat-card class="task-execution-page__flash task-execution-page__flash--success">

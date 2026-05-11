@@ -18,6 +18,7 @@ set "CRM_DB_USER=crmmicrotv"
 set "CRM_DB_PASSWORD=crmmicrotv"
 set "CRM_DB_PORT=5433"
 set "CRM_SCHEMA_FILE=%ROOT%docs\diagrams\schema-propuesto-v4.sql"
+set "CRM_SQL_DIR=%ROOT%microtv-crm-backend\sql"
 set "CRM_DATABASE_URL=postgresql+psycopg://%CRM_DB_USER%:%CRM_DB_PASSWORD%@localhost:%CRM_DB_PORT%/%CRM_DB_NAME%"
 
 echo.
@@ -109,6 +110,56 @@ if /I "%CRM_SCHEMA_READY%"=="READY" (
         exit /b 1
     )
     echo   OK - schema v4 aplicado.
+)
+echo.
+
+:: ---- 4b. Aplicar migraciones incrementales ----------------------
+echo [4b/6] Aplicando migraciones incrementales del CRM...
+if not exist "%CRM_SQL_DIR%\*.sql" (
+    echo   WARNING: No se encontraron archivos .sql en %CRM_SQL_DIR%.
+    echo   Se omite la fase de migraciones incrementales.
+) else (
+    docker exec %CRM_DB_CONTAINER% psql -v ON_ERROR_STOP=1 -U %CRM_DB_USER% -d %CRM_DB_NAME% -c "CREATE TABLE IF NOT EXISTS crm_schema_migrations (migration_name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW());" > nul
+    if errorlevel 1 (
+        echo.
+        echo   ERROR: No se pudo preparar la tabla crm_schema_migrations.
+        echo.
+        pause
+        exit /b 1
+    )
+
+    set /a CRM_MIGRATIONS_APPLIED=0
+    for %%f in ("%CRM_SQL_DIR%\*.sql") do (
+        set "CRM_MIGRATION_NAME=%%~nxf"
+        set "CRM_MIGRATION_EXISTS="
+        for /f "usebackq delims=" %%r in (`docker exec %CRM_DB_CONTAINER% psql -U %CRM_DB_USER% -d %CRM_DB_NAME% -qtAX -c "SELECT CASE WHEN EXISTS (SELECT 1 FROM crm_schema_migrations WHERE migration_name='%%~nxf') THEN '1' ELSE '0' END;" 2^>nul`) do set "CRM_MIGRATION_EXISTS=%%r"
+
+        if "!CRM_MIGRATION_EXISTS!"=="1" (
+            echo   - Saltando %%~nxf ^(ya aplicada^)
+        ) else (
+            echo   - Aplicando %%~nxf ...
+            docker exec -i %CRM_DB_CONTAINER% psql -v ON_ERROR_STOP=1 -U %CRM_DB_USER% -d %CRM_DB_NAME% < "%%f"
+            if errorlevel 1 (
+                echo.
+                echo   ERROR: Fallo la migracion %%~nxf
+                echo.
+                pause
+                exit /b 1
+            )
+
+            docker exec %CRM_DB_CONTAINER% psql -v ON_ERROR_STOP=1 -U %CRM_DB_USER% -d %CRM_DB_NAME% -c "INSERT INTO crm_schema_migrations (migration_name) VALUES ('%%~nxf') ON CONFLICT (migration_name) DO NOTHING;" > nul
+            if errorlevel 1 (
+                echo.
+                echo   ERROR: No se pudo registrar la migracion %%~nxf en crm_schema_migrations.
+                echo.
+                pause
+                exit /b 1
+            )
+            set /a CRM_MIGRATIONS_APPLIED+=1
+            echo   - OK %%~nxf
+        )
+    )
+    echo   OK - migraciones incrementales revisadas. Nuevas aplicadas: !CRM_MIGRATIONS_APPLIED!.
 )
 echo.
 

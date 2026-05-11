@@ -33,6 +33,9 @@ from crm_backend.services import (
     TaskApplicationService,
     TaskMaterialFlowFacade,
     TicketApplicationService,
+    TaskExportService,
+    TaskPreFormService,
+    TaskSatisfactionFormService,
 )
 from crm_backend.services.auth_service import ResolvedCrmSession
 from crm_backend.services.dashboard_service import DashboardService
@@ -399,4 +402,37 @@ def get_ticket_export_service(
         media_root_dir=settings.crm_media_root_path,
         media_public_url=settings.crm_media_public_url,
         legacy_public_dir=settings.public_dir,
+    )
+
+
+def get_task_export_service(
+    settings: Settings = Depends(get_settings),
+) -> TaskExportService:
+    """Provide the task export service."""
+    return TaskExportService(
+        media_root_dir=settings.crm_media_root_path,
+        media_public_url=settings.crm_media_public_url,
+        legacy_public_dir=settings.public_dir,
+    )
+
+
+def get_task_satisfaction_form_service(
+    session: Session = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> TaskSatisfactionFormService:
+    """Provide task satisfaction form service."""
+    return TaskSatisfactionFormService(
+        session=session,
+        expiry_hours=settings.satisfaction_form_expiry_hours,
+    )
+
+
+def get_task_pre_form_service(
+    session: Session = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> TaskPreFormService:
+    """Provide task pre-form service."""
+    return TaskPreFormService(
+        session=session,
+        expiry_hours=settings.satisfaction_form_expiry_hours,
     )
