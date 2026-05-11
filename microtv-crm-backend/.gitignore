@@ -50,7 +50,9 @@ desktop.ini
 
 # Runtime multimedia (local/dev)
 media/
-public/images/
+public/images/*
+!public/images/branding/
+!public/images/branding/**
 public/videos/
 public/tasks/
 public/products/
