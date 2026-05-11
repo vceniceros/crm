@@ -189,11 +189,17 @@
 
     <ng-template #requiredMaterialsCard>
       <mat-card class="task-execution-page__execution-card">
-        <mat-card-header>
-          <mat-card-title>Materiales requeridos</mat-card-title>
-          <mat-card-subtitle>Comparación real entre lo mínimo del template y lo ya despachado.</mat-card-subtitle>
+        <mat-card-header class="task-execution-page__collapsible-header">
+          <div>
+            <mat-card-title>Materiales requeridos</mat-card-title>
+            <mat-card-subtitle>Comparación real entre lo mínimo del template y lo ya despachado.</mat-card-subtitle>
+          </div>
+          <button mat-icon-button type="button" (click)="toggleSection('required_materials')" [attr.aria-expanded]="!isSectionCollapsed('required_materials')">
+            <mat-icon>{{ isSectionCollapsed('required_materials') ? 'expand_more' : 'expand_less' }}</mat-icon>
+          </button>
         </mat-card-header>
 
+        @if (!isSectionCollapsed('required_materials')) {
         <mat-card-content>
           @if (task.required_materials.length) {
             <div class="task-execution-page__material-list">
@@ -214,16 +220,23 @@
             <p class="task-execution-page__summary-caption">Esta tarea no tiene productos mínimos heredados.</p>
           }
         </mat-card-content>
+        }
       </mat-card>
     </ng-template>
 
     <ng-template #subtasksFlowCard>
       <mat-card class="task-execution-page__timeline-card">
-        <mat-card-header>
-          <mat-card-title>Subtareas del flujo</mat-card-title>
-          <mat-card-subtitle>Mostramos el estado real de cada etapa y destacamos la subtarea activa.</mat-card-subtitle>
+        <mat-card-header class="task-execution-page__collapsible-header">
+          <div>
+            <mat-card-title>Subtareas del flujo</mat-card-title>
+            <mat-card-subtitle>Mostramos el estado real de cada etapa y destacamos la subtarea activa.</mat-card-subtitle>
+          </div>
+          <button mat-icon-button type="button" (click)="toggleSection('subtasks_flow')" [attr.aria-expanded]="!isSectionCollapsed('subtasks_flow')">
+            <mat-icon>{{ isSectionCollapsed('subtasks_flow') ? 'expand_more' : 'expand_less' }}</mat-icon>
+          </button>
         </mat-card-header>
 
+        @if (!isSectionCollapsed('subtasks_flow')) {
         <mat-card-content>
           <div class="task-execution-page__subtasks-list">
             @for (subtask of task.subtasks; track subtask.subtask_id) {
@@ -239,6 +252,7 @@
             }
           </div>
         </mat-card-content>
+        }
       </mat-card>
     </ng-template>
 
@@ -300,11 +314,17 @@
 
       @if (canViewDispatchSection()) {
       <mat-card class="task-execution-page__execution-card">
-        <mat-card-header>
-          <mat-card-title>Despachos reales</mat-card-title>
-          <mat-card-subtitle>Depósito registra equipos/materiales con serial o barcode cuando corresponde.</mat-card-subtitle>
+        <mat-card-header class="task-execution-page__collapsible-header">
+          <div>
+            <mat-card-title>Despachos reales</mat-card-title>
+            <mat-card-subtitle>Depósito registra equipos/materiales con serial o barcode cuando corresponde.</mat-card-subtitle>
+          </div>
+          <button mat-icon-button type="button" (click)="toggleSection('dispatches')" [attr.aria-expanded]="!isSectionCollapsed('dispatches')">
+            <mat-icon>{{ isSectionCollapsed('dispatches') ? 'expand_more' : 'expand_less' }}</mat-icon>
+          </button>
         </mat-card-header>
 
+        @if (!isSectionCollapsed('dispatches')) {
         <mat-card-content>
           @if (isDeposito()) {
             <section class="task-execution-page__composer" [formGroup]="dispatchComposerForm">
@@ -432,16 +452,23 @@
             <p class="task-execution-page__summary-caption">Todavía no hay despachos registrados para esta tarea.</p>
           }
         </mat-card-content>
+        }
       </mat-card>
       }
 
       @if (canViewRequestsSection()) {
       <mat-card class="task-execution-page__execution-card">
-        <mat-card-header>
-          <mat-card-title>Solicitudes adicionales</mat-card-title>
-          <mat-card-subtitle>{{ isFieldTechnician() ? 'Generá solicitudes de faltantes para depósito.' : 'El técnico puede pedir faltantes y depósito puede aprobar o rechazar desde la tarea.' }}</mat-card-subtitle>
+        <mat-card-header class="task-execution-page__collapsible-header">
+          <div>
+            <mat-card-title>Solicitudes adicionales</mat-card-title>
+            <mat-card-subtitle>{{ isFieldTechnician() ? 'Generá solicitudes de faltantes para depósito.' : 'El técnico puede pedir faltantes y depósito puede aprobar o rechazar desde la tarea.' }}</mat-card-subtitle>
+          </div>
+          <button mat-icon-button type="button" (click)="toggleSection('requests')" [attr.aria-expanded]="!isSectionCollapsed('requests')">
+            <mat-icon>{{ isSectionCollapsed('requests') ? 'expand_more' : 'expand_less' }}</mat-icon>
+          </button>
         </mat-card-header>
 
+        @if (!isSectionCollapsed('requests')) {
         <mat-card-content>
           @if (isTecnico()) {
             <section class="task-execution-page__composer" [formGroup]="requestComposerForm">
@@ -557,6 +584,7 @@
             <p class="task-execution-page__summary-caption">No hay solicitudes adicionales para esta tarea.</p>
           }
         </mat-card-content>
+        }
       </mat-card>
       }
       </div>
@@ -574,11 +602,17 @@
 
       @if (selectedSubtask(); as selectedSubtask) {
         <mat-card class="task-execution-page__execution-card" [class.task-execution-page__execution-card--full]="isExecutive()">
-          <mat-card-header>
-            <mat-card-title>{{ selectedSubtask.subtask_title }}</mat-card-title>
-            <mat-card-subtitle>{{ selectedSubtask.subtask_description || 'Sin descripción operativa.' }}</mat-card-subtitle>
+          <mat-card-header class="task-execution-page__collapsible-header">
+            <div>
+              <mat-card-title>{{ selectedSubtask.subtask_title }}</mat-card-title>
+              <mat-card-subtitle>{{ selectedSubtask.subtask_description || 'Sin descripción operativa.' }}</mat-card-subtitle>
+            </div>
+            <button mat-icon-button type="button" (click)="toggleSection('subtask_operation')" [attr.aria-expanded]="!isSectionCollapsed('subtask_operation')">
+              <mat-icon>{{ isSectionCollapsed('subtask_operation') ? 'expand_more' : 'expand_less' }}</mat-icon>
+            </button>
           </mat-card-header>
 
+          @if (!isSectionCollapsed('subtask_operation')) {
           <mat-card-content>
             <div class="task-execution-page__execution-meta">
               <span>Rol: {{ formatRoleKey(selectedSubtask.responsible_role_key) }}</span>
@@ -631,6 +665,28 @@
               </div>
 
               <div class="task-execution-page__comment-box">
+                <mat-form-field appearance="outline" class="task-execution-page__comment-field" [formGroup]="internalCommentForm">
+                  <mat-label>Comentario interno</mat-label>
+                  <textarea
+                    matInput
+                    rows="3"
+                    formControlName="body"
+                    [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()"
+                    placeholder="Comentario interno para seguimiento operativo (no cierra la subtarea)"></textarea>
+                </mat-form-field>
+
+                @if (requiresArrivalRegistration()) {
+                  <p class="task-execution-page__summary-caption">
+                    Este pedido requiere llegada: guardá un comentario interno con al menos un adjunto y ubicación de tarea para registrarla.
+                  </p>
+                }
+
+                @if (requiresVideoEvidenceForCurrentClose()) {
+                  <p class="task-execution-page__summary-caption">
+                    El cierre final exige al menos un video adjunto en esta subtarea.
+                  </p>
+                }
+
                 <mat-form-field appearance="outline" class="task-execution-page__comment-field">
                   <mat-label>Comentario de cierre y/o observaciones</mat-label>
                   <textarea matInput rows="4" formControlName="comment" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()" placeholder="Comentario de cierre y/o observaciones"></textarea>
@@ -672,6 +728,11 @@
               }
 
               <div class="task-execution-page__footer-actions">
+                <button mat-stroked-button type="button" (click)="addInternalComment()" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving() || internalCommentForm.invalid">
+                  <mat-icon>comment</mat-icon>
+                  <span>Guardar comentario interno</span>
+                </button>
+
                 <button mat-stroked-button type="button" (click)="saveProgress()" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()">
                   <mat-icon>save</mat-icon>
                   <span>Guardar progreso</span>
@@ -692,31 +753,48 @@
               </div>
 
             </form>
+          </mat-card-content>
+          }
 
             @if (selectedSubtask.transitions.length) {
-              <div class="task-execution-page__history">
-                <h3>Transiciones</h3>
-                @for (transition of selectedSubtask.transitions; track transition.subtask_transition_id) {
-                  <article>
-                    <strong>{{ formatTaskStatus(transition.from_status) }} → {{ formatTaskStatus(transition.to_status) }}</strong>
-                    <span>{{ transition.action }} · {{ transition.performed_by_display_name || 'Usuario CRM' }} · {{ transition.created_at | date: 'dd/MM/yyyy HH:mm' }}</span>
-                  </article>
+              <div class="task-execution-page__history task-execution-page__history--with-toggle">
+                <div class="task-execution-page__history-header">
+                  <h3>Transiciones</h3>
+                  <button mat-icon-button type="button" (click)="toggleSection('subtask_transitions')" [attr.aria-expanded]="!isSectionCollapsed('subtask_transitions')">
+                    <mat-icon>{{ isSectionCollapsed('subtask_transitions') ? 'expand_more' : 'expand_less' }}</mat-icon>
+                  </button>
+                </div>
+
+                @if (!isSectionCollapsed('subtask_transitions')) {
+                  @for (transition of selectedSubtask.transitions; track transition.subtask_transition_id) {
+                    <article>
+                      <strong>{{ formatTaskStatus(transition.from_status) }} → {{ formatTaskStatus(transition.to_status) }}</strong>
+                      <span>{{ transition.action }} · {{ transition.performed_by_display_name || 'Usuario CRM' }} · {{ transition.created_at | date: 'dd/MM/yyyy HH:mm' }}</span>
+                    </article>
+                  }
                 }
               </div>
             }
 
             @if (selectedSubtaskComments().length) {
-              <div class="task-execution-page__history">
-                <h3>Comentarios y adjuntos</h3>
-                @for (comment of selectedSubtaskComments(); track comment.task_comment_id) {
-                  <article>
-                    <strong>{{ comment.author_display_name || 'Usuario CRM' }} · {{ comment.comment_type }} · {{ comment.created_at | date: 'dd/MM/yyyy HH:mm' }}</strong>
-                    <span>{{ comment.body }}</span>
-                  </article>
+              <div class="task-execution-page__history task-execution-page__history--with-toggle">
+                <div class="task-execution-page__history-header">
+                  <h3>Comentarios y adjuntos</h3>
+                  <button mat-icon-button type="button" (click)="toggleSection('subtask_comments')" [attr.aria-expanded]="!isSectionCollapsed('subtask_comments')">
+                    <mat-icon>{{ isSectionCollapsed('subtask_comments') ? 'expand_more' : 'expand_less' }}</mat-icon>
+                  </button>
+                </div>
+
+                @if (!isSectionCollapsed('subtask_comments')) {
+                  @for (comment of selectedSubtaskComments(); track comment.task_comment_id) {
+                    <article>
+                      <strong>{{ comment.author_display_name || 'Usuario CRM' }} · {{ comment.comment_type }} · {{ comment.created_at | date: 'dd/MM/yyyy HH:mm' }}</strong>
+                      <span>{{ comment.body }}</span>
+                    </article>
+                  }
                 }
               </div>
             }
-          </mat-card-content>
         </mat-card>
       }
     </div>

@@ -259,6 +259,17 @@
   padding-inline: 1.25rem;
 }
 
+.task-execution-page__collapsible-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.task-execution-page__collapsible-header > div {
+  min-width: 0;
+}
+
 .task-execution-page__timeline-card mat-card-header,
 .task-execution-page__execution-card mat-card-header {
   padding-top: 1.15rem;
@@ -385,6 +396,17 @@
   margin-top: 1.5rem;
   padding-top: 1rem;
   border-top: 1px solid rgba(23, 24, 26, 0.08);
+}
+
+.task-execution-page__history--with-toggle {
+  gap: 0.5rem;
+}
+
+.task-execution-page__history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
 }
 
 .task-execution-page__flash--success mat-icon {
