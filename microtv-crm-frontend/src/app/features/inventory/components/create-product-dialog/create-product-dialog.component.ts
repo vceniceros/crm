@@ -38,8 +38,6 @@ import { CreateProductFormGroup, CreateProductFormModel } from '../create-produc
   styleUrl: './create-product-dialog.component.scss'
 })
 export class CreateProductDialogComponent {
-  private static readonly maxRawImageBytes = 12 * 1024 * 1024;
-  private static readonly maxImageBytes = 2 * 1024 * 1024;
   private static readonly allowedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
   private readonly dialogRef = inject(MatDialogRef<CreateProductDialogComponent, InventoryProduct>);
@@ -86,19 +84,8 @@ export class CreateProductDialogComponent {
       input.value = '';
       return;
     }
-    if (file.size > CreateProductDialogComponent.maxRawImageBytes) {
-      this.imageError.set('La imagen seleccionada es demasiado grande para procesarse en el navegador.');
-      input.value = '';
-      return;
-    }
 
     const optimizedFile = await optimizeImageForUpload(file);
-    if (optimizedFile.size > CreateProductDialogComponent.maxImageBytes) {
-      this.imageError.set('La imagen optimizada no puede superar los 2 MB.');
-      input.value = '';
-      return;
-    }
-
     this.selectedFile = optimizedFile;
     this.selectedFileName.set(optimizedFile.name);
   }

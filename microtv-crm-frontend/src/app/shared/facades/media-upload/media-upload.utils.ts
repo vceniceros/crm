@@ -1,10 +1,6 @@
-export function validateFile(file: File, maxBytes: number, sizeMessage: string, typeMessage: string, supports: (file: File) => boolean): void {
+export function validateFile(file: File, typeMessage: string, supports: (file: File) => boolean): void {
   if (!supports(file)) {
     throw new Error(typeMessage);
-  }
-
-  if (file.size > maxBytes) {
-    throw new Error(sizeMessage);
   }
 }
 

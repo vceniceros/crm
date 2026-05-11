@@ -36,7 +36,7 @@ import { InventoryFlowService } from '../../../../core/services/inventory-flow.s
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
 import { TicketManagementService } from '../../../../core/services/ticket-management.service';
 import { TicketInventoryRequest, TicketInventoryRequestItem, TicketInventoryRequestStatus } from '../../../../core/models/ticket-inventory-request.model';
-import { isVideoFile, mediaVideoMaxBytes, optimizeImagesForUpload } from '../../../../core/utils/media-upload-optimization';
+import { isVideoFile, optimizeImagesForUpload } from '../../../../core/utils/media-upload-optimization';
 import { LocationLinkService } from '../../../../shared/services/location-link.service';
 import { LocationPickerService } from '../../../../shared/services/location-picker.service';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
@@ -524,17 +524,11 @@ export class TicketExecutionPageComponent {
   }
 
   private async prepareTicketFilesForUpload(files: readonly File[]): Promise<File[]> {
-    const maxVideoBytes = mediaVideoMaxBytes();
-    const maxVideoMb = Math.max(1, Math.round(maxVideoBytes / (1024 * 1024)));
     const preparedFiles = await optimizeImagesForUpload(files);
 
     for (const file of preparedFiles) {
       if (!this.isSupportedTicketMediaFile(file)) {
         throw new Error(`El archivo ${file.name} no tiene un formato soportado. Permitidos: JPG, PNG, WEBP, MP4, WEBM o MOV.`);
-      }
-
-      if (this.isLikelyVideoFile(file) && file.size > maxVideoBytes) {
-        throw new Error(`El video ${file.name} supera el límite permitido de ${maxVideoMb} MB.`);
       }
     }
 

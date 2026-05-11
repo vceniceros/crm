@@ -6,6 +6,7 @@ import { crmApiConfig } from '../config/crm-api.config';
 import { CreateInventoryProductFormValue } from '../models/create-product.model';
 import { InventoryCategory } from '../models/inventory-category.model';
 import { InventoryPageData, InventoryProduct, InventoryTableColumn, InventoryTableData } from '../models/inventory-product.model';
+import { resolveBackendAssetUrl } from '../utils/backend-asset-url.util';
 import { AuthSessionService } from './auth-session.service';
 
 interface ApiErrorEnvelope {
@@ -210,57 +211,7 @@ export class InventoryService {
   }
 
   private resolveProductImageUrl(imageUrl: string | null): string | null {
-    if (!imageUrl) {
-      return null;
-    }
-
-    const normalizedImageUrl = imageUrl.trim();
-    if (!normalizedImageUrl) {
-      return null;
-    }
-
-    if (/^(?:https?:|data:|blob:)/i.test(normalizedImageUrl)) {
-      return normalizedImageUrl;
-    }
-
-    const backendOrigin = this.resolveBackendOrigin();
-    const slashNormalized = normalizedImageUrl.replace(/\\/g, '/');
-    const lowerPath = slashNormalized.toLowerCase();
-
-    const mediaMarker = '/media/';
-    const compactMediaMarker = 'media/';
-    const publicMarker = '/public/';
-    const compactPublicMarker = 'public/';
-
-    const mediaIndex = lowerPath.lastIndexOf(mediaMarker);
-    if (mediaIndex >= 0) {
-      return `${backendOrigin}${slashNormalized.slice(mediaIndex)}`;
-    }
-
-    if (lowerPath.startsWith(compactMediaMarker)) {
-      return `${backendOrigin}/${slashNormalized.replace(/^\/+/, '')}`;
-    }
-
-    const publicIndex = lowerPath.lastIndexOf(publicMarker);
-    if (publicIndex >= 0) {
-      return `${backendOrigin}/${slashNormalized.slice(publicIndex + publicMarker.length).replace(/^\/+/, '')}`;
-    }
-
-    if (lowerPath.startsWith(compactPublicMarker)) {
-      return `${backendOrigin}/${slashNormalized.slice(compactPublicMarker.length).replace(/^\/+/, '')}`;
-    }
-
-    const normalizedPath = slashNormalized.startsWith('/') ? slashNormalized : `/${slashNormalized}`;
-    return `${backendOrigin}${normalizedPath}`;
-  }
-
-  private resolveBackendOrigin(): string {
-    try {
-      const locationOrigin = globalThis.location?.origin ?? 'http://localhost';
-      return new URL(crmApiConfig.baseUrl, locationOrigin).origin;
-    } catch {
-      return crmApiConfig.baseUrl.replace(/\/$/, '');
-    }
+    return resolveBackendAssetUrl(imageUrl, crmApiConfig.baseUrl);
   }
 
   private buildTable(items: InventoryProduct[]): InventoryTableData {

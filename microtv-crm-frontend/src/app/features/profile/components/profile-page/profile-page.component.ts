@@ -14,6 +14,7 @@ import { MeResponse } from '../../../../core/models/profile.model';
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
 import { ProfileService } from '../../../../core/services/profile.service';
 import { resolveBackendAssetUrl } from '../../../../core/utils/backend-asset-url.util';
+import { optimizeImageForUpload } from '../../../../core/utils/media-upload-optimization';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 import { UserAvatarComponent } from '../../../../shared/ui/user-avatar/user-avatar.component';
 
@@ -103,7 +104,7 @@ export class ProfilePageComponent {
       });
   }
 
-  uploadAvatar(input: HTMLInputElement): void {
+  async uploadAvatar(input: HTMLInputElement): Promise<void> {
     const file = input.files?.[0];
     input.value = '';
     if (!file || this.uploadingAvatar()) {
@@ -116,18 +117,14 @@ export class ProfilePageComponent {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      this.errorMessage.set('El avatar supera el tamaño máximo permitido de 5 MB.');
-      this.successMessage.set(null);
-      return;
-    }
+    const optimizedFile = await optimizeImageForUpload(file);
 
     this.uploadingAvatar.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
 
     this.profileService
-      .uploadAvatar(file)
+      .uploadAvatar(optimizedFile)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (me) => {

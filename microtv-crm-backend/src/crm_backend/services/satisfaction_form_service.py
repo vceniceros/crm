@@ -29,6 +29,9 @@ from crm_backend.models.ticket import (
     TicketSatisfactionResponse,
     TicketStatus,
 )
+from crm_backend.models.notification import NotificationEntityType, NotificationType
+from crm_backend.repositories import CrmUserRepository
+from crm_backend.services.notification_service import NotificationService
 
 if TYPE_CHECKING:
     from crm_backend.services.auth_service import ResolvedCrmSession
@@ -81,6 +84,8 @@ class PublicSatisfactionFormService:
         satisfaction_videos_max_bytes: int = 64 * 1024 * 1024,
         satisfaction_images_public_prefix: str = "/images/satisfaction",
         satisfaction_videos_public_prefix: str = "/videos/satisfaction",
+        notification_service: NotificationService | None = None,
+        user_repository: CrmUserRepository | None = None,
     ) -> None:
         self._session = session
         self._images_dir = Path(satisfaction_images_dir)  # type: ignore[arg-type]
@@ -90,6 +95,8 @@ class PublicSatisfactionFormService:
         self._max_video_bytes = satisfaction_videos_max_bytes
         self._images_public_prefix = satisfaction_images_public_prefix.rstrip("/")
         self._videos_public_prefix = satisfaction_videos_public_prefix.rstrip("/")
+        self._notification_service = notification_service
+        self._user_repository = user_repository
 
     # ------------------------------------------------------------------
     # Internal (authenticated) operations
@@ -281,7 +288,43 @@ class PublicSatisfactionFormService:
 
         self._session.commit()
         self._session.refresh(response)
+        self._notify_satisfaction_submitted(form, response)
         return response
+
+    def _notify_satisfaction_submitted(
+        self,
+        form: TicketSatisfactionForm,
+        response: TicketSatisfactionResponse,
+    ) -> None:
+        if self._notification_service is None or self._user_repository is None:
+            return
+
+        try:
+            ticket = form.ticket
+            if ticket.resolved_by_crm_user_id:
+                self._notification_service.notify(
+                    recipient_crm_user_id=ticket.resolved_by_crm_user_id,
+                    notification_type=NotificationType.TICKET_SATISFACTION_SUBMITTED,
+                    title=f"El cliente respondió la encuesta del ticket #{ticket.ticket_number}",
+                    body=f"Puntuación: {response.rating}/5",
+                    entity_type=NotificationEntityType.TICKET,
+                    entity_id=ticket.ticket_id,
+                )
+
+            ejecutivo_ids = [user.crm_user_id for user in self._user_repository.list_active_by_role_key("ejecutivo")]
+            self._notification_service.notify_bulk(
+                recipient_crm_user_ids=ejecutivo_ids,
+                notification_type=NotificationType.TICKET_SATISFACTION_SUBMITTED,
+                title=f"El cliente respondió la encuesta del ticket #{ticket.ticket_number}",
+                body=f"Puntuación: {response.rating}/5",
+                entity_type=NotificationEntityType.TICKET,
+                entity_id=ticket.ticket_id,
+            )
+        except Exception:
+            _logger.exception(
+                "Error sending ticket satisfaction submitted notification for ticket %s",
+                form.ticket_id,
+            )
 
     # ------------------------------------------------------------------
     # Internal helpers

@@ -13,8 +13,10 @@ from crm_backend.core.exceptions import (
     StockProductNotFoundError,
 )
 from crm_backend.models import StockCategory, StockProduct
-from crm_backend.repositories import StockCategoryRepository, StockProductRepository
+from crm_backend.models.notification import NotificationEntityType, NotificationType
+from crm_backend.repositories import CrmUserRepository, StockCategoryRepository, StockProductRepository
 from crm_backend.services.auth_service import ResolvedCrmSession
+from crm_backend.services.notification_service import NotificationService
 
 
 @dataclass(slots=True)
@@ -45,6 +47,8 @@ class StockApplicationService:
         settings: Settings,
         category_repository: StockCategoryRepository,
         product_repository: StockProductRepository,
+        notification_service: NotificationService | None = None,
+        user_repository: CrmUserRepository | None = None,
     ) -> None:
         """Crea el servicio.
 
@@ -57,6 +61,8 @@ class StockApplicationService:
         self._settings = settings
         self._category_repository = category_repository
         self._product_repository = product_repository
+        self._notification_service = notification_service
+        self._user_repository = user_repository
 
     def list_categories(self, actor: ResolvedCrmSession) -> list[StockCategory]:
         """Lista categorías disponibles para el actor autenticado.
@@ -155,7 +161,35 @@ class StockApplicationService:
             actor_crm_user_id=actor.crm_user.crm_user_id,
             warehouse_id=self._product_repository.get_default_warehouse_id(),
         )
-        return self._product_repository.save(product)
+        saved_product = self._product_repository.save(product)
+
+        if self._notification_service is not None and self._user_repository is not None:
+            stock_now = saved_product.current_stock
+            if stock_now == 0:
+                notification_type = NotificationType.STOCK_OUT
+                title = f"Sin stock: {saved_product.visible_product_code}"
+                body = f"El producto '{saved_product.product_name}' llegó a 0 unidades."
+            elif stock_now < 3:
+                notification_type = NotificationType.STOCK_LOW
+                title = f"Stock bajo: {saved_product.visible_product_code} ({stock_now} unidades)"
+                body = f"El producto '{saved_product.product_name}' tiene menos de 3 unidades disponibles."
+            else:
+                notification_type = None
+
+            if notification_type is not None:
+                deposito_ids = [user.crm_user_id for user in self._user_repository.list_active_by_role_key("deposito")]
+                ejecutivo_ids = [user.crm_user_id for user in self._user_repository.list_active_by_role_key("ejecutivo")]
+                recipient_ids = list({*deposito_ids, *ejecutivo_ids})
+                self._notification_service.notify_bulk(
+                    recipient_crm_user_ids=recipient_ids,
+                    notification_type=notification_type,
+                    title=title,
+                    body=body,
+                    entity_type=NotificationEntityType.STOCK_PRODUCT,
+                    entity_id=saved_product.product_id,
+                )
+
+        return saved_product
 
     def delete_product(self, actor: ResolvedCrmSession, product_id: str) -> StockProduct:
         """Da de baja lógica un producto existente.

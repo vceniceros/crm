@@ -151,7 +151,9 @@ class TicketApplicationService:
                 },
             )
         )
-        return self._ticket_repository.save(ticket)
+        saved_ticket = self._ticket_repository.save(ticket)
+        self._notify_ticket_unassigned_to_tecnicos(saved_ticket)
+        return saved_ticket
 
     def list_tickets_assigned_to_actor(self, actor: ResolvedCrmSession) -> list[Ticket]:
         self._ensure_read_access(actor)
@@ -330,6 +332,8 @@ class TicketApplicationService:
                     entity_type=NotificationEntityType.TICKET,
                     entity_id=saved_ticket.ticket_id,
                 )
+            elif self._notification_service is not None and saved_ticket.assigned_user_id is None:
+                self._notify_ticket_unassigned_to_tecnicos(saved_ticket)
         except Exception:
             _logger.exception("Error sending assign_ticket notification for ticket %s", saved_ticket.ticket_id)
         return saved_ticket
@@ -1242,6 +1246,20 @@ class TicketApplicationService:
     def _is_operational_role(self, role_key: str | None) -> bool:
         normalized = self._normalize_role_key(role_key)
         return normalized in self.OPERATIONAL_ROLE_KEYS
+
+    def _notify_ticket_unassigned_to_tecnicos(self, ticket: Ticket) -> None:
+        if self._notification_service is None or ticket.assigned_user_id is not None:
+            return
+
+        tecnico_ids = self._notification_service.resolve_users_with_role_key("tecnico")
+        self._notification_service.notify_bulk(
+            recipient_crm_user_ids=tecnico_ids,
+            notification_type=NotificationType.TICKET_UNASSIGNED_IN_ROLE,
+            title=f"Ticket {ticket.ticket_number} sin asignar",
+            body="Hay un ticket pendiente de toma para técnicos de campo.",
+            entity_type=NotificationEntityType.TICKET,
+            entity_id=ticket.ticket_id,
+        )
 
     def _normalize_role_key(self, role_key: str | None) -> str | None:
         if not isinstance(role_key, str):

@@ -9,7 +9,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
-import { Notification } from '../../../core/models/notification.model';
+import { Notification, NOTIFICATION_TYPES } from '../../../core/models/notification.model';
 import { ContextHelpService } from '../../../core/services/context-help.service';
 import { NotificationsService } from '../../../core/services/notifications.service';
 import { ThemeService } from '../../../core/services/theme.service';
@@ -54,11 +54,19 @@ export class TopbarComponent implements OnInit, OnDestroy {
     if (!notification.is_read) {
       this.notificationsService.markRead(notification.notification_id).subscribe({ error: () => {} });
     }
+
+    const typedRoute = this.resolveRouteFromNotificationType(notification);
+    if (typedRoute) {
+      this.router.navigateByUrl(typedRoute);
+      return;
+    }
+
     if (notification.entity_type && notification.entity_id) {
       const routeMap: Record<string, string> = {
         ticket: `/tickets/${notification.entity_id}`,
         task: `/tasks/${notification.entity_id}`,
         deposit_request: `/inventory/requests`,
+        stock_product: '/inventory',
       };
       const route = routeMap[notification.entity_type];
       if (route) {
@@ -81,5 +89,31 @@ export class TopbarComponent implements OnInit, OnDestroy {
 
   requestContextHelpHide(): void {
     this.contextHelpService.requestHide();
+  }
+
+  private resolveRouteFromNotificationType(notification: Notification): string | null {
+    const notificationType = notification.notification_type;
+    const entityId = notification.entity_id;
+
+    switch (notificationType) {
+      case NOTIFICATION_TYPES.TASK_ASSIGNED:
+      case NOTIFICATION_TYPES.TASK_PRE_FORM_COMPLETED:
+      case NOTIFICATION_TYPES.TASK_SATISFACTION_SUBMITTED:
+        return entityId ? `/tasks/${entityId}` : '/tasks';
+      case NOTIFICATION_TYPES.TASK_UNASSIGNED_IN_ROLE:
+        return '/tasks';
+      case NOTIFICATION_TYPES.TICKET_SATISFACTION_SUBMITTED:
+        return entityId ? `/tickets/${entityId}` : '/tickets';
+      case NOTIFICATION_TYPES.TICKET_UNASSIGNED_IN_ROLE:
+        return '/tickets';
+      case NOTIFICATION_TYPES.STOCK_LOW:
+      case NOTIFICATION_TYPES.STOCK_OUT:
+        return '/inventory';
+      case NOTIFICATION_TYPES.DEPOSIT_PENDING_DISPATCH:
+      case NOTIFICATION_TYPES.DEPOSIT_PRODUCTS_INSTALLED:
+        return '/inventory/requests';
+      default:
+        return null;
+    }
   }
 }

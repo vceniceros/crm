@@ -264,6 +264,8 @@ def get_stock_application_service(
     settings: Settings = Depends(get_settings),
     category_repository: StockCategoryRepository = Depends(get_stock_category_repository),
     product_repository: StockProductRepository = Depends(get_stock_product_repository),
+    notification_service: NotificationService = Depends(get_notification_service),
+    user_repository: CrmUserRepository = Depends(get_crm_user_repository),
 ) -> StockApplicationService:
     """Provide the stock application service.
 
@@ -276,7 +278,13 @@ def get_stock_application_service(
         StockApplicationService: Configured stock application service.
     """
 
-    return StockApplicationService(settings, category_repository, product_repository)
+    return StockApplicationService(
+        settings,
+        category_repository,
+        product_repository,
+        notification_service=notification_service,
+        user_repository=user_repository,
+    )
 
 
 def get_task_material_flow_facade(
@@ -378,6 +386,8 @@ def get_settings_service(session: Session = Depends(get_db_session)) -> Settings
 def get_satisfaction_form_service(
     session: Session = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
+    notification_service: NotificationService = Depends(get_notification_service),
+    user_repository: CrmUserRepository = Depends(get_crm_user_repository),
 ) -> "PublicSatisfactionFormService":
     """Provide the satisfaction form service."""
     from crm_backend.services.satisfaction_form_service import PublicSatisfactionFormService  # noqa: PLC0415
@@ -390,6 +400,8 @@ def get_satisfaction_form_service(
         satisfaction_videos_max_bytes=settings.satisfaction_videos_max_bytes,
         satisfaction_images_public_prefix=settings.satisfaction_images_public_prefix,
         satisfaction_videos_public_prefix=settings.satisfaction_videos_public_prefix,
+        notification_service=notification_service,
+        user_repository=user_repository,
     )
 
 
@@ -419,20 +431,28 @@ def get_task_export_service(
 def get_task_satisfaction_form_service(
     session: Session = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
+    notification_service: NotificationService = Depends(get_notification_service),
+    user_repository: CrmUserRepository = Depends(get_crm_user_repository),
 ) -> TaskSatisfactionFormService:
     """Provide task satisfaction form service."""
     return TaskSatisfactionFormService(
         session=session,
         expiry_hours=settings.satisfaction_form_expiry_hours,
+        notification_service=notification_service,
+        user_repository=user_repository,
     )
 
 
 def get_task_pre_form_service(
     session: Session = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
+    notification_service: NotificationService = Depends(get_notification_service),
+    user_repository: CrmUserRepository = Depends(get_crm_user_repository),
 ) -> TaskPreFormService:
     """Provide task pre-form service."""
     return TaskPreFormService(
         session=session,
         expiry_hours=settings.satisfaction_form_expiry_hours,
+        notification_service=notification_service,
+        user_repository=user_repository,
     )
