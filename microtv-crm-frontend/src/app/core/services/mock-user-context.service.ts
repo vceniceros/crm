@@ -5,6 +5,8 @@ import { map, shareReplay } from 'rxjs';
 import { LoginSuccessResponse } from '../models/crm-auth.model';
 import { MockUserProfile, MockUsersData } from '../models/user-profile.model';
 import { MockUserRole } from '../models/user-role.model';
+import { crmApiConfig } from '../config/crm-api.config';
+import { resolveBackendAssetUrl } from '../utils/backend-asset-url.util';
 import { AuthSessionService } from './auth-session.service';
 import usersData from '../../../mocks/users-data.json';
 
@@ -53,7 +55,7 @@ export class MockUserContextService {
       role,
       roleLabel: this.mapRoleLabel(role),
       initials: this.buildInitials(displayName),
-      avatarUrl: session.user.avatar_url ?? null
+      avatarUrl: resolveBackendAssetUrl(session.user.avatar_url, crmApiConfig.baseUrl)
     };
   }
 

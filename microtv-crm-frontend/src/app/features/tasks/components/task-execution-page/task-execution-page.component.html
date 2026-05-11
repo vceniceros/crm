@@ -96,10 +96,22 @@
               <span>Generar encuesta</span>
             </button>
 
-            <button mat-stroked-button type="button" (click)="generateTaskPreFormLink()">
-              <mat-icon>description</mat-icon>
-              <span>Generar formulario previo</span>
-            </button>
+            @if (hasSubmittedPreForm()) {
+              <button mat-stroked-button type="button" (click)="toggleTaskPreFormView()">
+                <mat-icon>visibility</mat-icon>
+                <span>{{ isPreFormResponseVisible() ? 'Ocultar formulario' : 'Ver formulario' }}</span>
+              </button>
+
+              <button mat-stroked-button type="button" (click)="resendTaskPreFormLink()">
+                <mat-icon>forward_to_inbox</mat-icon>
+                <span>Reenviar formulario</span>
+              </button>
+            } @else {
+              <button mat-stroked-button type="button" (click)="generateTaskPreFormLink()">
+                <mat-icon>description</mat-icon>
+                <span>Generar formulario previo</span>
+              </button>
+            }
           </div>
         }
       </div>
@@ -132,14 +144,36 @@
           <p class="task-execution-page__summary-label">Formulario previo</p>
           <p class="task-execution-page__summary-caption">
             @if (taskPreFormStatus(); as preFormStatus) {
-              {{ preFormStatus.status_label === 'pendiente' ? 'Token activo' : 'Sin token activo' }}
+              {{ preFormStatus.submitted_at ? 'Completado por el cliente' : 'Pendiente de respuesta' }}
               @if (preFormStatus.submitted_at) {
                 · enviado {{ preFormStatus.submitted_at | date: 'dd/MM/yyyy HH:mm' }}
+              }
+              @if (!preFormStatus.submitted_at && preFormStatus.expires_at) {
+                · vence {{ preFormStatus.expires_at | date: 'dd/MM/yyyy HH:mm' }}
               }
             } @else {
               Sin estado disponible.
             }
           </p>
+
+          @if (taskPreFormStatus()?.submitted_at && isPreFormResponseVisible()) {
+            <div class="task-execution-page__pre-form-status-panel">
+              <p class="task-execution-page__summary-label">Respuestas del formulario</p>
+
+              @if (taskPreFormStatus()?.response_values?.length) {
+                <div class="task-execution-page__pre-form-values">
+                  @for (value of taskPreFormStatus()!.response_values; track value.field_id) {
+                    <article class="task-execution-page__pre-form-value-row">
+                      <strong>{{ value.label }}</strong>
+                      <span>{{ preFormFieldValueLabel(value) }}</span>
+                    </article>
+                  }
+                </div>
+              } @else {
+                <p class="task-execution-page__summary-caption">El formulario fue marcado como enviado, pero no hay respuestas detalladas para mostrar.</p>
+              }
+            </div>
+          }
         </mat-card-content>
       </mat-card>
     }

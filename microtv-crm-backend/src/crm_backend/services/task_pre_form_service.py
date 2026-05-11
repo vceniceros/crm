@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from crm_backend.core.exceptions import TaskAccessDeniedError, TaskConflictError, TaskPreFormNotFoundError, TaskValidationError
+from crm_backend.core.exceptions import TaskAccessDeniedError, TaskPreFormNotFoundError, TaskValidationError
 from crm_backend.models import SubtaskStatus, Task, TaskPreFormFieldValue, TaskPreFormInstance, TaskPreFormResponse, TaskStatus
 
 if TYPE_CHECKING:
@@ -48,14 +48,12 @@ class TaskPreFormService:
             .order_by(TaskPreFormInstance.created_at.desc())
             .first()
         )
-        if existing is not None and existing.submitted_at is not None:
-            raise TaskConflictError("El formulario previo ya fue completado y no puede regenerarse.")
 
         raw_token = secrets.token_urlsafe(48)
         token_hash = _hash_token(raw_token)
         expires_at = datetime.now(UTC) + timedelta(hours=self._expiry_hours)
 
-        if existing is None:
+        if existing is None or existing.submitted_at is not None:
             instance = TaskPreFormInstance(
                 instance_id=str(uuid4()),
                 task_id=task.task_id,

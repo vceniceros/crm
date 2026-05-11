@@ -83,6 +83,19 @@ function resolveString(rawValue: string | undefined, fallback = ''): string {
   return normalized || fallback;
 }
 
+function resolveMapStyleUrl(rawValue: string | undefined): string {
+  const normalized = resolveString(rawValue);
+  if (!normalized) {
+    return '';
+  }
+
+  if (/^https?:\/\//i.test(normalized) || normalized.startsWith('/')) {
+    return normalized;
+  }
+
+  return `https://${normalized.replace(/^\/+/, '')}`;
+}
+
 function resolveImageTargetFormat(rawValue: string | undefined): 'jpeg' | 'png' | 'webp' | 'avif' {
   const normalized = (rawValue ?? 'webp').trim().toLowerCase();
   if (normalized === 'jpeg' || normalized === 'jpg') {
@@ -148,7 +161,7 @@ export const crmApiConfig = {
 } as const;
 
 export const crmMapConfig = {
-  styleUrl: resolveString(runtimeConfig?.mapStyleUrl),
+  styleUrl: resolveMapStyleUrl(runtimeConfig?.mapStyleUrl),
   defaultLat: Math.min(90, Math.max(-90, resolveNumber(runtimeConfig?.mapDefaultLat, -34.6037))),
   defaultLon: Math.min(180, Math.max(-180, resolveNumber(runtimeConfig?.mapDefaultLon, -58.3816))),
   defaultZoom: Math.min(20, Math.max(1, resolveNumber(runtimeConfig?.mapDefaultZoom, 12)))

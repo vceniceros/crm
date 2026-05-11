@@ -1,64 +1,113 @@
-<h2 mat-dialog-title>Crear tarea</h2>
+<h2 mat-dialog-title>Crear pedido</h2>
 
 <mat-dialog-content>
-  @if (taskCreationData$ | async; as taskCreationData) {
+  @if (isLoading()) {
+    <div class="create-task-dialog__loading">
+      <mat-spinner diameter="36" />
+      <p>Cargando datos para crear pedido...</p>
+    </div>
+  } @else {
     <form class="create-task-dialog__form" [formGroup]="form" (ngSubmit)="submit()">
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Título</mat-label>
-        <input matInput formControlName="title" placeholder="Ej. Revisión de instalación en sucursal" />
-        @if (form.controls.title.hasError('required') && form.controls.title.touched) {
-          <mat-error>El título es obligatorio.</mat-error>
-        }
-      </mat-form-field>
+      <section class="create-task-dialog__intro">
+        <p class="create-task-dialog__intro-title">Alta rápida desde template</p>
+        <p class="create-task-dialog__intro-copy">Instanciá un pedido real asociando cliente, ubicación opcional y flags operativos.</p>
+      </section>
 
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Cliente</mat-label>
-        <mat-select formControlName="clientId">
-          @for (client of taskCreationData.clients; track client.id) {
-            <mat-option [value]="client.id">{{ client.name }}</mat-option>
+      @if (errorMessage(); as errorMessage) {
+        <p class="create-task-dialog__error">{{ errorMessage }}</p>
+      }
+
+      <div class="create-task-dialog__fields">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Template</mat-label>
+          <mat-select formControlName="template_id">
+            @for (template of templates(); track template.template_id) {
+              <mat-option [value]="template.template_id">{{ template.template_name }}</mat-option>
+            }
+          </mat-select>
+          @if (form.controls.template_id.hasError('required') && form.controls.template_id.touched) {
+            <mat-error>Seleccioná un template.</mat-error>
           }
-        </mat-select>
-        @if (form.controls.clientId.hasError('required') && form.controls.clientId.touched) {
-          <mat-error>Seleccioná un cliente.</mat-error>
-        }
-      </mat-form-field>
+        </mat-form-field>
 
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Template</mat-label>
-        <mat-select formControlName="templateId">
-          @for (template of taskCreationData.templates; track template.id) {
-            <mat-option [value]="template.id">
-              <div class="create-task-dialog__template-option">
-                <span>{{ template.name }}</span>
-                <small>{{ template.subtaskCount }} subtareas</small>
-              </div>
-            </mat-option>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Cliente</mat-label>
+          <mat-select formControlName="client_id">
+            @for (client of clients(); track client.client_id) {
+              <mat-option [value]="client.client_id">{{ client.business_name }}</mat-option>
+            }
+          </mat-select>
+          @if (form.controls.client_id.hasError('required') && form.controls.client_id.touched) {
+            <mat-error>Seleccioná un cliente.</mat-error>
           }
-        </mat-select>
-        @if (form.controls.templateId.hasError('required') && form.controls.templateId.touched) {
-          <mat-error>Seleccioná un template.</mat-error>
-        }
-      </mat-form-field>
+        </mat-form-field>
 
-      @if (selectedTemplate(); as template) {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Título del pedido</mat-label>
+          <input matInput formControlName="task_title" placeholder="Opcional" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="create-task-dialog__description-field">
+          <mat-label>Descripción inicial</mat-label>
+          <textarea matInput rows="3" formControlName="task_description" placeholder="Contexto para el equipo técnico"></textarea>
+        </mat-form-field>
+
+        <mat-checkbox formControlName="requires_arrival_comment" class="create-task-dialog__description-field">
+          Requiere registro de llegada
+        </mat-checkbox>
+
+        <mat-checkbox formControlName="requires_video_evidence" class="create-task-dialog__description-field">
+          Requiere video para cierre final
+        </mat-checkbox>
+      </div>
+
+      <section class="create-task-dialog__section">
+        <p class="create-task-dialog__section-title">Ubicación operativa</p>
+        <p class="create-task-dialog__location-label">{{ selectedLocationLabel() }}</p>
+
+        <div class="create-task-dialog__location-actions">
+          <button mat-stroked-button type="button" (click)="openLocationPicker()">
+            <mat-icon>place</mat-icon>
+            <span>{{ hasValidSelectedLocation() ? 'Editar ubicación' : 'Seleccionar en mapa' }}</span>
+          </button>
+
+          @if (hasValidSelectedLocation()) {
+            <button mat-button type="button" (click)="openSelectedLocationInMaps()">Abrir en Maps</button>
+            <button mat-button type="button" (click)="clearSelectedLocation()">Quitar</button>
+          }
+        </div>
+
+        @if (hasValidSelectedLocation()) {
+          <app-location-map [location]="selectedLocation()" title="Ubicación del pedido"></app-location-map>
+        }
+      </section>
+
+      @if (selectedTemplate(); as selectedTemplate) {
         <section class="create-task-dialog__template-summary">
-          <div class="create-task-dialog__template-header">
-            <mat-icon>description</mat-icon>
-            <div>
-              <p class="create-task-dialog__template-title">{{ template.name }}</p>
-              <p class="create-task-dialog__template-meta">{{ template.subtaskCount }} subtareas base</p>
+          <p class="create-task-dialog__section-title">Materiales heredados</p>
+          @if (selectedTemplate.required_materials.length) {
+            <div class="create-task-dialog__materials-list">
+              @for (material of selectedTemplate.required_materials; track material.required_material_id) {
+                <span>
+                  {{ material.product_name }} x{{ material.quantity_required }}{{ material.requires_tracking ? ' · tracking unitario' : '' }}
+                </span>
+              }
             </div>
-          </div>
-
-          @if (template.description) {
-            <p class="create-task-dialog__template-description">{{ template.description }}</p>
+          } @else {
+            <p class="create-task-dialog__material-empty">El template seleccionado no define productos mínimos.</p>
           }
         </section>
       }
 
       <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancelar</button>
-        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">Crear tarea</button>
+        <button mat-button type="button" mat-dialog-close [disabled]="isSubmitting()">Cancelar</button>
+        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || isSubmitting()">
+          @if (isSubmitting()) {
+            Creando...
+          } @else {
+            Crear pedido
+          }
+        </button>
       </mat-dialog-actions>
     </form>
   }

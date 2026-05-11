@@ -7,6 +7,7 @@ import { BehaviorSubject, Observable, distinctUntilChanged, map, shareReplay, ta
 import { crmApiConfig } from '../config/crm-api.config';
 import { CurrentUser } from '../models/layout.model';
 import { AuthenticatedUserResponse, CrmLoginResponse, LoginRequest, LoginSuccessResponse } from '../models/crm-auth.model';
+import { resolveBackendAssetUrl } from '../utils/backend-asset-url.util';
 
 type AuthStatus = 'checking' | 'authenticated' | 'anonymous';
 
@@ -151,7 +152,7 @@ export class AuthSessionService {
       initials,
       name: displayName,
       role: this.mapRoleLabel(session.user.primary_role),
-      avatarUrl: this.resolvePublicUrl(session.user.avatar_url)
+      avatarUrl: resolveBackendAssetUrl(session.user.avatar_url, crmApiConfig.baseUrl)
     };
   }
 
@@ -183,23 +184,5 @@ export class AuthSessionService {
 
   private buildUrl(path: string): string {
     return `${crmApiConfig.baseUrl}${path}`;
-  }
-
-  private resolvePublicUrl(rawUrl: string | null | undefined): string | null {
-    const normalized = rawUrl?.trim();
-    if (!normalized) {
-      return null;
-    }
-
-    if (/^(https?:|blob:|data:)/i.test(normalized)) {
-      return normalized;
-    }
-
-    const normalizedPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
-    try {
-      return `${new URL(crmApiConfig.baseUrl).origin}${normalizedPath}`;
-    } catch {
-      return `${crmApiConfig.baseUrl.replace(/\/$/, '')}${normalizedPath}`;
-    }
   }
 }

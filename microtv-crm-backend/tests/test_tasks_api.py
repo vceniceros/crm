@@ -315,6 +315,115 @@ def test_update_template_with_pre_form_keeps_single_pre_form_record(client, db_s
     assert len(pre_forms) == 1
 
 
+def test_can_regenerate_pre_form_link_after_customer_submission(client, db_session) -> None:
+    """After a customer submits pre-form once, executive/admin should be able to resend a new link."""
+
+    tech_user = _seed_local_role_user(
+        db_session,
+        role_key="tecnico_campo",
+        auth_user_id="auth-tech",
+        email="tecnico.crm@yccbrothers.com",
+        display_name="Tecnico Campo",
+    )
+    seeded_client = _seed_client(db_session)
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeTaskAuthAdapter()
+
+    template_response = client.post(
+        "/tasks/templates",
+        headers=_auth_header("admin-token"),
+        json={
+            "template_name": "Template con formulario reenviable",
+            "description": "Formulario previo editable",
+            "requires_arrival_comment": False,
+            "requires_video_evidence": False,
+            "requires_pre_form": True,
+            "pre_form": {
+                "title": "Formulario previo",
+                "instructions": "Completar antes de la visita",
+                "fields": [
+                    {
+                        "label": "Nombre del titular",
+                        "field_type": "TEXT",
+                        "is_required": True,
+                        "order_index": 0,
+                        "placeholder": "Nombre"
+                    }
+                ]
+            },
+            "required_materials": [],
+            "subtasks": [
+                {
+                    "subtask_title": "Visita técnica",
+                    "subtask_description": "Diagnóstico",
+                    "order_index": 0,
+                    "responsible_role_key": "tecnico",
+                    "default_responsible_crm_user_id": tech_user.crm_user_id,
+                    "close_comment_required": True,
+                    "next_assignment_policy": "role_queue_auto",
+                    "subtask_type": "standard",
+                    "items": [
+                        {
+                            "item_label": "Checklist inicial",
+                            "item_order": 0,
+                            "item_type": "checkbox",
+                            "is_required": True
+                        }
+                    ]
+                }
+            ]
+        },
+    )
+    assert template_response.status_code == 200, template_response.text
+    template_id = template_response.json()["template_id"]
+
+    task = _create_task(client, template_id, seeded_client.client_id, _auth_header("admin-token"))
+
+    generate_response = client.post(
+        f"/tasks/{task['task_id']}/pre-form/generate",
+        headers=_auth_header("admin-token"),
+    )
+    assert generate_response.status_code == 200, generate_response.text
+    first_path = generate_response.json()["form_link_path"]
+    assert isinstance(first_path, str) and first_path.startswith("/pre-form/")
+    first_token = first_path.rsplit("/", maxsplit=1)[-1]
+
+    public_form = client.get(f"/pre-form/{first_token}")
+    assert public_form.status_code == 200, public_form.text
+    field_id = public_form.json()["fields"][0]["field_id"]
+
+    submit_response = client.post(
+        f"/pre-form/{first_token}",
+        json={
+            "values": [
+                {
+                    "field_id": field_id,
+                    "text_value": "Cliente corregido"
+                }
+            ]
+        },
+    )
+    assert submit_response.status_code == 200, submit_response.text
+
+    regenerate_response = client.post(
+        f"/tasks/{task['task_id']}/pre-form/generate",
+        headers=_auth_header("admin-token"),
+    )
+    assert regenerate_response.status_code == 200, regenerate_response.text
+    second_path = regenerate_response.json()["form_link_path"]
+    assert isinstance(second_path, str) and second_path.startswith("/pre-form/")
+    second_token = second_path.rsplit("/", maxsplit=1)[-1]
+    assert second_token != first_token
+
+    status_response = client.get(
+        f"/tasks/{task['task_id']}/pre-form/status",
+        headers=_auth_header("admin-token"),
+    )
+    assert status_response.status_code == 200, status_response.text
+    status_payload = status_response.json()
+    assert status_payload["status_label"] == "pendiente"
+    assert status_payload["submitted_at"] is None
+
+
 def test_list_crm_users_filters_candidates_by_role(client, db_session) -> None:
     """The template form should receive only active CRM users for the selected role."""
 
@@ -820,6 +929,35 @@ def test_ejecutivo_can_reassign_active_subtask(client, db_session) -> None:
     assert reassign_response.status_code == 200, reassign_response.text
     body = reassign_response.json()
     assert body["subtasks"][0]["assigned_crm_user_id"] == peer_tech.crm_user_id
+
+
+def test_assignment_rejects_non_uuid_user_id_with_422(client, db_session) -> None:
+    """Assignment should return a domain validation error when user id format is invalid."""
+
+    tech_user = _seed_local_role_user(
+        db_session,
+        role_key="tecnico_campo",
+        auth_user_id="auth-tech",
+        email="tecnico.crm@yccbrothers.com",
+        display_name="Tecnico Campo",
+    )
+    seeded_client = _seed_client(db_session)
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeTaskAuthAdapter()
+
+    template = _create_template(client, headers=_auth_header("admin-token"), default_tech_user_id=tech_user.crm_user_id)
+    task = _create_task(client, template["template_id"], seeded_client.client_id, _auth_header("admin-token"))
+    first_subtask = task["subtasks"][0]
+
+    response = client.patch(
+        f"/tasks/subtasks/{first_subtask['subtask_id']}/assignment",
+        headers=_auth_header("ejecutivo-token"),
+        json={"assigned_crm_user_id": "wen", "notes": "Prueba ID inválido"},
+    )
+
+    assert response.status_code == 422, response.text
+    payload = response.json()
+    assert payload["error"]["code"] == "task_validation_error"
+    assert "formato inválido" in payload["error"]["message"]
 
 
 def test_completed_task_requires_executive_approval_and_moves_to_history(client, db_session) -> None:
