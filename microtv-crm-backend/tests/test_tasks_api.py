@@ -715,6 +715,115 @@ def test_upload_task_media_and_associate_it_with_close_comment(client, db_sessio
     assert persisted_attachment.task_comment_id == persisted_comment["task_comment_id"]
 
 
+def test_final_close_with_multimedia_requirement_accepts_photo_evidence(client, db_session) -> None:
+    """When multimedia evidence is required, a photo attachment must unblock final close."""
+
+    tech_user = _seed_local_role_user(
+        db_session,
+        role_key="tecnico_campo",
+        auth_user_id="auth-tech",
+        email="tecnico.crm@yccbrothers.com",
+        display_name="Tecnico Campo",
+    )
+    _seed_local_role_user(
+        db_session,
+        role_key="ejecutivo",
+        auth_user_id="auth-ejecutivo",
+        email="ejecutivo.crm@yccbrothers.com",
+        display_name="Ejecutivo CRM",
+    )
+    seeded_client = _seed_client(db_session)
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeTaskAuthAdapter()
+
+    template_response = client.post(
+        "/tasks/templates",
+        headers=_auth_header("admin-token"),
+        json={
+            "template_name": "Template cierre con multimedia",
+            "description": "Cierre final requiere evidencia",
+            "requires_arrival_comment": False,
+            "requires_video_evidence": True,
+            "requires_pre_form": False,
+            "pre_form": None,
+            "required_materials": [],
+            "subtasks": [
+                {
+                    "subtask_title": "Visita técnica",
+                    "subtask_description": "Subtarea única",
+                    "order_index": 0,
+                    "responsible_role_key": "tecnico",
+                    "default_responsible_crm_user_id": tech_user.crm_user_id,
+                    "close_comment_required": True,
+                    "next_assignment_policy": "role_queue_auto",
+                    "subtask_type": "standard",
+                    "items": [
+                        {
+                            "item_label": "Checklist",
+                            "item_order": 0,
+                            "item_type": "checkbox",
+                            "is_required": True,
+                        },
+                        {
+                            "item_label": "Observaciones",
+                            "item_order": 1,
+                            "item_type": "text",
+                            "is_required": True,
+                        },
+                    ],
+                }
+            ],
+        },
+    )
+    assert template_response.status_code == 200, template_response.text
+    template_id = template_response.json()["template_id"]
+
+    task = _create_task(client, template_id, seeded_client.client_id, _auth_header("admin-token"))
+    subtask = task["subtasks"][0]
+    items = subtask["items"]
+
+    progress_response = client.put(
+        f"/tasks/subtasks/{subtask['subtask_id']}/items",
+        headers=_auth_header("tech-token"),
+        json={
+            "items": [
+                {"item_id": items[0]["subtask_item_value_id"], "checkbox_value": True},
+                {"item_id": items[1]["subtask_item_value_id"], "text_value": "Checklist completo"},
+            ]
+        },
+    )
+    assert progress_response.status_code == 200, progress_response.text
+
+    close_without_media = client.post(
+        f"/tasks/subtasks/{subtask['subtask_id']}/actions",
+        headers=_auth_header("tech-token"),
+        json={"action": "close_subtask", "comment": "Intento sin adjuntos"},
+    )
+    assert close_without_media.status_code == 422
+    assert close_without_media.json()["error"]["code"] == "task_validation_error"
+
+    upload_response = client.post(
+        f"/tasks/{task['task_id']}/attachments",
+        headers=_auth_header("tech-token"),
+        data={"subtask_id": subtask["subtask_id"]},
+        files={"files": ("evidencia.jpg", BytesIO(b"fake-image-content"), "image/jpeg")},
+    )
+    assert upload_response.status_code == 200, upload_response.text
+    uploaded = upload_response.json()
+    assert len(uploaded) == 1
+
+    close_with_photo = client.post(
+        f"/tasks/subtasks/{subtask['subtask_id']}/actions",
+        headers=_auth_header("tech-token"),
+        json={
+            "action": "close_subtask",
+            "comment": "Cierre final con foto de evidencia",
+            "attachment_ids": [uploaded[0]["id"]],
+        },
+    )
+
+    assert close_with_photo.status_code == 200, close_with_photo.text
+
+
 def test_manual_next_assignment_policy_requires_explicit_user(client, db_session) -> None:
     """Manual next-assignment policy must reject close without a concrete assignee."""
 
