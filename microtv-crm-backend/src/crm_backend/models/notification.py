@@ -25,13 +25,27 @@ class NotificationType(StrEnum):
     TICKET_RETURNED_TO_TECHNICIAN = "ticket_returned_to_technician"
 
     # Task / subtask events
+    TASK_ASSIGNED = "task_assigned"
     TASK_SUBTASK_ASSIGNED = "task_subtask_assigned"
     TASK_SUBTASK_REASSIGNED = "task_subtask_reassigned"
+    TASK_PRE_FORM_COMPLETED = "task_pre_form_completed"
+    TASK_SATISFACTION_SUBMITTED = "task_satisfaction_submitted"
+    TASK_UNASSIGNED_IN_ROLE = "task_unassigned_in_role"
     TASK_PENDING_APPROVAL = "task_pending_approval"
     TASK_APPROVED = "task_approved"
     TASK_REJECTED = "task_rejected"
 
+    # Ticket feedback and assignment state events
+    TICKET_SATISFACTION_SUBMITTED = "ticket_satisfaction_submitted"
+    TICKET_UNASSIGNED_IN_ROLE = "ticket_unassigned_in_role"
+
+    # Stock alerts
+    STOCK_LOW = "stock_low"
+    STOCK_OUT = "stock_out"
+
     # Deposit / inventory request events
+    DEPOSIT_PENDING_DISPATCH = "deposit_pending_dispatch"
+    DEPOSIT_PRODUCTS_INSTALLED = "deposit_products_installed"
     DEPOSIT_REQUEST_CREATED = "deposit_request_created"
     DEPOSIT_REQUEST_APPROVED = "deposit_request_approved"
     DEPOSIT_REQUEST_REJECTED = "deposit_request_rejected"
@@ -45,6 +59,7 @@ class NotificationEntityType(StrEnum):
 
     TICKET = "ticket"
     TASK = "task"
+    STOCK_PRODUCT = "stock_product"
     DEPOSIT_REQUEST = "deposit_request"
 
 

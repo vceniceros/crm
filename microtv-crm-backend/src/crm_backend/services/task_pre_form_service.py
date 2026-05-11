@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
@@ -11,12 +12,16 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from crm_backend.core.exceptions import TaskAccessDeniedError, TaskPreFormNotFoundError, TaskValidationError
+from crm_backend.models.notification import NotificationEntityType, NotificationType
 from crm_backend.models import SubtaskStatus, Task, TaskPreFormFieldValue, TaskPreFormInstance, TaskPreFormResponse, TaskStatus
+from crm_backend.repositories import CrmUserRepository
+from crm_backend.services.notification_service import NotificationService
 
 if TYPE_CHECKING:
     from crm_backend.services.auth_service import ResolvedCrmSession
 
 _DEFAULT_EXPIRY_HOURS = 72
+_logger = logging.getLogger(__name__)
 
 
 def _hash_token(raw_token: str) -> str:
@@ -30,9 +35,17 @@ def _hash_ip(ip: str) -> str:
 class TaskPreFormService:
     """Manage secure generation and submission of task pre-forms."""
 
-    def __init__(self, session: Session, expiry_hours: int = _DEFAULT_EXPIRY_HOURS) -> None:
+    def __init__(
+        self,
+        session: Session,
+        expiry_hours: int = _DEFAULT_EXPIRY_HOURS,
+        notification_service: NotificationService | None = None,
+        user_repository: CrmUserRepository | None = None,
+    ) -> None:
         self._session = session
         self._expiry_hours = expiry_hours
+        self._notification_service = notification_service
+        self._user_repository = user_repository
 
     def generate_or_regenerate_link(self, actor: "ResolvedCrmSession", task: Task) -> tuple[TaskPreFormInstance, str]:
         if not {"admin", "ejecutivo"}.intersection(actor.role_keys):
@@ -131,6 +144,7 @@ class TaskPreFormService:
             )
 
         self._mark_pre_form_subtask_completed(instance.task, now)
+        self._notify_pre_form_completed(instance.task)
         self._session.commit()
         self._session.refresh(response)
         return response
@@ -165,3 +179,65 @@ class TaskPreFormService:
             )
             task.current_assigned_crm_user_id = next_subtask.assigned_crm_user_id
             task.status = TaskStatus.IN_PROGRESS.value
+            self._notify_next_subtask_state(task, next_subtask)
+
+    def _notify_pre_form_completed(self, task: Task) -> None:
+        if self._notification_service is None or self._user_repository is None:
+            return
+
+        try:
+            ejecutivo_ids = [user.crm_user_id for user in self._user_repository.list_active_by_role_key("ejecutivo")]
+            task_label = task.task_id[:8].upper()
+            self._notification_service.notify_bulk(
+                recipient_crm_user_ids=ejecutivo_ids,
+                notification_type=NotificationType.TASK_PRE_FORM_COMPLETED,
+                title=f"Cliente completó el formulario previo del pedido #{task_label}",
+                body="El cliente completó el formulario previo. El pedido puede continuar.",
+                entity_type=NotificationEntityType.TASK,
+                entity_id=task.task_id,
+            )
+        except Exception:
+            _logger.exception("Error sending task pre-form completion notification for task %s", task.task_id)
+
+    def _notify_next_subtask_state(self, task: Task, next_subtask: object) -> None:
+        if self._notification_service is None or self._user_repository is None:
+            return
+
+        task_title = getattr(task, "task_title", "pedido")
+        task_label = task.task_id[:8].upper()
+        try:
+            assignee_id = getattr(next_subtask, "assigned_crm_user_id", None)
+            status = getattr(next_subtask, "status", None)
+            responsible_role_key = getattr(next_subtask, "responsible_role_key", None)
+            if assignee_id:
+                self._notification_service.notify(
+                    recipient_crm_user_id=assignee_id,
+                    notification_type=NotificationType.TASK_ASSIGNED,
+                    title=f"Pedido #{task_label} asignado a vos",
+                    body=f"Se te asignó el pedido '{task_title}'.",
+                    entity_type=NotificationEntityType.TASK,
+                    entity_id=task.task_id,
+                )
+                ejecutivo_ids = [user.crm_user_id for user in self._user_repository.list_active_by_role_key("ejecutivo")]
+                self._notification_service.notify_bulk(
+                    recipient_crm_user_ids=ejecutivo_ids,
+                    notification_type=NotificationType.TASK_ASSIGNED,
+                    title=f"Pedido #{task_label} asignado",
+                    body=f"El pedido '{task_title}' fue asignado para ejecución.",
+                    entity_type=NotificationEntityType.TASK,
+                    entity_id=task.task_id,
+                )
+            elif status == SubtaskStatus.PENDING_ASSIGNMENT.value and responsible_role_key:
+                role_user_ids = [
+                    user.crm_user_id for user in self._user_repository.list_active_by_role_key(responsible_role_key)
+                ]
+                self._notification_service.notify_bulk(
+                    recipient_crm_user_ids=role_user_ids,
+                    notification_type=NotificationType.TASK_UNASSIGNED_IN_ROLE,
+                    title=f"Pedido #{task_label} sin asignar",
+                    body="Hay una subtarea pendiente de asignación para tu rol.",
+                    entity_type=NotificationEntityType.TASK,
+                    entity_id=task.task_id,
+                )
+        except Exception:
+            _logger.exception("Error sending next-subtask notification for task %s", task.task_id)

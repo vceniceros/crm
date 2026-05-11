@@ -12,7 +12,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { TicketManagementService } from '../../../../core/services/ticket-management.service';
 import { TaskManagementService } from '../../../../core/services/task-management.service';
-import { isVideoFile, mediaVideoMaxBytes, optimizeImagesForUpload } from '../../../../core/utils/media-upload-optimization';
+import { optimizeImagesForUpload } from '../../../../core/utils/media-upload-optimization';
 import {
   PublicSatisfactionFormInfoResponse,
   SatisfactionResponseDetailResponse
@@ -149,15 +149,6 @@ export class SatisfactionPageComponent implements OnInit, OnDestroy {
     if (!validFiles.length) {
       this.snackBar.open('Solo se admiten imágenes o videos.', 'Cerrar', { duration: 3500 });
       return;
-    }
-
-    const maxVideoBytes = mediaVideoMaxBytes();
-    const maxVideoMb = Math.max(1, Math.round(maxVideoBytes / (1024 * 1024)));
-    for (const file of validFiles) {
-      if (isVideoFile(file) && file.size > maxVideoBytes) {
-        this.snackBar.open(`El video ${file.name} supera el límite de ${maxVideoMb} MB.`, 'Cerrar', { duration: 4500 });
-        return;
-      }
     }
 
     const preparedFiles = await optimizeImagesForUpload(validFiles);

@@ -333,7 +333,9 @@ class TaskApplicationService:
                 payload_json={"template_id": template.template_id, "client_id": task.client_id, "location_id": task.location_id},
             )
         )
-        return self._task_repository.save(task)
+        saved_task = self._task_repository.save(task)
+        self._notify_task_creation_state(saved_task)
+        return saved_task
 
     def list_tasks_assigned_to_actor(self, actor: ResolvedCrmSession) -> list[Task]:
         self._ensure_read_access(actor)
@@ -809,7 +811,7 @@ class TaskApplicationService:
             ),
         }
         executor = executor_map[payload.action]
-        return executor.execute(
+        saved_task = executor.execute(
             ActionExecutionContext(
                 actor=actor,
                 task=task,
@@ -819,6 +821,9 @@ class TaskApplicationService:
                 attachment_ids=payload.attachment_ids,
             )
         )
+        if payload.action == TransitionAction.CLOSE_SUBTASK.value:
+            self._notify_unlocked_subtask_state(saved_task, closed_subtask_id=subtask.subtask_id)
+        return saved_task
 
     async def upload_task_attachments(
         self,
@@ -1094,3 +1099,104 @@ class TaskApplicationService:
         valid_role_keys = {role_key, {"admin": "admin_crm", "deposito": "encargado_deposito", "tecnico": "tecnico_campo"}.get(role_key, role_key)}
         if not any(assignment.role and assignment.role.role_key in valid_role_keys for assignment in user.assigned_roles):
             raise TaskValidationError("El usuario responsable por defecto no posee el rol requerido.")
+
+    def _notify_task_creation_state(self, task: Task) -> None:
+        if self._notification_service is None:
+            return
+
+        current_subtask = next(
+            (
+                item
+                for item in sorted(task.subtasks, key=lambda candidate: candidate.order_index)
+                if item.status in {SubtaskStatus.PENDING_ASSIGNMENT.value, SubtaskStatus.ASSIGNED.value, SubtaskStatus.IN_PROGRESS.value}
+            ),
+            None,
+        )
+        if current_subtask is None:
+            return
+
+        task_label = task.task_id[:8].upper()
+        try:
+            if current_subtask.assigned_crm_user_id is not None:
+                self._notification_service.notify(
+                    recipient_crm_user_id=current_subtask.assigned_crm_user_id,
+                    notification_type=NotificationType.TASK_ASSIGNED,
+                    title=f"Pedido #{task_label} asignado a vos",
+                    body=f"Se te asignó el pedido '{task.task_title}'.",
+                    entity_type=NotificationEntityType.TASK,
+                    entity_id=task.task_id,
+                )
+                ejecutivo_ids = self._notification_service.resolve_users_with_role_key("ejecutivo")
+                self._notification_service.notify_bulk(
+                    recipient_crm_user_ids=ejecutivo_ids,
+                    notification_type=NotificationType.TASK_ASSIGNED,
+                    title=f"Pedido #{task_label} asignado",
+                    body=f"El pedido '{task.task_title}' fue asignado para ejecución.",
+                    entity_type=NotificationEntityType.TASK,
+                    entity_id=task.task_id,
+                )
+                return
+
+            if current_subtask.status == SubtaskStatus.PENDING_ASSIGNMENT.value and current_subtask.responsible_role_key:
+                role_user_ids = self._notification_service.resolve_users_with_role_key(current_subtask.responsible_role_key)
+                self._notification_service.notify_bulk(
+                    recipient_crm_user_ids=role_user_ids,
+                    notification_type=NotificationType.TASK_UNASSIGNED_IN_ROLE,
+                    title=f"Pedido #{task_label} sin asignar",
+                    body="Hay una subtarea pendiente de asignación para tu rol.",
+                    entity_type=NotificationEntityType.TASK,
+                    entity_id=task.task_id,
+                )
+        except Exception:
+            _logger.exception("Error sending task creation notifications for task %s", task.task_id)
+
+    def _notify_unlocked_subtask_state(self, task: Task, *, closed_subtask_id: str) -> None:
+        if self._notification_service is None:
+            return
+
+        next_subtask = next(
+            (
+                item
+                for item in sorted(task.subtasks, key=lambda candidate: candidate.order_index)
+                if item.subtask_id != closed_subtask_id
+                and item.status in {SubtaskStatus.PENDING_ASSIGNMENT.value, SubtaskStatus.ASSIGNED.value, SubtaskStatus.IN_PROGRESS.value}
+            ),
+            None,
+        )
+        if next_subtask is None:
+            return
+
+        task_label = task.task_id[:8].upper()
+        try:
+            if next_subtask.assigned_crm_user_id is not None:
+                self._notification_service.notify(
+                    recipient_crm_user_id=next_subtask.assigned_crm_user_id,
+                    notification_type=NotificationType.TASK_ASSIGNED,
+                    title=f"Pedido #{task_label} asignado a vos",
+                    body=f"Se te asignó el pedido '{task.task_title}'.",
+                    entity_type=NotificationEntityType.TASK,
+                    entity_id=task.task_id,
+                )
+                ejecutivo_ids = self._notification_service.resolve_users_with_role_key("ejecutivo")
+                self._notification_service.notify_bulk(
+                    recipient_crm_user_ids=ejecutivo_ids,
+                    notification_type=NotificationType.TASK_ASSIGNED,
+                    title=f"Pedido #{task_label} asignado",
+                    body=f"El pedido '{task.task_title}' fue asignado para ejecución.",
+                    entity_type=NotificationEntityType.TASK,
+                    entity_id=task.task_id,
+                )
+                return
+
+            if next_subtask.status == SubtaskStatus.PENDING_ASSIGNMENT.value and next_subtask.responsible_role_key:
+                role_user_ids = self._notification_service.resolve_users_with_role_key(next_subtask.responsible_role_key)
+                self._notification_service.notify_bulk(
+                    recipient_crm_user_ids=role_user_ids,
+                    notification_type=NotificationType.TASK_UNASSIGNED_IN_ROLE,
+                    title=f"Pedido #{task_label} sin asignar",
+                    body="Hay una subtarea pendiente de asignación para tu rol.",
+                    entity_type=NotificationEntityType.TASK,
+                    entity_id=task.task_id,
+                )
+        except Exception:
+            _logger.exception("Error sending unlocked subtask notifications for task %s", task.task_id)

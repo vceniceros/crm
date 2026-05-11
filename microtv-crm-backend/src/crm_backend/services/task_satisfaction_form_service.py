@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
@@ -12,11 +13,15 @@ from sqlalchemy.orm import Session
 
 from crm_backend.core.exceptions import SatisfactionFormConflictError, SatisfactionFormNotFoundError, TaskAccessDeniedError, TaskValidationError
 from crm_backend.models import Task, TaskSatisfactionForm, TaskSatisfactionResponse, TaskStatus
+from crm_backend.models.notification import NotificationEntityType, NotificationType
+from crm_backend.repositories import CrmUserRepository
+from crm_backend.services.notification_service import NotificationService
 
 if TYPE_CHECKING:
     from crm_backend.services.auth_service import ResolvedCrmSession
 
 _DEFAULT_EXPIRY_HOURS = 72
+_logger = logging.getLogger(__name__)
 
 
 def _hash_token(raw_token: str) -> str:
@@ -30,9 +35,17 @@ def _hash_ip(ip: str) -> str:
 class TaskSatisfactionFormService:
     """Manage task satisfaction form generation, status and public submissions."""
 
-    def __init__(self, session: Session, expiry_hours: int = _DEFAULT_EXPIRY_HOURS) -> None:
+    def __init__(
+        self,
+        session: Session,
+        expiry_hours: int = _DEFAULT_EXPIRY_HOURS,
+        notification_service: NotificationService | None = None,
+        user_repository: CrmUserRepository | None = None,
+    ) -> None:
         self._session = session
         self._expiry_hours = expiry_hours
+        self._notification_service = notification_service
+        self._user_repository = user_repository
 
     def generate_form(self, actor: "ResolvedCrmSession", task: Task) -> tuple[TaskSatisfactionForm, str]:
         if not {"admin", "ejecutivo"}.intersection(actor.role_keys):
@@ -151,7 +164,44 @@ class TaskSatisfactionFormService:
         self._session.add(response)
         self._session.commit()
         self._session.refresh(response)
+        self._notify_satisfaction_submitted(form, response)
         return response
+
+    def _notify_satisfaction_submitted(
+        self,
+        form: TaskSatisfactionForm,
+        response: TaskSatisfactionResponse,
+    ) -> None:
+        if self._notification_service is None or self._user_repository is None:
+            return
+
+        try:
+            task = form.task
+            task_label = task.task_id[:8].upper()
+            if task.current_assigned_crm_user_id:
+                self._notification_service.notify(
+                    recipient_crm_user_id=task.current_assigned_crm_user_id,
+                    notification_type=NotificationType.TASK_SATISFACTION_SUBMITTED,
+                    title=f"El cliente respondió la encuesta del pedido #{task_label}",
+                    body=f"Puntuación: {response.rating}/5",
+                    entity_type=NotificationEntityType.TASK,
+                    entity_id=task.task_id,
+                )
+
+            ejecutivo_ids = [user.crm_user_id for user in self._user_repository.list_active_by_role_key("ejecutivo")]
+            self._notification_service.notify_bulk(
+                recipient_crm_user_ids=ejecutivo_ids,
+                notification_type=NotificationType.TASK_SATISFACTION_SUBMITTED,
+                title=f"El cliente respondió la encuesta del pedido #{task_label}",
+                body=f"Puntuación: {response.rating}/5",
+                entity_type=NotificationEntityType.TASK,
+                entity_id=task.task_id,
+            )
+        except Exception:
+            _logger.exception(
+                "Error sending task satisfaction submitted notification for task %s",
+                form.task_id,
+            )
 
     def _resolve_token(self, raw_token: str) -> TaskSatisfactionForm:
         if not raw_token or len(raw_token) > 200:

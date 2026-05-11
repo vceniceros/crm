@@ -42,7 +42,7 @@
         <div class="create-product-dialog__upload create-product-dialog__wide-field">
           <label class="create-product-dialog__upload-label" for="product-image">Imagen</label>
           <input id="product-image" type="file" accept="image/jpeg,image/png,image/webp" (change)="onFileSelected($event)" />
-          <p class="create-product-dialog__upload-hint">Opcional. Formatos permitidos: JPG, PNG, WEBP. Máximo 2 MB.</p>
+          <p class="create-product-dialog__upload-hint">Opcional. Formatos permitidos: JPG, PNG, WEBP. Se optimiza automáticamente antes de subir.</p>
           @if (selectedFileName(); as selectedFileName) {
             <p class="create-product-dialog__upload-file">Archivo seleccionado: {{ selectedFileName }}</p>
           }

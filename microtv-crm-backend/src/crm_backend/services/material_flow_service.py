@@ -227,9 +227,12 @@ class TaskMaterialFlowFacade:
             if payload.confirmation_type != "received" or not dispatch.request_id:
                 self._ensure_task_is_operable_by_actor(actor, task)
 
+            linked_request = None
+            transitioned_to_completed = False
             if dispatch.request_id and payload.confirmation_type == "received":
                 linked_request = next((request for request in task.inventory_requests if request.request_id == dispatch.request_id), None)
                 if linked_request is not None and self._is_request_fully_received(linked_request):
+                    transitioned_to_completed = linked_request.request_status != InventoryRequestStatus.COMPLETED.value
                     linked_request.request_status = InventoryRequestStatus.COMPLETED.value
 
             self.sync_task_block_status(task)
@@ -240,7 +243,34 @@ class TaskMaterialFlowFacade:
                     payload_json={"dispatch_item_id": item.dispatch_item_id, "dispatch_id": dispatch.dispatch_id},
                 )
             )
-            return self._task_repository.save(task)
+            saved_task = self._task_repository.save(task)
+            try:
+                if (
+                    transitioned_to_completed
+                    and linked_request is not None
+                    and self._notification_service is not None
+                    and linked_request.requested_by_crm_user_id is not None
+                ):
+                    self._notification_service.notify(
+                        recipient_crm_user_id=linked_request.requested_by_crm_user_id,
+                        notification_type=NotificationType.DEPOSIT_REQUEST_RECEIVED,
+                        title="Recepción de materiales confirmada",
+                        body="La recepción de todos los materiales de tu solicitud fue confirmada.",
+                        entity_type=NotificationEntityType.DEPOSIT_REQUEST,
+                        entity_id=linked_request.request_id,
+                    )
+                    deposito_ids = self._notification_service.resolve_users_with_role_key("deposito")
+                    self._notification_service.notify_bulk(
+                        recipient_crm_user_ids=deposito_ids,
+                        notification_type=NotificationType.DEPOSIT_PRODUCTS_INSTALLED,
+                        title="Materiales confirmados como recibidos/instalados",
+                        body="El técnico confirmó la recepción de los materiales de la solicitud.",
+                        entity_type=NotificationEntityType.DEPOSIT_REQUEST,
+                        entity_id=linked_request.request_id,
+                    )
+            except Exception:
+                _logger.exception("Error sending task dispatch receipt notifications")
+            return saved_task
 
         if payload.confirmation_type == "received" and dispatch.request_id:
             linked_request = self._inventory_flow_repository.get_request_by_id(dispatch.request_id)
@@ -276,6 +306,15 @@ class TaskMaterialFlowFacade:
                             notification_type=NotificationType.DEPOSIT_REQUEST_RECEIVED,
                             title="Recepción de materiales confirmada",
                             body="La recepción de todos los materiales de tu solicitud fue confirmada.",
+                            entity_type=NotificationEntityType.DEPOSIT_REQUEST,
+                            entity_id=linked_request.request_id,
+                        )
+                        deposito_ids = self._notification_service.resolve_users_with_role_key("deposito")
+                        self._notification_service.notify_bulk(
+                            recipient_crm_user_ids=deposito_ids,
+                            notification_type=NotificationType.DEPOSIT_PRODUCTS_INSTALLED,
+                            title="Materiales confirmados como recibidos/instalados",
+                            body="El técnico confirmó la recepción de los materiales de la solicitud.",
                             entity_type=NotificationEntityType.DEPOSIT_REQUEST,
                             entity_id=linked_request.request_id,
                         )
@@ -533,7 +572,24 @@ class InventoryRequestFacade:
                 )
             )
             self._task_repository.save(task)
-            return self._inventory_flow_repository.get_request_by_id(request.request_id) or request
+            persisted_request = self._inventory_flow_repository.get_request_by_id(request.request_id) or request
+            try:
+                if (
+                    self._notification_service is not None
+                    and persisted_request.request_status == InventoryRequestStatus.PENDING_DISPATCH.value
+                ):
+                    deposito_user_ids = self._notification_service.resolve_users_with_role_key("deposito")
+                    self._notification_service.notify_bulk(
+                        recipient_crm_user_ids=list(set(deposito_user_ids) - {actor.crm_user.crm_user_id}),
+                        notification_type=NotificationType.DEPOSIT_PENDING_DISPATCH,
+                        title="Hay materiales esperando despacho",
+                        body="Una solicitud fue aprobada y está lista para ser despachada desde el depósito.",
+                        entity_type=NotificationEntityType.DEPOSIT_REQUEST,
+                        entity_id=persisted_request.request_id,
+                    )
+            except Exception:
+                _logger.exception("Error sending task review_request notification for request %s", persisted_request.request_id)
+            return persisted_request
         persisted_request = self._inventory_flow_repository.save_request(request)
         try:
             if self._notification_service is not None and persisted_request.requested_by_crm_user_id is not None:
@@ -551,6 +607,16 @@ class InventoryRequestFacade:
                     entity_type=NotificationEntityType.DEPOSIT_REQUEST,
                     entity_id=persisted_request.request_id,
                 )
+                if notif_type == NotificationType.DEPOSIT_REQUEST_APPROVED:
+                    deposito_user_ids = self._notification_service.resolve_users_with_role_key("deposito")
+                    self._notification_service.notify_bulk(
+                        recipient_crm_user_ids=list(set(deposito_user_ids) - {actor.crm_user.crm_user_id}),
+                        notification_type=NotificationType.DEPOSIT_PENDING_DISPATCH,
+                        title="Hay materiales esperando despacho",
+                        body="Una solicitud fue aprobada y está lista para ser despachada desde el depósito.",
+                        entity_type=NotificationEntityType.DEPOSIT_REQUEST,
+                        entity_id=persisted_request.request_id,
+                    )
         except Exception:
             _logger.exception("Error sending review_request notification for request %s", persisted_request.request_id)
         if persisted_request.request_status == InventoryRequestStatus.REJECTED.value:
