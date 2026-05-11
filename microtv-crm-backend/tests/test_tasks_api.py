@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from crm_backend.adapters.auth_service_adapter import ActiveMembershipContext, AuthenticatedAuthResult
 from crm_backend.api.dependencies import get_auth_service_adapter
-from crm_backend.models import Client, CrmRole, CrmUser, CrmUserRole, Location, StockProduct, Task, TaskAttachment
+from crm_backend.models import Client, CrmRole, CrmUser, CrmUserRole, Location, StockProduct, Task, TaskAttachment, TaskTemplatePreForm
 
 
 class FakeTaskAuthAdapter:
@@ -196,6 +196,123 @@ def test_admin_can_create_template_and_task_from_it(client, db_session) -> None:
     assert task["subtasks"][1]["status"] == "locked"
     assert assigned_response.status_code == 200
     assert any(item["task_id"] == task["task_id"] for item in assigned_response.json())
+
+
+def test_update_template_with_pre_form_keeps_single_pre_form_record(client, db_session) -> None:
+    """Updating a template with pre-form enabled must not fail nor duplicate pre-form rows."""
+
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeTaskAuthAdapter()
+
+    create_response = client.post(
+        "/tasks/templates",
+        headers=_auth_header("admin-token"),
+        json={
+            "template_name": "Template con pre-form",
+            "description": "Primera versión",
+            "requires_arrival_comment": False,
+            "requires_video_evidence": False,
+            "requires_pre_form": True,
+            "pre_form": {
+                "title": "Formulario inicial",
+                "instructions": "Completar antes de iniciar",
+                "fields": [
+                    {
+                        "label": "Nombre cliente",
+                        "field_type": "TEXT",
+                        "is_required": True,
+                        "order_index": 0,
+                        "placeholder": "Nombre"
+                    }
+                ]
+            },
+            "required_materials": [],
+            "subtasks": [
+                {
+                    "subtask_title": "Visita técnica",
+                    "subtask_description": "Diagnóstico",
+                    "order_index": 0,
+                    "responsible_role_key": "tecnico",
+                    "default_responsible_crm_user_id": None,
+                    "close_comment_required": True,
+                    "next_assignment_policy": "role_queue_auto",
+                    "subtask_type": "standard",
+                    "items": [
+                        {
+                            "item_label": "Checklist inicial",
+                            "item_order": 0,
+                            "item_type": "checkbox",
+                            "is_required": True
+                        }
+                    ]
+                }
+            ]
+        },
+    )
+
+    assert create_response.status_code == 200, create_response.text
+    template_id = create_response.json()["template_id"]
+
+    update_response = client.put(
+        f"/tasks/templates/{template_id}",
+        headers=_auth_header("admin-token"),
+        json={
+            "template_name": "Template con pre-form actualizado",
+            "description": "Segunda versión",
+            "requires_arrival_comment": False,
+            "requires_video_evidence": False,
+            "requires_pre_form": True,
+            "pre_form": {
+                "title": "Formulario actualizado",
+                "instructions": "Completar y validar datos",
+                "fields": [
+                    {
+                        "label": "Nombre cliente",
+                        "field_type": "TEXT",
+                        "is_required": True,
+                        "order_index": 0,
+                        "placeholder": "Nombre"
+                    },
+                    {
+                        "label": "Teléfono",
+                        "field_type": "TEL",
+                        "is_required": False,
+                        "order_index": 1,
+                        "placeholder": "11 1234 5678"
+                    }
+                ]
+            },
+            "required_materials": [],
+            "subtasks": [
+                {
+                    "subtask_title": "Visita técnica",
+                    "subtask_description": "Diagnóstico",
+                    "order_index": 0,
+                    "responsible_role_key": "tecnico",
+                    "default_responsible_crm_user_id": None,
+                    "close_comment_required": True,
+                    "next_assignment_policy": "role_queue_auto",
+                    "subtask_type": "standard",
+                    "items": [
+                        {
+                            "item_label": "Checklist inicial",
+                            "item_order": 0,
+                            "item_type": "checkbox",
+                            "is_required": True
+                        }
+                    ]
+                }
+            ]
+        },
+    )
+
+    assert update_response.status_code == 200, update_response.text
+    updated = update_response.json()
+    assert updated["template_name"] == "Template con pre-form actualizado"
+    assert updated["pre_form"]["title"] == "Formulario actualizado"
+    assert len(updated["pre_form"]["fields"]) == 2
+
+    pre_forms = list(db_session.scalars(select(TaskTemplatePreForm).where(TaskTemplatePreForm.template_id == template_id)).all())
+    assert len(pre_forms) == 1
 
 
 def test_list_crm_users_filters_candidates_by_role(client, db_session) -> None:

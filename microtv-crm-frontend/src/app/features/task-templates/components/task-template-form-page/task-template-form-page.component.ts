@@ -214,7 +214,7 @@ export class TaskTemplateFormPageComponent {
     if (name && email) {
       return `${name} · ${email}`;
     }
-    return name || email || user.crm_user_id;
+    return name || email || 'Usuario sin nombre';
   }
 
   addItem(subtaskIndex: number, itemType: TaskItemType = 'checkbox'): void {

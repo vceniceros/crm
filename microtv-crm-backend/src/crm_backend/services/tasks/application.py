@@ -201,7 +201,6 @@ class TaskApplicationService:
         template.requires_video_evidence = bool(payload.requires_video_evidence)
         template.requires_pre_form = bool(payload.requires_pre_form)
         template.subtasks.clear()
-        template.pre_form = None
         self._apply_template_payload(template, payload)
         self._task_material_flow.sync_template_materials(template, payload)
         return self._template_repository.save(template)
@@ -230,22 +229,34 @@ class TaskApplicationService:
             return []
 
     def _apply_template_payload(self, template: TaskTemplate, payload: CreateTaskTemplateRequest | UpdateTaskTemplateRequest) -> None:
-        if template.requires_pre_form and payload.pre_form is not None:
-            pre_form = TaskTemplatePreForm(
-                title=(payload.pre_form.title or "").strip() or None,
-                instructions=(payload.pre_form.instructions or "").strip() or None,
-            )
-            for field_payload in sorted(payload.pre_form.fields, key=lambda item: item.order_index):
-                pre_form.fields.append(
-                    TaskTemplatePreFormField(
-                        label=field_payload.label.strip(),
-                        field_type=field_payload.field_type,
-                        is_required=bool(field_payload.is_required),
-                        order_index=field_payload.order_index,
-                        placeholder=(field_payload.placeholder or "").strip() or None,
+        if template.requires_pre_form:
+            pre_form = template.pre_form or TaskTemplatePreForm()
+            pre_form_payload = payload.pre_form
+
+            if pre_form_payload is not None:
+                pre_form.title = (pre_form_payload.title or "").strip() or None
+                pre_form.instructions = (pre_form_payload.instructions or "").strip() or None
+            else:
+                pre_form.title = None
+                pre_form.instructions = None
+
+            pre_form.fields.clear()
+
+            if pre_form_payload is not None:
+                for field_payload in sorted(pre_form_payload.fields, key=lambda item: item.order_index):
+                    pre_form.fields.append(
+                        TaskTemplatePreFormField(
+                            label=field_payload.label.strip(),
+                            field_type=field_payload.field_type,
+                            is_required=bool(field_payload.is_required),
+                            order_index=field_payload.order_index,
+                            placeholder=(field_payload.placeholder or "").strip() or None,
+                        )
                     )
-                )
+
             template.pre_form = pre_form
+        else:
+            template.pre_form = None
 
         if template.requires_pre_form:
             template.subtasks.append(

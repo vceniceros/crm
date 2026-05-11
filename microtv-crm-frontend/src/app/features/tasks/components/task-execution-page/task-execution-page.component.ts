@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -67,6 +67,7 @@ type DispatchDraftItem = InventoryDispatchItemWriteRequest & {
   standalone: true,
   imports: [
     DatePipe,
+    NgTemplateOutlet,
     MatButtonModule,
     MatButtonModule,
     MatCardModule,
@@ -946,7 +947,12 @@ export class TaskExecutionPageComponent {
   }
 
   selectedSubtaskAssignee(): string {
-    return this.selectedSubtask()?.assigned_user_display_name ?? 'Sin usuario asignado';
+    const subtask = this.selectedSubtask();
+    if (!subtask) {
+      return 'Sin usuario asignado';
+    }
+
+    return subtask.assigned_user_display_name ?? subtask.default_assigned_user_display_name ?? 'Sin usuario asignado';
   }
 
   requestOptionLabel(request: InventoryRequest): string {
