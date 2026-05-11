@@ -7,6 +7,13 @@
     />
 
     <div class="tasks-page__actions">
+      @if (isAdminOrExecutive()) {
+        <button mat-flat-button color="primary" type="button" class="tasks-page__action" (click)="openCreateTaskDialog()">
+          <mat-icon>add_circle</mat-icon>
+          <span>Crear pedido</span>
+        </button>
+      }
+
       @if (isAdmin()) {
         <a mat-stroked-button type="button" class="tasks-page__action tasks-page__action--secondary" routerLink="/tasks/templates">
           <mat-icon>schema</mat-icon>
@@ -37,109 +44,6 @@
       <mat-card-content>
         <mat-icon>check_circle</mat-icon>
         <p>{{ successMessage }}</p>
-      </mat-card-content>
-    </mat-card>
-  }
-
-  @if (isAdminOrExecutive()) {
-    <mat-card class="tasks-page__create-card">
-      <mat-card-header>
-        <mat-card-title>Crear pedido desde template</mat-card-title>
-        <mat-card-subtitle>Instanciá un pedido real asociando cliente y datos iniciales obligatorios.</mat-card-subtitle>
-      </mat-card-header>
-
-      <mat-card-content>
-        <form class="tasks-page__create-form" [formGroup]="taskCreationForm" (ngSubmit)="createTask()">
-          <mat-form-field appearance="outline">
-            <mat-label>Template</mat-label>
-            <mat-select formControlName="template_id">
-              @for (template of templates(); track template.template_id) {
-                <mat-option [value]="template.template_id">{{ template.template_name }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Cliente</mat-label>
-            <mat-select formControlName="client_id">
-              @for (client of clients(); track client.client_id) {
-                <mat-option [value]="client.client_id">{{ client.business_name }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Título del pedido</mat-label>
-            <input matInput formControlName="task_title" />
-          </mat-form-field>
-
-          <div class="tasks-page__create-form-full tasks-page__task-meta">
-            <mat-checkbox formControlName="requires_arrival_comment">Requiere registro de llegada</mat-checkbox>
-            <mat-checkbox formControlName="requires_video_evidence">Requiere video para cierre final</mat-checkbox>
-          </div>
-
-          <div class="tasks-page__create-form-full tasks-page__location-panel">
-            <div class="tasks-page__location-header">
-              <div>
-                <p class="tasks-page__label">Ubicación operativa</p>
-                <h3>{{ selectedLocationLabel() }}</h3>
-                <p class="tasks-page__location-caption">Seleccioná el punto real en mapa. El sistema persiste la ubicación y usa su location_id automáticamente.</p>
-              </div>
-
-              <div class="tasks-page__location-actions">
-                <button mat-stroked-button type="button" (click)="openLocationPicker()">
-                  <mat-icon>location_on</mat-icon>
-                  <span>{{ hasValidSelectedLocation() ? 'Editar ubicación' : 'Seleccionar en mapa' }}</span>
-                </button>
-
-                @if (hasValidSelectedLocation()) {
-                  <button mat-stroked-button type="button" (click)="openSelectedLocationInMaps()">
-                    <mat-icon>map</mat-icon>
-                    <span>Abrir en Maps</span>
-                  </button>
-
-                  <button mat-button type="button" (click)="clearSelectedLocation()">
-                    <mat-icon>close</mat-icon>
-                    <span>Quitar</span>
-                  </button>
-                }
-              </div>
-            </div>
-
-            @if (hasValidSelectedLocation()) {
-              <app-location-map [location]="selectedLocation()" title="Ubicación de la tarea"></app-location-map>
-            }
-          </div>
-
-          <mat-form-field appearance="outline" class="tasks-page__create-form-full">
-            <mat-label>Descripción inicial</mat-label>
-            <textarea matInput rows="2" formControlName="task_description"></textarea>
-          </mat-form-field>
-
-          @if (selectedTemplate(); as selectedTemplate) {
-            <div class="tasks-page__create-form-full tasks-page__template-materials">
-              <p class="tasks-page__label">Materiales heredados del template</p>
-              @if (selectedTemplate.required_materials.length) {
-                <div class="tasks-page__task-meta">
-                  @for (material of selectedTemplate.required_materials; track material.required_material_id) {
-                    <span>
-                      {{ material.product_name }} x{{ material.quantity_required }}{{ material.requires_tracking ? ' · tracking unitario' : '' }}
-                    </span>
-                  }
-                </div>
-              } @else {
-                <p>El template seleccionado no define productos mínimos.</p>
-              }
-            </div>
-          }
-
-          <div class="tasks-page__create-actions">
-            <button mat-flat-button color="primary" type="submit" [disabled]="isCreatingTask()">
-              <mat-icon>{{ isCreatingTask() ? 'hourglass_top' : 'task_alt' }}</mat-icon>
-              <span>{{ isCreatingTask() ? 'Creando...' : 'Crear pedido' }}</span>
-            </button>
-          </div>
-        </form>
       </mat-card-content>
     </mat-card>
   }

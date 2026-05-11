@@ -3,30 +3,23 @@ import { DatePipe } from '@angular/common';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { map } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
 
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
 import { UI_HELP_TEXTS } from '../../../../core/config/ui-help-texts.config';
-import { AppLocation } from '../../../../core/models/location.model';
 import {
   buildInitials,
-  ClientSummary,
   countCompletedSubtasks,
   formatRoleKey,
   formatTaskStatus,
   TaskDetail,
   TaskSummary,
-  TaskTemplate,
   toTaskTone,
   UnassignedSubtaskQueueItem
 } from '../../../../core/models/task-management.model';
@@ -34,12 +27,10 @@ import { TaskListItem, TasksTableData } from '../../../../core/models/task.model
 import { TaskManagementService } from '../../../../core/services/task-management.service';
 import { ListingViewMode, ListingViewPreferenceService } from '../../../../shared/services/listing-view-preference.service';
 import { ListingControlsComponent, ListingSortDirection, ListingStatusOption } from '../../../../shared/ui/listing-controls/listing-controls.component';
-import { LocationPickerService } from '../../../../shared/services/location-picker.service';
-import { LocationLinkService } from '../../../../shared/services/location-link.service';
-import { LocationMapComponent } from '../../../../shared/ui/location-map/location-map.component';
 import { ContextHelpCardComponent } from '../../../../shared/ui/context-help-card/context-help-card.component';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 import { StatusBadgeComponent } from '../../../../shared/ui/status-badge/status-badge.component';
+import { CreateTaskDialogComponent } from '../create-task-dialog/create-task-dialog.component';
 import { TasksTableComponent } from '../tasks-table/tasks-table.component';
 
 type TaskListContextId = 'assigned' | 'unassigned' | 'tracking' | 'history';
@@ -58,18 +49,13 @@ interface TaskListUiState {
     DatePipe,
     MatButtonModule,
     MatCardModule,
-    MatCheckboxModule,
-    MatFormFieldModule,
+    MatDialogModule,
     MatIconModule,
-    MatInputModule,
     MatProgressSpinnerModule,
-    MatSelectModule,
     MatTabsModule,
     ContextHelpCardComponent,
     ListingControlsComponent,
-    LocationMapComponent,
     PageTitleComponent,
-    ReactiveFormsModule,
     RouterLink,
     StatusBadgeComponent,
     TasksTableComponent
@@ -82,9 +68,7 @@ export class TasksPageComponent {
   private readonly breakpointObserver = inject(BreakpointObserver);
   private readonly taskManagementService = inject(TaskManagementService);
   private readonly authSessionService = inject(AuthSessionService);
-  private readonly formBuilder = inject(FormBuilder);
-  private readonly locationPickerService = inject(LocationPickerService);
-  private readonly locationLinkService = inject(LocationLinkService);
+  private readonly dialog = inject(MatDialog);
   private readonly listingViewPreferenceService = inject(ListingViewPreferenceService);
   private readonly activatedRoute = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -92,26 +76,14 @@ export class TasksPageComponent {
   readonly helpText = UI_HELP_TEXTS.tasks;
 
   readonly isLoading = signal(true);
-  readonly isCreatingTask = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly initialTabIndex = signal(0);
   readonly highlightedHistoryTaskId = signal<string | null>(null);
-  readonly templates = signal<TaskTemplate[]>([]);
-  readonly clients = signal<ClientSummary[]>([]);
   readonly assignedTasks = signal<TaskDetail[]>([]);
   readonly unassignedSubtasks = signal<UnassignedSubtaskQueueItem[]>([]);
   readonly trackingTasks = signal<TaskDetail[]>([]);
   readonly historyTasks = signal<TaskDetail[]>([]);
-  readonly selectedLocation = signal<AppLocation | null>(null);
-  readonly taskCreationForm = this.formBuilder.group({
-    template_id: this.formBuilder.control('', { validators: [Validators.required], nonNullable: true }),
-    client_id: this.formBuilder.control('', { validators: [Validators.required], nonNullable: true }),
-    task_title: this.formBuilder.control<string | null>(null),
-    task_description: this.formBuilder.control<string | null>(null),
-    requires_arrival_comment: this.formBuilder.control(false, { nonNullable: true }),
-    requires_video_evidence: this.formBuilder.control(false, { nonNullable: true }),
-  });
 
   readonly currentSession = computed(() => this.authSessionService.sessionSnapshot());
   readonly currentUserId = computed(() => this.currentSession()?.user.crm_user_id ?? null);
@@ -154,16 +126,10 @@ export class TasksPageComponent {
     this.breakpointObserver.observe([Breakpoints.Handset]).pipe(map((state) => state.matches)),
     { initialValue: false }
   );
-  readonly selectedTemplate = computed(
-    () => this.templates().find((template) => template.template_id === this.taskCreationForm.controls.template_id.getRawValue()) ?? null
-  );
 
   constructor() {
     const queryParams = this.activatedRoute.snapshot.queryParams;
     const preselectedTemplateId = queryParams['templateId'];
-    if (typeof preselectedTemplateId === 'string' && preselectedTemplateId.trim()) {
-      this.taskCreationForm.controls.template_id.setValue(preselectedTemplateId);
-    }
 
     const highlightedTaskId = queryParams['taskId'];
     if (typeof highlightedTaskId === 'string' && highlightedTaskId.trim()) {
@@ -175,22 +141,16 @@ export class TasksPageComponent {
     }
 
     this.refresh();
+
+    if (typeof preselectedTemplateId === 'string' && preselectedTemplateId.trim() && this.isAdminOrExecutive()) {
+      this.openCreateTaskDialog(preselectedTemplateId.trim());
+    }
   }
 
   refresh(): void {
     this.isLoading.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
-
-    this.taskManagementService.listTemplates().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (templates) => this.templates.set(templates),
-      error: (error: Error) => this.errorMessage.set(error.message)
-    });
-
-    this.taskManagementService.listClients().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (clients) => this.clients.set(clients),
-      error: (error: Error) => this.errorMessage.set(error.message)
-    });
 
     this.taskManagementService.listAssignedTasks().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (summaries) => this.loadAssignedTaskDetails(summaries),
@@ -223,70 +183,27 @@ export class TasksPageComponent {
     });
   }
 
-  createTask(): void {
-    if (this.taskCreationForm.invalid) {
-      this.taskCreationForm.markAllAsTouched();
-      this.errorMessage.set('Completá template y cliente para crear el pedido.');
+  openCreateTaskDialog(preselectedTemplateId?: string): void {
+    if (!this.isAdminOrExecutive()) {
       return;
     }
 
-    this.isCreatingTask.set(true);
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
-    if (this.hasValidSelectedLocation()) {
-      this.taskManagementService
-        .createLocation(this.selectedLocation() as AppLocation)
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe({
-          next: (persistedLocation) => {
-            this.submitTaskCreation(persistedLocation.locationId);
-          },
-          error: (error: Error) => {
-            this.errorMessage.set(error.message);
-            this.isCreatingTask.set(false);
-          }
-        });
-      return;
-    }
-
-    this.submitTaskCreation(null);
-  }
-
-  openLocationPicker(): void {
-    this.locationPickerService
-      .open({
-        title: 'Seleccionar ubicación operativa del pedido',
-        initialLocation: this.selectedLocation()
+    this.dialog
+      .open<CreateTaskDialogComponent, { templateId?: string }, TaskDetail>(CreateTaskDialogComponent, {
+        autoFocus: false,
+        maxWidth: 'calc(100vw - 1.5rem)',
+        width: '58rem',
+        data: preselectedTemplateId ? { templateId: preselectedTemplateId } : undefined
       })
+      .afterClosed()
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((result) => {
-        if (!result) {
-          return;
+      .subscribe((task) => {
+        if (task) {
+          this.successMessage.set('El pedido se creó y quedó instanciado con el flujo real del template.');
+          this.refresh();
+          void this.router.navigate(['/tasks', task.task_id]);
         }
-
-        this.selectedLocation.set(result.location);
       });
-  }
-
-  clearSelectedLocation(): void {
-    this.selectedLocation.set(null);
-  }
-
-  openSelectedLocationInMaps(): void {
-    this.locationLinkService.openInGoogleMaps(this.selectedLocation());
-  }
-
-  hasValidSelectedLocation(): boolean {
-    return this.locationLinkService.isValidLocation(this.selectedLocation());
-  }
-
-  selectedLocationLabel(): string {
-    const location = this.selectedLocation();
-    if (!location) {
-      return 'Sin ubicación cargada';
-    }
-
-    return location.addressLabel?.trim() || `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`;
   }
 
   claimSubtask(subtaskId: string): void {
@@ -535,31 +452,6 @@ export class TasksPageComponent {
 
   private buildViewPreferenceKey(context: TaskListContextId): string {
     return `tasks.${context}`;
-  }
-
-  private submitTaskCreation(locationId: string | null): void {
-    this.taskManagementService
-      .createTaskFromTemplate({
-        template_id: this.taskCreationForm.controls.template_id.getRawValue(),
-        client_id: this.taskCreationForm.controls.client_id.getRawValue(),
-        location_id: locationId,
-        task_title: this.taskCreationForm.controls.task_title.getRawValue()?.trim() || null,
-        task_description: this.taskCreationForm.controls.task_description.getRawValue()?.trim() || null,
-        requires_arrival_comment: this.taskCreationForm.controls.requires_arrival_comment.getRawValue(),
-        requires_video_evidence: this.taskCreationForm.controls.requires_video_evidence.getRawValue(),
-      })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (task: TaskDetail) => {
-          this.successMessage.set('El pedido se creó y quedó instanciado con el flujo real del template.');
-          this.isCreatingTask.set(false);
-          void this.router.navigate(['/tasks', task.task_id]);
-        },
-        error: (error: Error) => {
-          this.errorMessage.set(error.message);
-          this.isCreatingTask.set(false);
-        }
-      });
   }
 
   private loadAssignedTaskDetails(summaries: TaskSummary[]): void {

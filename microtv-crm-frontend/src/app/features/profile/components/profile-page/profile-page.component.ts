@@ -13,6 +13,7 @@ import { crmApiConfig } from '../../../../core/config/crm-api.config';
 import { MeResponse } from '../../../../core/models/profile.model';
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
 import { ProfileService } from '../../../../core/services/profile.service';
+import { resolveBackendAssetUrl } from '../../../../core/utils/backend-asset-url.util';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 import { UserAvatarComponent } from '../../../../shared/ui/user-avatar/user-avatar.component';
 
@@ -54,7 +55,7 @@ export class ProfilePageComponent {
     email: ['', [Validators.email, Validators.maxLength(255)]]
   });
 
-  readonly avatarUrl = computed(() => this.resolvePublicUrl(this.me()?.avatar_url ?? null));
+  readonly avatarUrl = computed(() => resolveBackendAssetUrl(this.me()?.avatar_url ?? null, crmApiConfig.baseUrl));
   readonly initials = computed(() => {
     const displayName = this.form.controls.display_name.value.trim() || this.me()?.display_name || this.me()?.email || 'Usuario';
     return displayName
@@ -203,23 +204,5 @@ export class ProfilePageComponent {
       email: me.email,
       avatar_url: me.avatar_url
     });
-  }
-
-  private resolvePublicUrl(rawUrl: string | null | undefined): string | null {
-    const normalized = rawUrl?.trim();
-    if (!normalized) {
-      return null;
-    }
-
-    if (/^(https?:|blob:|data:)/i.test(normalized)) {
-      return normalized;
-    }
-
-    const normalizedPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
-    try {
-      return `${new URL(crmApiConfig.baseUrl).origin}${normalizedPath}`;
-    } catch {
-      return `${crmApiConfig.baseUrl.replace(/\/$/, '')}${normalizedPath}`;
-    }
   }
 }

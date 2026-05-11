@@ -32,6 +32,7 @@ import {
   CrmUserOption,
   formatAssignmentPolicy,
   formatRoleKey,
+  TaskPreFormStatusValue,
   formatTaskStatus,
   Subtask,
   TaskAction,
@@ -118,6 +119,7 @@ export class TaskExecutionPageComponent {
   readonly subtaskAssigneeOptions = signal<CrmUserOption[]>([]);
   readonly taskSatisfactionStatus = signal<TaskSatisfactionFormStatusResponse | null>(null);
   readonly taskPreFormStatus = signal<TaskPreFormStatusResponse | null>(null);
+  readonly isPreFormResponseVisible = signal(false);
   readonly isAndroidCompact = signal(this.detectAndroidCompactLayout());
   readonly nonSubtaskSectionsExpanded = signal(!this.detectAndroidCompactLayout());
   readonly actionOptions = TASK_ACTION_OPTIONS;
@@ -155,6 +157,7 @@ export class TaskExecutionPageComponent {
   readonly isDeposito = computed(() => this.currentRoles().includes('deposito'));
   readonly isTecnico = computed(() => this.currentRoles().includes('tecnico'));
   readonly isFieldTechnician = computed(() => this.isTecnico() && !this.isAdmin() && !this.isExecutive() && !this.isDeposito());
+  readonly hasSubmittedPreForm = computed(() => Boolean(this.taskPreFormStatus()?.submitted_at));
   readonly canViewDispatchSection = computed(() => this.isDeposito() || this.isAdmin());
   readonly canViewRequestsSection = computed(() => this.isTecnico() || this.isAdmin());
   readonly currentAssignableSubtask = computed(() => {
@@ -908,10 +911,50 @@ export class TaskExecutionPageComponent {
         } catch {
           window.prompt('Link de formulario previo generado. Copialo:', absoluteLink);
         }
+        this.isPreFormResponseVisible.set(false);
         this.loadTaskPreFormStatus(currentTask.task_id);
       },
       error: (error: Error) => this.showOperationError(error.message),
     });
+  }
+
+  resendTaskPreFormLink(): void {
+    this.generateTaskPreFormLink();
+  }
+
+  toggleTaskPreFormView(): void {
+    const status = this.taskPreFormStatus();
+    if (!status?.submitted_at) {
+      this.snackBar.open('Todavía no hay respuestas enviadas del formulario previo.', 'Cerrar', { duration: 3000 });
+      return;
+    }
+
+    this.isPreFormResponseVisible.update((visible) => !visible);
+  }
+
+  preFormFieldValueLabel(value: TaskPreFormStatusValue): string {
+    const fieldType = String(value.field_type ?? '').trim().toUpperCase();
+    const rawValue = (value.text_value ?? '').trim();
+
+    if (fieldType === 'CHECKBOX') {
+      const normalized = rawValue.toLowerCase();
+      if (['true', '1', 'si', 'sí', 'yes', 'on'].includes(normalized)) {
+        return 'Sí';
+      }
+      if (['false', '0', 'no', 'off'].includes(normalized)) {
+        return 'No';
+      }
+    }
+
+    if (rawValue) {
+      return rawValue;
+    }
+
+    if (value.file_attachment_id) {
+      return `Adjunto ${value.file_attachment_id}`;
+    }
+
+    return 'Sin respuesta';
   }
 
   subtaskCanBeOperated(subtask: Subtask): boolean {
@@ -1264,8 +1307,16 @@ export class TaskExecutionPageComponent {
 
   private loadTaskPreFormStatus(taskId: string): void {
     this.taskManagementService.getTaskPreFormStatus(taskId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (status) => this.taskPreFormStatus.set(status),
-      error: () => this.taskPreFormStatus.set(null),
+      next: (status) => {
+        this.taskPreFormStatus.set(status);
+        if (!status.submitted_at) {
+          this.isPreFormResponseVisible.set(false);
+        }
+      },
+      error: () => {
+        this.taskPreFormStatus.set(null);
+        this.isPreFormResponseVisible.set(false);
+      },
     });
   }
 

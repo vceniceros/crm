@@ -6,7 +6,7 @@ import hashlib
 import logging
 import secrets
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import UploadFile
 from sqlalchemy import select
@@ -501,6 +501,11 @@ class TaskApplicationService:
             SubtaskStatus.IN_PROGRESS.value,
         }:
             raise TaskConflictError("Solo se pueden asignar o reasignar subtareas activas.")
+
+        try:
+            UUID(str(assigned_crm_user_id))
+        except (TypeError, ValueError):
+            raise TaskValidationError("El identificador del usuario a asignar tiene un formato inválido.") from None
 
         target_user = self._user_repository.get_by_id(assigned_crm_user_id)
         if target_user is None:
