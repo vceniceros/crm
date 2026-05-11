@@ -24,7 +24,6 @@ fi
 if [ -n "$DB_URL" ]; then
   case "$DB_URL" in
     postgresql+psycopg://*)
-      # SQLAlchemy URL -> libpq URL
       DB_URL="${DB_URL/postgresql+psycopg:\/\//postgresql://}"
       ;;
     postgresql://*)
@@ -57,28 +56,11 @@ if [ -n "$DB_URL" ]; then
 fi
 
 if [ "$USE_FALLBACK" = "true" ] || [ -z "$DB_URL" ]; then
-  # Fallback legacy values.
   PSQL=(psql -X -v ON_ERROR_STOP=1 -U ycc -h 127.0.0.1 -p 5432 -d crm)
   if [ "$USE_FALLBACK" = "false" ]; then
     echo "DATABASE_URL no encontrado en $ENV_FILE; usando conexion fallback 127.0.0.1:5432/crm"
   fi
 fi
-
-echo "=== Iniciando migraciones de produccion ==="
-
-"${PSQL[@]}" -c "SELECT current_database() AS db, current_user AS db_user, inet_server_addr() AS host, inet_server_port() AS port;"
-
-run_migration() {
-  local file="$1"
-  echo "--- Aplicando: $file"
-  "${PSQL[@]}" -f "$file"
-  echo "    OK: $file"
-}
-
-constraint_exists() {
-  local constraint_name="$1"
-  "${PSQL[@]}" -t -A -c "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = '$constraint_name');" | tr -d '[:space:]'
-}
 
 is_truthy() {
   local value="${1:-}"
@@ -92,36 +74,101 @@ is_truthy() {
   esac
 }
 
-run_migration "$SCRIPT_DIR/20260414_task_schema_v4_delta.sql"
-if is_truthy "$(constraint_exists 'chk_template_subtasks_next_assignment_policy')"; then
-  echo "--- Saltando: $SCRIPT_DIR/20260414_task_schema_v4_1_hardening.sql (hardening ya aplicado)"
-else
-  run_migration "$SCRIPT_DIR/20260414_task_schema_v4_1_hardening.sql"
+ensure_migration_tracking() {
+  "${PSQL[@]}" -c "
+    CREATE TABLE IF NOT EXISTS crm_schema_migrations (
+      migration_name TEXT PRIMARY KEY,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  "
+}
+
+is_migration_applied() {
+  local migration_name="$1"
+  "${PSQL[@]}" -t -A -c "SELECT EXISTS (SELECT 1 FROM crm_schema_migrations WHERE migration_name = '$migration_name');" | tr -d '[:space:]'
+}
+
+record_migration() {
+  local migration_name="$1"
+  "${PSQL[@]}" -c "
+    INSERT INTO crm_schema_migrations (migration_name)
+    VALUES ('$migration_name')
+    ON CONFLICT (migration_name) DO NOTHING;
+  " >/dev/null
+}
+
+run_migration() {
+  local file="$1"
+  local file_name
+  local output_file
+
+  file_name="$(basename "$file")"
+
+  if is_truthy "$(is_migration_applied "$file_name")"; then
+    echo "--- Saltando: $file_name (ya registrada en crm_schema_migrations)"
+    return
+  fi
+
+  output_file="$(mktemp)"
+  echo "--- Aplicando: $file_name"
+
+  if "${PSQL[@]}" -f "$file" >"$output_file" 2>&1; then
+    record_migration "$file_name"
+    echo "    OK: $file_name"
+    rm -f "$output_file"
+    return
+  fi
+
+  if grep -Eqi "already exists|duplicate key value|column .* already exists|relation .* already exists|constraint .* already exists" "$output_file"; then
+    echo "    WARNING: $file_name devolvio un error de objeto existente; se registra como aplicada para evitar reintentos."
+    sed 's/^/      /' "$output_file"
+    record_migration "$file_name"
+    rm -f "$output_file"
+    return
+  fi
+
+  echo "ERROR aplicando $file_name"
+  sed 's/^/      /' "$output_file"
+  rm -f "$output_file"
+  exit 1
+}
+
+echo "=== Iniciando migraciones de produccion ==="
+"${PSQL[@]}" -c "SELECT current_database() AS db, current_user AS db_user, inet_server_addr() AS host, inet_server_port() AS port;"
+
+ensure_migration_tracking
+
+shopt -s nullglob
+migration_files=("$SCRIPT_DIR"/*.sql)
+if [ ${#migration_files[@]} -eq 0 ]; then
+  echo "ERROR: No se encontraron archivos .sql en $SCRIPT_DIR"
+  exit 1
 fi
-run_migration "$SCRIPT_DIR/20260414_task_schema_v4_1_post_validation.sql"
-run_migration "$SCRIPT_DIR/20260414_task_media_comment_link.sql"
-run_migration "$SCRIPT_DIR/20260422_ticket_module.sql"
-run_migration "$SCRIPT_DIR/20260423_crm_notifications.sql"
-run_migration "$SCRIPT_DIR/20260427_ticket_arrival_comment.sql"
-run_migration "$SCRIPT_DIR/20260428_notifications_seed.sql"
-run_migration "$SCRIPT_DIR/20260430_ticket_profile_enhancements.sql"
+
+IFS=$'\n' migration_files=($(printf '%s\n' "${migration_files[@]}" | sort))
+unset IFS
+
+for migration_file in "${migration_files[@]}"; do
+  run_migration "$migration_file"
+done
 
 echo ""
 echo "=== Verificando estado final del schema ==="
 verification_output="$("${PSQL[@]}" -t -A -F '|' -c "
 SELECT
-  EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='tickets' AND column_name='requires_video_evidence') AS col_video_evidence,
-  EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='tickets' AND column_name='arrival_comment_id')      AS col_arrival_comment,
-  EXISTS(SELECT 1 FROM information_schema.tables   WHERE table_name='crm_notifications')                                AS table_notifications,
-  (SELECT count(*) FROM crm_roles WHERE is_active = TRUE)                                                               AS active_roles_count;
+  EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='tasks' AND column_name='requires_video_evidence') AS task_col_video_evidence,
+  EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='tasks' AND column_name='arrival_comment_id')      AS task_col_arrival_comment,
+  EXISTS(SELECT 1 FROM information_schema.tables   WHERE table_name='task_satisfaction_forms')                         AS table_task_satisfaction_forms,
+  EXISTS(SELECT 1 FROM information_schema.tables   WHERE table_name='task_pre_form_instances')                         AS table_task_pre_form_instances,
+  (SELECT count(*) FROM crm_roles WHERE is_active = TRUE)                                                              AS active_roles_count;
 ")"
 
-echo "col_video_evidence|col_arrival_comment|table_notifications|active_roles_count"
+echo "task_col_video_evidence|task_col_arrival_comment|table_task_satisfaction_forms|table_task_pre_form_instances|active_roles_count"
 echo "$verification_output"
 
-if [[ "$verification_output" != true\|true\|true\|* ]]; then
-  IFS='|' read -r col_video col_arrival table_notifications active_roles <<< "$verification_output"
-  if ! is_truthy "$col_video" || ! is_truthy "$col_arrival" || ! is_truthy "$table_notifications"; then
+if [[ "$verification_output" != true\|true\|true\|true\|* ]]; then
+  IFS='|' read -r col_video col_arrival table_satisfaction table_preform active_roles <<< "$verification_output"
+  if ! is_truthy "$col_video" || ! is_truthy "$col_arrival" || ! is_truthy "$table_satisfaction" || ! is_truthy "$table_preform"; then
     echo "ERROR: Verificacion final del schema invalida: $verification_output"
     exit 1
   fi

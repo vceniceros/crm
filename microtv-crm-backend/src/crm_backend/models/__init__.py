@@ -21,8 +21,17 @@ from crm_backend.models.task_reference import Client, ClientLocation, Location
 from crm_backend.models.task_execution import (
 	Subtask,
 	SubtaskAssignment,
+	TaskPreFormAttachment,
+	TaskPreFormFieldType,
+	TaskPreFormFieldValue,
+	TaskPreFormInstance,
+	TaskPreFormResponse,
+	TaskSatisfactionForm,
+	TaskSatisfactionResponse,
 	TaskAttachment,
 	TaskAttachmentType,
+	TaskTemplatePreForm,
+	TaskTemplatePreFormField,
 	SubtaskChecklistProgress,
 	SubtaskItemValue,
 	SubtaskStatus,
@@ -50,7 +59,7 @@ from crm_backend.models.ticket import (
 	TicketStatusTransition,
 	TicketTransitionAction,
 )
-from crm_backend.models.task_template import NextAssignmentPolicy, TaskTemplate, TaskTemplateItem, TaskTemplateSubtask, TemplateItemType
+from crm_backend.models.task_template import NextAssignmentPolicy, SubtaskType, TaskTemplate, TaskTemplateItem, TaskTemplateSubtask, TemplateItemType
 from crm_backend.models.warehouse import Warehouse
 from crm_backend.models.notification import Notification, NotificationEntityType, NotificationType
 from crm_backend.models.settings import CrmCategory, CrmPriority, CrmStatus, NotificationRule, SlaRule
@@ -77,8 +86,17 @@ __all__ = [
 	"Location",
 	"Subtask",
 	"SubtaskAssignment",
+	"TaskPreFormAttachment",
+	"TaskPreFormFieldType",
+	"TaskPreFormFieldValue",
+	"TaskPreFormInstance",
+	"TaskPreFormResponse",
+	"TaskSatisfactionForm",
+	"TaskSatisfactionResponse",
 	"TaskAttachment",
 	"TaskAttachmentType",
+	"TaskTemplatePreForm",
+	"TaskTemplatePreFormField",
 	"SubtaskChecklistProgress",
 	"SubtaskItemValue",
 	"SubtaskStatus",
@@ -93,6 +111,7 @@ __all__ = [
 	"TaskTemplateSubtask",
 	"TemplateItemType",
 	"NextAssignmentPolicy",
+	"SubtaskType",
 	"TransitionAction",
 	"Ticket",
 	"TicketAssignmentHistory",

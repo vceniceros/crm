@@ -1,13 +1,13 @@
 <section class="task-template-form-page">
   <a mat-stroked-button routerLink="/tasks/templates" class="task-template-form-page__back-link">
     <mat-icon>arrow_back</mat-icon>
-    <span>Volver a templates</span>
+    <span>Volver a templates de pedidos</span>
   </a>
 
   <div class="task-template-form-page__header">
     <app-page-title
-      eyebrow="Templates de tarea"
-      [title]="isEditMode() ? 'Editar template operativo' : 'Nuevo template operativo'"
+      eyebrow="Templates de pedidos"
+      [title]="isEditMode() ? 'Editar template operativo de pedido' : 'Nuevo template operativo de pedido'"
       subtitle="Armá un template completo con subtareas ordenadas, checklist reales, reglas de cierre y política de asignación."
     />
   </div>
@@ -45,8 +45,87 @@
           @if (isEditMode()) {
             <mat-slide-toggle formControlName="is_active">Template activo</mat-slide-toggle>
           }
+
+          <mat-slide-toggle formControlName="requires_arrival_comment">Requiere registro de llegada</mat-slide-toggle>
+          <mat-slide-toggle formControlName="requires_video_evidence">Requiere video para cierre final</mat-slide-toggle>
+          <mat-slide-toggle formControlName="requires_pre_form">Requiere formulario previo</mat-slide-toggle>
         </mat-card-content>
       </mat-card>
+
+      @if (form.controls.requires_pre_form.getRawValue()) {
+        <mat-card class="task-template-form-page__panel">
+          <mat-card-content>
+            <div class="task-template-form-page__materials-header">
+              <div>
+                <h2>Formulario previo del cliente</h2>
+                <p>Se completa antes de iniciar la ejecución del pedido.</p>
+              </div>
+
+              <button mat-stroked-button type="button" (click)="addPreFormField()">
+                <mat-icon>add</mat-icon>
+                <span>Agregar campo</span>
+              </button>
+            </div>
+
+            <div class="task-template-form-page__subtask-grid">
+              <mat-form-field appearance="outline">
+                <mat-label>Título del formulario</mat-label>
+                <input matInput formControlName="pre_form_title" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="task-template-form-page__full-width">
+                <mat-label>Instrucciones</mat-label>
+                <textarea matInput rows="2" formControlName="pre_form_instructions"></textarea>
+              </mat-form-field>
+            </div>
+
+            <div formArrayName="pre_form_fields" class="task-template-form-page__items-list">
+              @for (field of preFormFields.controls; track field; let fieldIndex = $index) {
+                <div class="task-template-form-page__item-row" [formGroupName]="fieldIndex">
+                  <div class="task-template-form-page__item-fields">
+                    <mat-form-field appearance="outline">
+                      <mat-label>Etiqueta</mat-label>
+                      <input matInput formControlName="label" />
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                      <mat-label>Tipo</mat-label>
+                      <mat-select formControlName="field_type">
+                        <mat-option value="TEXT">Texto</mat-option>
+                        <mat-option value="NUMBER">Número</mat-option>
+                        <mat-option value="TEXTAREA">Textarea</mat-option>
+                        <mat-option value="DATE">Fecha</mat-option>
+                        <mat-option value="TEL">Teléfono</mat-option>
+                        <mat-option value="FILE">Archivo</mat-option>
+                        <mat-option value="CHECKBOX">Checkbox</mat-option>
+                      </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                      <mat-label>Placeholder</mat-label>
+                      <input matInput formControlName="placeholder" />
+                    </mat-form-field>
+
+                    <mat-checkbox formControlName="is_required">Obligatorio</mat-checkbox>
+                  </div>
+
+                  <div class="task-template-form-page__icon-actions">
+                    <button mat-icon-button type="button" (click)="movePreFormField(fieldIndex, -1)" [disabled]="fieldIndex === 0">
+                      <mat-icon>arrow_upward</mat-icon>
+                    </button>
+                    <button mat-icon-button type="button" (click)="movePreFormField(fieldIndex, 1)" [disabled]="fieldIndex === preFormFields.length - 1">
+                      <mat-icon>arrow_downward</mat-icon>
+                    </button>
+                    <button mat-icon-button type="button" (click)="removePreFormField(fieldIndex)">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          </mat-card-content>
+        </mat-card>
+      }
 
       <mat-card class="task-template-form-page__panel">
         <mat-card-content>
@@ -116,7 +195,7 @@
       </div>
 
       <div formArrayName="subtasks" class="task-template-form-page__subtasks">
-        @for (subtask of subtasks.controls; track $index; let subtaskIndex = $index) {
+        @for (subtask of subtasks.controls; track subtask; let subtaskIndex = $index) {
           <mat-card class="task-template-form-page__panel" [formGroupName]="subtaskIndex">
             <mat-card-content>
               <div class="task-template-form-page__subtask-top">
@@ -189,6 +268,14 @@
                   <textarea matInput rows="2" formControlName="subtask_description"></textarea>
                 </mat-form-field>
 
+                <mat-form-field appearance="outline">
+                  <mat-label>Tipo de subtarea</mat-label>
+                  <mat-select formControlName="subtask_type">
+                    <mat-option value="standard">Estándar</mat-option>
+                    <mat-option value="pre_form">Formulario previo</mat-option>
+                  </mat-select>
+                </mat-form-field>
+
                 <mat-checkbox formControlName="close_comment_required">Comentario obligatorio al cerrar</mat-checkbox>
               </div>
 
@@ -201,7 +288,7 @@
               </div>
 
               <div [formArrayName]="'items'" class="task-template-form-page__items-list">
-                @for (item of items(subtaskIndex).controls; track $index; let itemIndex = $index) {
+                @for (item of items(subtaskIndex).controls; track item; let itemIndex = $index) {
                   <div class="task-template-form-page__item-row" [formGroupName]="itemIndex">
                     <div class="task-template-form-page__item-fields">
                       <mat-form-field appearance="outline">

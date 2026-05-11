@@ -1,9 +1,9 @@
 <section class="task-templates-page">
   <div class="task-templates-page__header">
     <app-page-title
-      eyebrow="Templates de tarea"
+      eyebrow="Templates de pedidos"
       title="Plantillas operativas"
-      subtitle="Definí y mantené los templates reales que después instancian el flujo operativo de tareas del CRM."
+      subtitle="Definí y mantené los templates reales que después instancian el flujo operativo de pedidos del CRM."
     />
 
     @if (canManage()) {
@@ -86,7 +86,7 @@
             <a mat-button [routerLink]="['/tasks/templates', template.template_id]">Ver detalle</a>
             @if (canManage()) {
               <a mat-button [routerLink]="['/tasks/templates', template.template_id, 'edit']">Editar</a>
-              <button mat-button type="button" (click)="goToCreateTask(template.template_id)">Crear tarea</button>
+              <button mat-button type="button" (click)="goToCreateTask(template.template_id)">Crear pedido</button>
               <button mat-button type="button" (click)="toggleActivation(template)">{{ template.is_active ? 'Desactivar' : 'Activar' }}</button>
             }
           </mat-card-actions>

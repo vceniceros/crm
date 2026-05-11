@@ -7,6 +7,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { map } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -57,6 +58,7 @@ interface TaskListUiState {
     DatePipe,
     MatButtonModule,
     MatCardModule,
+    MatCheckboxModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -106,7 +108,9 @@ export class TasksPageComponent {
     template_id: this.formBuilder.control('', { validators: [Validators.required], nonNullable: true }),
     client_id: this.formBuilder.control('', { validators: [Validators.required], nonNullable: true }),
     task_title: this.formBuilder.control<string | null>(null),
-    task_description: this.formBuilder.control<string | null>(null)
+    task_description: this.formBuilder.control<string | null>(null),
+    requires_arrival_comment: this.formBuilder.control(false, { nonNullable: true }),
+    requires_video_evidence: this.formBuilder.control(false, { nonNullable: true }),
   });
 
   readonly currentSession = computed(() => this.authSessionService.sessionSnapshot());
@@ -142,9 +146,9 @@ export class TasksPageComponent {
   readonly trackingVisibleTasks = computed(() => this.applyTaskFilters(this.trackingTasks(), 'tracking'));
   readonly historyVisibleTasks = computed(() => this.applyTaskFilters(this.historyTasks(), 'history'));
   readonly unassignedVisibleSubtasks = computed(() => this.applySubtaskFilters(this.unassignedSubtasks(), 'unassigned'));
-  readonly assignedTableBlock = computed<TasksTableData>(() => this.buildTaskTableBlock('Tareas asignadas a mi', this.assignedVisibleTasks()));
+  readonly assignedTableBlock = computed<TasksTableData>(() => this.buildTaskTableBlock('Pedidos asignados a mi', this.assignedVisibleTasks()));
   readonly trackingTableBlock = computed<TasksTableData>(() => this.buildTaskTableBlock('Seguimiento general', this.trackingVisibleTasks()));
-  readonly historyTableBlock = computed<TasksTableData>(() => this.buildTaskTableBlock('Historial de tareas', this.historyVisibleTasks()));
+  readonly historyTableBlock = computed<TasksTableData>(() => this.buildTaskTableBlock('Historial de pedidos', this.historyVisibleTasks()));
   readonly unassignedTableBlock = computed<TasksTableData>(() => this.buildUnassignedTableBlock(this.unassignedVisibleSubtasks()));
   readonly isHandset = toSignal(
     this.breakpointObserver.observe([Breakpoints.Handset]).pipe(map((state) => state.matches)),
@@ -222,7 +226,7 @@ export class TasksPageComponent {
   createTask(): void {
     if (this.taskCreationForm.invalid) {
       this.taskCreationForm.markAllAsTouched();
-      this.errorMessage.set('Completá template y cliente para crear la tarea.');
+      this.errorMessage.set('Completá template y cliente para crear el pedido.');
       return;
     }
 
@@ -251,7 +255,7 @@ export class TasksPageComponent {
   openLocationPicker(): void {
     this.locationPickerService
       .open({
-        title: 'Seleccionar ubicación operativa de la tarea',
+        title: 'Seleccionar ubicación operativa del pedido',
         initialLocation: this.selectedLocation()
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -309,7 +313,7 @@ export class TasksPageComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
-          this.successMessage.set('La tarea se aprobó y se movió al historial de tareas.');
+          this.successMessage.set('El pedido se aprobó y se movió al historial de pedidos.');
           this.refresh();
         },
         error: (error: Error) => this.errorMessage.set(error.message)
@@ -330,7 +334,7 @@ export class TasksPageComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
-          this.successMessage.set('El cierre fue rechazado y la tarea volvió al flujo operativo.');
+          this.successMessage.set('El cierre fue rechazado y el pedido volvió al flujo operativo.');
           this.refresh();
         },
         error: (error: Error) => this.errorMessage.set(error.message)
@@ -470,7 +474,7 @@ export class TasksPageComponent {
         assignedTo: this.assigneeLabel(task),
         assignedInitials: buildInitials(this.assigneeLabel(task), 'SA'),
         routeTaskId: task.task_id,
-        rowActionLabel: canApprove ? 'Aprobar tarea' : undefined,
+        rowActionLabel: canApprove ? 'Aprobar pedido' : undefined,
         rowActionId: canApprove ? task.task_id : undefined
       };
     });
@@ -540,12 +544,14 @@ export class TasksPageComponent {
         client_id: this.taskCreationForm.controls.client_id.getRawValue(),
         location_id: locationId,
         task_title: this.taskCreationForm.controls.task_title.getRawValue()?.trim() || null,
-        task_description: this.taskCreationForm.controls.task_description.getRawValue()?.trim() || null
+        task_description: this.taskCreationForm.controls.task_description.getRawValue()?.trim() || null,
+        requires_arrival_comment: this.taskCreationForm.controls.requires_arrival_comment.getRawValue(),
+        requires_video_evidence: this.taskCreationForm.controls.requires_video_evidence.getRawValue(),
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (task: TaskDetail) => {
-          this.successMessage.set('La tarea se creó y quedó instanciada con el flujo real del template.');
+          this.successMessage.set('El pedido se creó y quedó instanciado con el flujo real del template.');
           this.isCreatingTask.set(false);
           void this.router.navigate(['/tasks', task.task_id]);
         },

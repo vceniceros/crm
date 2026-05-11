@@ -16,10 +16,12 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
   CrmUserOption,
   CreateTaskTemplateRequest,
+  TaskPreFormFieldType,
   TASK_ASSIGNMENT_POLICY_OPTIONS,
   TASK_ROLE_OPTIONS,
   TaskAssignmentPolicy,
   TaskItemType,
+  TaskSubtaskType,
   TaskTemplate,
   TaskTemplateSubtaskWriteRequest,
   UpdateTaskTemplateRequest
@@ -71,6 +73,12 @@ export class TaskTemplateFormPageComponent {
     template_name: this.formBuilder.control('', { validators: [Validators.required], nonNullable: true }),
     description: this.formBuilder.control<string | null>(null),
     is_active: this.formBuilder.control(true, { nonNullable: true }),
+    requires_arrival_comment: this.formBuilder.control(false, { nonNullable: true }),
+    requires_video_evidence: this.formBuilder.control(false, { nonNullable: true }),
+    requires_pre_form: this.formBuilder.control(false, { nonNullable: true }),
+    pre_form_title: this.formBuilder.control<string | null>(null),
+    pre_form_instructions: this.formBuilder.control<string | null>(null),
+    pre_form_fields: this.formBuilder.array([] as Array<ReturnType<TaskTemplateFormPageComponent['createPreFormFieldGroup']>>),
     required_materials: this.formBuilder.array([]),
     subtasks: this.formBuilder.array([] as Array<ReturnType<TaskTemplateFormPageComponent['createSubtaskGroup']>>)
   });
@@ -113,6 +121,10 @@ export class TaskTemplateFormPageComponent {
 
   get requiredMaterials(): FormArray {
     return this.form.controls.required_materials;
+  }
+
+  get preFormFields(): FormArray {
+    return this.form.controls.pre_form_fields;
   }
 
   items(index: number): FormArray {
@@ -235,6 +247,32 @@ export class TaskTemplateFormPageComponent {
     this.resequenceItems(subtaskIndex);
   }
 
+  addPreFormField(fieldType: TaskPreFormFieldType = 'TEXT'): void {
+    this.preFormFields.push(this.createPreFormFieldGroup({ field_type: fieldType }));
+    this.resequencePreFormFields();
+  }
+
+  removePreFormField(fieldIndex: number): void {
+    if (!window.confirm('¿Eliminar este campo del formulario previo?')) {
+      return;
+    }
+
+    this.preFormFields.removeAt(fieldIndex);
+    this.resequencePreFormFields();
+  }
+
+  movePreFormField(fieldIndex: number, direction: -1 | 1): void {
+    const targetIndex = fieldIndex + direction;
+    if (targetIndex < 0 || targetIndex >= this.preFormFields.length) {
+      return;
+    }
+
+    const current = this.preFormFields.at(fieldIndex);
+    this.preFormFields.removeAt(fieldIndex);
+    this.preFormFields.insert(targetIndex, current);
+    this.resequencePreFormFields();
+  }
+
   submit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -286,8 +324,27 @@ export class TaskTemplateFormPageComponent {
     this.form.patchValue({
       template_name: template.template_name,
       description: template.description,
-      is_active: template.is_active
+      is_active: template.is_active,
+      requires_arrival_comment: template.requires_arrival_comment,
+      requires_video_evidence: template.requires_video_evidence,
+      requires_pre_form: template.requires_pre_form,
+      pre_form_title: template.pre_form?.title ?? null,
+      pre_form_instructions: template.pre_form?.instructions ?? null,
     });
+    this.preFormFields.clear();
+    (template.pre_form?.fields ?? [])
+      .sort((left, right) => left.order_index - right.order_index)
+      .forEach((field) => {
+        this.preFormFields.push(
+          this.createPreFormFieldGroup({
+            label: field.label,
+            field_type: field.field_type,
+            is_required: field.is_required,
+            order_index: field.order_index,
+            placeholder: field.placeholder,
+          })
+        );
+      });
     this.requiredMaterials.clear();
     template.required_materials.forEach((material) => {
       this.requiredMaterials.push(
@@ -311,6 +368,7 @@ export class TaskTemplateFormPageComponent {
             default_responsible_crm_user_id: subtask.default_responsible_crm_user_id,
             close_comment_required: subtask.close_comment_required,
             next_assignment_policy: subtask.next_assignment_policy,
+            subtask_type: subtask.subtask_type,
             items: subtask.items.map((item) => ({
               item_label: item.item_label,
               item_order: item.item_order,
@@ -337,7 +395,18 @@ export class TaskTemplateFormPageComponent {
       default_responsible_crm_user_id: this.formBuilder.control<string | null>(subtask?.default_responsible_crm_user_id ?? null),
       close_comment_required: this.formBuilder.control(subtask?.close_comment_required ?? true, { nonNullable: true }),
       next_assignment_policy: this.formBuilder.control<TaskAssignmentPolicy>(subtask?.next_assignment_policy ?? 'role_queue_auto', { nonNullable: true }),
+      subtask_type: this.formBuilder.control<TaskSubtaskType>(subtask?.subtask_type ?? 'standard', { nonNullable: true }),
       items: this.formBuilder.array(items)
+    });
+  }
+
+  private createPreFormFieldGroup(field?: Partial<{ label: string; field_type: TaskPreFormFieldType; is_required: boolean; order_index: number; placeholder: string | null }>) {
+    return this.formBuilder.group({
+      label: this.formBuilder.control(field?.label ?? '', { validators: [Validators.required], nonNullable: true }),
+      field_type: this.formBuilder.control<TaskPreFormFieldType>(field?.field_type ?? 'TEXT', { nonNullable: true }),
+      is_required: this.formBuilder.control(field?.is_required ?? true, { nonNullable: true }),
+      order_index: this.formBuilder.control(field?.order_index ?? 0, { nonNullable: true }),
+      placeholder: this.formBuilder.control<string | null>(field?.placeholder ?? null),
     });
   }
 
@@ -371,6 +440,12 @@ export class TaskTemplateFormPageComponent {
     });
   }
 
+  private resequencePreFormFields(): void {
+    this.preFormFields.controls.forEach((control, index) => {
+      control.get('order_index')?.setValue(index, { emitEvent: false });
+    });
+  }
+
   private loadUsersForSubtask(subtaskIndex: number): void {
     const subtask = this.subtasks.at(subtaskIndex);
     const roleKey = String(subtask.get('responsible_role_key')?.value ?? '');
@@ -400,9 +475,26 @@ export class TaskTemplateFormPageComponent {
   }
 
   private serializeForm(): CreateTaskTemplateRequest {
+    const requiresPreForm = this.form.controls.requires_pre_form.getRawValue();
     return {
       template_name: this.form.controls.template_name.getRawValue().trim(),
       description: this.form.controls.description.getRawValue()?.trim() || null,
+      requires_arrival_comment: this.form.controls.requires_arrival_comment.getRawValue(),
+      requires_video_evidence: this.form.controls.requires_video_evidence.getRawValue(),
+      requires_pre_form: requiresPreForm,
+      pre_form: requiresPreForm
+        ? {
+            title: this.form.controls.pre_form_title.getRawValue()?.trim() || null,
+            instructions: this.form.controls.pre_form_instructions.getRawValue()?.trim() || null,
+            fields: this.preFormFields.controls.map((fieldControl, fieldIndex) => ({
+              label: String(fieldControl.get('label')?.value ?? '').trim(),
+              field_type: fieldControl.get('field_type')?.value as TaskPreFormFieldType,
+              is_required: Boolean(fieldControl.get('is_required')?.value),
+              order_index: fieldIndex,
+              placeholder: String(fieldControl.get('placeholder')?.value ?? '').trim() || null,
+            }))
+          }
+        : null,
       required_materials: this.requiredMaterials.controls
         .map((control) => ({
           product_id: String(control.get('product_id')?.value ?? '').trim(),
@@ -418,6 +510,7 @@ export class TaskTemplateFormPageComponent {
         default_responsible_crm_user_id: String(subtaskControl.get('default_responsible_crm_user_id')?.value ?? '').trim() || null,
         close_comment_required: Boolean(subtaskControl.get('close_comment_required')?.value),
         next_assignment_policy: subtaskControl.get('next_assignment_policy')?.value as TaskAssignmentPolicy,
+        subtask_type: (subtaskControl.get('subtask_type')?.value as TaskSubtaskType) || 'standard',
         items: (subtaskControl.get('items') as FormArray).controls.map((itemControl, itemIndex) => ({
           item_label: String(itemControl.get('item_label')?.value ?? '').trim(),
           item_order: itemIndex,

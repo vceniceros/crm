@@ -18,8 +18,8 @@
       "items": [
         { "id": "dashboard", "moduleKey": "dashboard", "label": "Dashboard", "icon": "dashboard", "route": "/", "active": true },
         { "id": "tickets", "moduleKey": "tickets", "label": "Tickets", "icon": "confirmation_number", "route": "/tickets" },
-        { "id": "tasks", "moduleKey": "tasks", "label": "Tareas", "icon": "task_alt", "route": "/tasks" },
-        { "id": "task-templates", "moduleKey": "tasks", "label": "Templates de tareas", "icon": "schema", "route": "/tasks/templates" }
+        { "id": "tasks", "moduleKey": "tasks", "label": "Pedidos", "icon": "task_alt", "route": "/tasks" },
+        { "id": "task-templates", "moduleKey": "tasks", "label": "Estandarizacion de pedidos", "icon": "schema", "route": "/tasks/templates" }
       ]
     },
     {

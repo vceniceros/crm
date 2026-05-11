@@ -18,6 +18,8 @@ if TYPE_CHECKING:
     from crm_backend.models.task_reference import Client, Location
     from crm_backend.models.task_template import TaskTemplate
 
+from crm_backend.models.task_template import SubtaskType
+
 
 class TaskStatus(StrEnum):
     """Task aggregate lifecycle states."""
@@ -47,6 +49,21 @@ class TaskCommentType(StrEnum):
     GENERAL = "general"
     TRANSITION = "transition"
     PROGRESS = "progress"
+    CLOSURE = "closure"
+    ARRIVAL_REGISTRATION = "arrival_registration"
+    CLOSURE_EVIDENCE = "closure_evidence"
+
+
+class TaskPreFormFieldType(StrEnum):
+    """Supported dynamic task pre-form field types."""
+
+    TEXT = "TEXT"
+    NUMBER = "NUMBER"
+    TEXTAREA = "TEXTAREA"
+    DATE = "DATE"
+    TEL = "TEL"
+    FILE = "FILE"
+    CHECKBOX = "CHECKBOX"
 
 
 class TaskAttachmentType(StrEnum):
@@ -81,6 +98,20 @@ class Task(Base):
     task_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     priority: Mapped[str] = mapped_column(String(50), default="MEDIA", server_default="MEDIA")
     status: Mapped[str] = mapped_column(String(50), default=TaskStatus.PENDING.value, index=True)
+    requires_arrival_comment: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    requires_video_evidence: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    arrival_registered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    arrival_comment_id: Mapped[str | None] = mapped_column(
+        Uuid(as_uuid=False),
+        ForeignKey(
+            "task_comments.task_comment_id",
+            ondelete="SET NULL",
+            name="fk_tasks_arrival_comment",
+            use_alter=True,
+        ),
+        nullable=True,
+        index=True,
+    )
     current_assigned_crm_user_id: Mapped[str | None] = mapped_column(
         Uuid(as_uuid=False),
         ForeignKey("crm_users.crm_user_id"),
@@ -109,6 +140,11 @@ class Task(Base):
         foreign_keys=[finalized_by_crm_user_id],
         lazy="joined",
     )
+    arrival_comment: Mapped["TaskComment | None"] = relationship(
+        "TaskComment",
+        foreign_keys=[arrival_comment_id],
+        lazy="joined",
+    )
 
     subtasks: Mapped[list[Subtask]] = relationship(
         "Subtask",
@@ -121,6 +157,7 @@ class Task(Base):
     comments: Mapped[list[TaskComment]] = relationship(
         "TaskComment",
         back_populates="task",
+        foreign_keys="TaskComment.task_id",
         cascade="all, delete-orphan",
         order_by="TaskComment.created_at",
         lazy="selectin",
@@ -151,6 +188,20 @@ class Task(Base):
         back_populates="task",
         cascade="all, delete-orphan",
         order_by="InventoryDispatch.created_at.desc()",
+        lazy="selectin",
+    )
+    satisfaction_forms: Mapped[list[TaskSatisfactionForm]] = relationship(
+        "TaskSatisfactionForm",
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="TaskSatisfactionForm.created_at.desc()",
+        lazy="selectin",
+    )
+    pre_form_instances: Mapped[list[TaskPreFormInstance]] = relationship(
+        "TaskPreFormInstance",
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="TaskPreFormInstance.created_at.desc()",
         lazy="selectin",
     )
 
@@ -218,6 +269,7 @@ class Subtask(Base):
     default_responsible_crm_user_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id"), nullable=True)
     close_comment_required: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     next_assignment_policy: Mapped[str] = mapped_column(String(50), default="role_queue_auto", server_default="role_queue_auto")
+    subtask_type: Mapped[str] = mapped_column(String(50), default=SubtaskType.STANDARD.value, server_default=SubtaskType.STANDARD.value)
     status: Mapped[str] = mapped_column(String(50), default=SubtaskStatus.LOCKED.value, index=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     closed_by_crm_user_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id"), nullable=True)
@@ -407,12 +459,14 @@ class TaskComment(Base):
     task_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("tasks.task_id"), index=True)
     subtask_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), ForeignKey("subtasks.subtask_id"), nullable=True, index=True)
     author_crm_user_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id"), index=True)
-    comment_type: Mapped[str] = mapped_column(String(50), default=TaskCommentType.GENERAL.value)
+    location_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), ForeignKey("locations.location_id"), nullable=True, index=True)
+    comment_type: Mapped[str] = mapped_column(String(50), default=TaskCommentType.GENERAL.value, index=True)
     body: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    task: Mapped[Task] = relationship("Task", back_populates="comments")
+    task: Mapped[Task] = relationship("Task", back_populates="comments", foreign_keys=[task_id])
     author: Mapped["CrmUser"] = relationship("CrmUser", foreign_keys=[author_crm_user_id], lazy="joined")
+    location: Mapped["Location | None"] = relationship("Location", foreign_keys=[location_id], lazy="joined")
     attachments: Mapped[list[TaskAttachment]] = relationship(
         "TaskAttachment",
         back_populates="comment",
@@ -527,6 +581,218 @@ class TaskAuditEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     task: Mapped[Task] = relationship("Task", back_populates="audit_events")
+
+
+class TaskSatisfactionForm(Base):
+    """Secure one-use satisfaction form generated for a completed task."""
+
+    __tablename__ = "task_satisfaction_forms"
+
+    form_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    task_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("tasks.task_id"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    created_by_user_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id"), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    task: Mapped[Task] = relationship("Task", back_populates="satisfaction_forms", lazy="joined")
+    created_by_user: Mapped["CrmUser"] = relationship("CrmUser", foreign_keys=[created_by_user_id], lazy="joined")
+    response: Mapped["TaskSatisfactionResponse | None"] = relationship(
+        "TaskSatisfactionResponse",
+        back_populates="form",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    @property
+    def is_expired(self) -> bool:
+        from datetime import timezone as _tz
+
+        expires_at = self.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=_tz.utc)
+        return datetime.now(_tz.utc) > expires_at
+
+    @property
+    def is_usable(self) -> bool:
+        return self.revoked_at is None and self.used_at is None and not self.is_expired
+
+    @property
+    def status_label(self) -> str:
+        if self.revoked_at is not None:
+            return "revocado"
+        if self.used_at is not None:
+            return "respondido"
+        if self.is_expired:
+            return "expirado"
+        return "pendiente"
+
+
+class TaskSatisfactionResponse(Base):
+    """Client response to a task satisfaction form."""
+
+    __tablename__ = "task_satisfaction_responses"
+
+    response_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    form_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("task_satisfaction_forms.form_id"), unique=True, index=True)
+    task_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("tasks.task_id"), index=True)
+    customer_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    customer_company: Mapped[str] = mapped_column(String(255), nullable=False)
+    rating: Mapped[float] = mapped_column(nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    submitter_ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    submitter_user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    form: Mapped[TaskSatisfactionForm] = relationship("TaskSatisfactionForm", back_populates="response")
+
+
+class TaskTemplatePreForm(Base):
+    """Pre-form definition configured for a task template."""
+
+    __tablename__ = "task_template_pre_forms"
+
+    form_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    template_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("task_templates.template_id"), unique=True, index=True)
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    template: Mapped["TaskTemplate"] = relationship("TaskTemplate", back_populates="pre_form")
+    fields: Mapped[list[TaskTemplatePreFormField]] = relationship(
+        "TaskTemplatePreFormField",
+        back_populates="form",
+        cascade="all, delete-orphan",
+        order_by="TaskTemplatePreFormField.order_index",
+        lazy="selectin",
+    )
+
+
+class TaskTemplatePreFormField(Base):
+    """Field definition for a pre-form."""
+
+    __tablename__ = "task_template_pre_form_fields"
+
+    field_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    form_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("task_template_pre_forms.form_id"), index=True)
+    label: Mapped[str] = mapped_column(String(255), nullable=False)
+    field_type: Mapped[str] = mapped_column(String(50), default=TaskPreFormFieldType.TEXT.value)
+    is_required: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    order_index: Mapped[int] = mapped_column()
+    placeholder: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    form: Mapped[TaskTemplatePreForm] = relationship("TaskTemplatePreForm", back_populates="fields")
+
+
+class TaskPreFormInstance(Base):
+    """One secure pre-form instance generated for a concrete task."""
+
+    __tablename__ = "task_pre_form_instances"
+
+    instance_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    task_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("tasks.task_id"), index=True)
+    template_pre_form_id: Mapped[str | None] = mapped_column(
+        Uuid(as_uuid=False),
+        ForeignKey("task_template_pre_forms.form_id"),
+        nullable=True,
+        index=True,
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    task: Mapped[Task] = relationship("Task", back_populates="pre_form_instances")
+    template_pre_form: Mapped[TaskTemplatePreForm | None] = relationship("TaskTemplatePreForm", lazy="joined")
+    response: Mapped[TaskPreFormResponse | None] = relationship(
+        "TaskPreFormResponse",
+        back_populates="instance",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    attachments: Mapped[list[TaskPreFormAttachment]] = relationship(
+        "TaskPreFormAttachment",
+        back_populates="instance",
+        cascade="all, delete-orphan",
+        order_by="TaskPreFormAttachment.uploaded_at",
+        lazy="selectin",
+    )
+
+    @property
+    def is_expired(self) -> bool:
+        from datetime import timezone as _tz
+
+        expires_at = self.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=_tz.utc)
+        return datetime.now(_tz.utc) > expires_at
+
+    @property
+    def is_usable(self) -> bool:
+        return self.submitted_at is None and self.revoked_at is None and not self.is_expired
+
+
+class TaskPreFormResponse(Base):
+    """Submitted response for a task pre-form instance."""
+
+    __tablename__ = "task_pre_form_responses"
+
+    response_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    instance_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("task_pre_form_instances.instance_id"), unique=True, index=True)
+    task_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("tasks.task_id"), index=True)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    submitter_ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    instance: Mapped[TaskPreFormInstance] = relationship("TaskPreFormInstance", back_populates="response")
+    field_values: Mapped[list[TaskPreFormFieldValue]] = relationship(
+        "TaskPreFormFieldValue",
+        back_populates="response",
+        cascade="all, delete-orphan",
+        order_by="TaskPreFormFieldValue.value_id",
+        lazy="selectin",
+    )
+
+
+class TaskPreFormFieldValue(Base):
+    """Single field value submitted by the customer in pre-form."""
+
+    __tablename__ = "task_pre_form_field_values"
+
+    value_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    response_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("task_pre_form_responses.response_id"), index=True)
+    field_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("task_template_pre_form_fields.field_id"), index=True)
+    text_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    file_attachment_id: Mapped[str | None] = mapped_column(
+        Uuid(as_uuid=False),
+        ForeignKey("task_pre_form_attachments.attachment_id"),
+        nullable=True,
+        index=True,
+    )
+
+    response: Mapped[TaskPreFormResponse] = relationship("TaskPreFormResponse", back_populates="field_values")
+    field: Mapped[TaskTemplatePreFormField] = relationship("TaskTemplatePreFormField", lazy="joined")
+    attachment: Mapped[TaskPreFormAttachment | None] = relationship("TaskPreFormAttachment", lazy="joined")
+
+
+class TaskPreFormAttachment(Base):
+    """Media uploaded as part of a task pre-form submission."""
+
+    __tablename__ = "task_pre_form_attachments"
+
+    attachment_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    instance_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("task_pre_form_instances.instance_id"), index=True)
+    file_name: Mapped[str] = mapped_column(String(500))
+    file_url: Mapped[str] = mapped_column(String(1000))
+    mime_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    instance: Mapped[TaskPreFormInstance] = relationship("TaskPreFormInstance", back_populates="attachments")
 
 
 def _user_display_label(user: object | None) -> str | None:

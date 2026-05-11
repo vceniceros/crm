@@ -18,6 +18,7 @@ src/crm_backend/api/endpoints/inventory_flow.py
 src/crm_backend/api/endpoints/locations.py
 src/crm_backend/api/endpoints/me.py
 src/crm_backend/api/endpoints/notifications.py
+src/crm_backend/api/endpoints/public_tasks.py
 src/crm_backend/api/endpoints/public_tickets.py
 src/crm_backend/api/endpoints/reports.py
 src/crm_backend/api/endpoints/settings.py
@@ -88,6 +89,9 @@ src/crm_backend/services/role_resolution_service.py
 src/crm_backend/services/satisfaction_form_service.py
 src/crm_backend/services/settings_service.py
 src/crm_backend/services/stock_service.py
+src/crm_backend/services/task_export_service.py
+src/crm_backend/services/task_pre_form_service.py
+src/crm_backend/services/task_satisfaction_form_service.py
 src/crm_backend/services/ticket_export_service.py
 src/crm_backend/services/ticket_service.py
 src/crm_backend/services/tasks/__init__.py

@@ -15,6 +15,9 @@ from crm_backend.services.role_resolution_service import RoleResolutionService
 from crm_backend.services.reports_service import ReportsService
 from crm_backend.services.settings_service import SettingsService
 from crm_backend.services.stock_service import CreateStockProductCommand, StockApplicationService
+from crm_backend.services.task_export_service import TaskExportService
+from crm_backend.services.task_pre_form_service import TaskPreFormService
+from crm_backend.services.task_satisfaction_form_service import TaskSatisfactionFormService
 from crm_backend.services.ticket_service import TicketApplicationService
 from crm_backend.services.tasks import TaskApplicationService
 
@@ -35,6 +38,9 @@ __all__ = [
 	"SettingsService",
 	"CreateStockProductCommand",
 	"StockApplicationService",
+	"TaskExportService",
+	"TaskPreFormService",
+	"TaskSatisfactionFormService",
 	"TicketApplicationService",
 	"TaskApplicationService",
 ]

@@ -83,6 +83,7 @@ class BaseSubtaskActionExecutor:
     action_name: str
     target_status: str
     audit_event_type: str
+    comment_type: str = TaskCommentType.TRANSITION.value
 
     def __init__(
         self,
@@ -116,7 +117,7 @@ class BaseSubtaskActionExecutor:
             task_id=context.task.task_id,
             subtask_id=context.subtask.subtask_id,
             author_crm_user_id=context.actor.crm_user.crm_user_id,
-            comment_type=TaskCommentType.TRANSITION.value,
+            comment_type=self.comment_type,
             body=context.comment.strip(),
         )
         self._task_repository.session.add(comment)
@@ -195,6 +196,7 @@ class CloseSubtaskActionExecutor(BaseSubtaskActionExecutor):
     action_name = "close_subtask"
     target_status = SubtaskStatus.COMPLETED.value
     audit_event_type = "subtask.closed"
+    comment_type = TaskCommentType.CLOSURE_EVIDENCE.value
 
     def _after_action(self, context: ActionExecutionContext) -> None:
         self._flow_service.advance_after_close(context)

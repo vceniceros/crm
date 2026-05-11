@@ -1,29 +1,47 @@
 """HTTP endpoints for the task module."""
 
+from datetime import UTC, datetime
 import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Response, UploadFile, status
+from fastapi.responses import StreamingResponse
 
-from crm_backend.api.dependencies import get_authenticated_crm_session, get_task_application_service
+from crm_backend.api.dependencies import (
+    get_authenticated_crm_session,
+    get_task_application_service,
+    get_task_export_service,
+    get_task_pre_form_service,
+    get_task_satisfaction_form_service,
+)
+from crm_backend.core.exceptions import SatisfactionFormNotFoundError, TaskPreFormNotFoundError
 from crm_backend.schemas import (
     ApproveTaskRequest,
     AssignSubtaskRequest,
+    CreateTaskCommentRequest,
     CreateTaskFromTemplateRequest,
     CreateTaskTemplateRequest,
     ErrorResponse,
     ExecuteSubtaskActionRequest,
+    GenerateTaskSatisfactionFormResponse,
+    PublicTaskPreFormInfoResponse,
+    PublicTaskSatisfactionFormInfoResponse,
     RejectTaskApprovalRequest,
     SetTaskTemplateActivationRequest,
+    SubmitTaskPreFormRequest,
+    SubmitTaskSatisfactionFormRequest,
     TaskAttachmentResponse,
     TaskDetailResponse,
+    TaskPreFormStatusResponse,
+    TaskSatisfactionFormStatusResponse,
+    TaskSatisfactionResponseDetailResponse,
     TaskSummaryResponse,
     TaskTemplateResponse,
     UpdateTaskTemplateRequest,
     UnassignedSubtaskQueueResponse,
     UpdateSubtaskProgressRequest,
 )
-from crm_backend.services import TaskApplicationService
+from crm_backend.services import TaskApplicationService, TaskExportService, TaskPreFormService, TaskSatisfactionFormService
 from crm_backend.services.auth_service import ResolvedCrmSession
 
 
@@ -64,6 +82,29 @@ def _map_unassigned_subtask(subtask) -> UnassignedSubtaskQueueResponse:
         responsible_role_key=subtask.responsible_role_key,
         status=subtask.status,
         order_index=subtask.order_index,
+    )
+
+
+def _build_export_response(task, zip_bytes: bytes) -> StreamingResponse:
+    task_number = task.task_id
+    date_label = datetime.now(UTC).strftime("%Y%m%d")
+    filename = f"pedido_{task_number}_{date_label}.zip"
+    return StreamingResponse(
+        iter([zip_bytes]),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _map_task_satisfaction_response(response) -> TaskSatisfactionResponseDetailResponse:
+    return TaskSatisfactionResponseDetailResponse(
+        response_id=response.response_id,
+        task_id=response.task_id,
+        customer_name=response.customer_name,
+        customer_company=response.customer_company,
+        rating=response.rating,
+        comment=response.comment,
+        submitted_at=response.submitted_at,
     )
 
 
@@ -163,6 +204,28 @@ def delete_task_attachment(
 ) -> Response:
     task_service.delete_task_attachment(actor, attachment_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/{task_id}/comments",
+    response_model=TaskDetailResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+)
+def add_task_comment(
+    task_id: str,
+    payload: CreateTaskCommentRequest,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    task_service: TaskApplicationService = Depends(get_task_application_service),
+) -> TaskDetailResponse:
+    return TaskDetailResponse.model_validate(
+        task_service.add_task_comment(
+            actor,
+            task_id,
+            body=payload.body,
+            location_id=payload.location_id,
+            attachment_ids=payload.attachment_ids,
+        )
+    )
 
 
 @router.post(
@@ -322,3 +385,152 @@ def execute_subtask_action(
     task_service: TaskApplicationService = Depends(get_task_application_service),
 ) -> TaskDetailResponse:
     return TaskDetailResponse.model_validate(task_service.execute_subtask_action(actor, subtask_id, payload))
+
+
+@router.get(
+    "/{task_id}/export",
+    responses={
+        200: {"content": {"application/zip": {}}, "description": "ZIP archive with PDF + multimedia"},
+        401: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+    },
+)
+def export_task_history(
+    task_id: str,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    task_service: TaskApplicationService = Depends(get_task_application_service),
+    export_service: TaskExportService = Depends(get_task_export_service),
+) -> StreamingResponse:
+    task = task_service.get_task_detail(actor, task_id)
+    zip_bytes = export_service.export_development_zip(actor, task)
+    return _build_export_response(task, zip_bytes)
+
+
+@router.post(
+    "/{task_id}/satisfaction-form",
+    response_model=GenerateTaskSatisfactionFormResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
+)
+def generate_task_satisfaction_form(
+    task_id: str,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    task_service: TaskApplicationService = Depends(get_task_application_service),
+    sat_service: TaskSatisfactionFormService = Depends(get_task_satisfaction_form_service),
+) -> GenerateTaskSatisfactionFormResponse:
+    task = task_service.get_task_detail(actor, task_id)
+    form, raw_token = sat_service.generate_form(actor, task)
+    return GenerateTaskSatisfactionFormResponse(
+        form_id=form.form_id,
+        task_id=form.task_id,
+        public_link_token=raw_token,
+        survey_path=f"/satisfaction/{raw_token}?mode=task",
+        expires_at=form.expires_at,
+        status_label=form.status_label,
+    )
+
+
+@router.get(
+    "/{task_id}/satisfaction-form/status",
+    response_model=TaskSatisfactionFormStatusResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def get_task_satisfaction_form_status(
+    task_id: str,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    task_service: TaskApplicationService = Depends(get_task_application_service),
+    sat_service: TaskSatisfactionFormService = Depends(get_task_satisfaction_form_service),
+) -> TaskSatisfactionFormStatusResponse:
+    task = task_service.get_task_detail(actor, task_id)
+    form = sat_service.get_form_status(actor, task)
+    if form is None:
+        raise SatisfactionFormNotFoundError()
+    return TaskSatisfactionFormStatusResponse.from_orm_form(form)
+
+
+@router.get(
+    "/{task_id}/satisfaction-response",
+    response_model=TaskSatisfactionResponseDetailResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def get_task_satisfaction_response(
+    task_id: str,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    task_service: TaskApplicationService = Depends(get_task_application_service),
+    sat_service: TaskSatisfactionFormService = Depends(get_task_satisfaction_form_service),
+) -> TaskSatisfactionResponseDetailResponse:
+    task = task_service.get_task_detail(actor, task_id)
+    response = sat_service.get_response_for_task(actor, task)
+    if response is None:
+        raise SatisfactionFormNotFoundError()
+    return _map_task_satisfaction_response(response)
+
+
+@router.post(
+    "/{task_id}/pre-form/generate",
+    response_model=TaskPreFormStatusResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
+)
+def generate_task_pre_form_link(
+    task_id: str,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    task_service: TaskApplicationService = Depends(get_task_application_service),
+    pre_form_service: TaskPreFormService = Depends(get_task_pre_form_service),
+) -> TaskPreFormStatusResponse:
+    task = task_service.get_task_detail(actor, task_id)
+    instance, raw_token = pre_form_service.generate_or_regenerate_link(actor, task)
+    return TaskPreFormStatusResponse(
+        instance_id=instance.instance_id,
+        task_id=instance.task_id,
+        status_label=("respondido" if instance.submitted_at else "pendiente"),
+        expires_at=instance.expires_at,
+        submitted_at=instance.submitted_at,
+        revoked_at=instance.revoked_at,
+        form_link_path=f"/pre-form/{raw_token}",
+        response_values=[],
+    )
+
+
+@router.get(
+    "/{task_id}/pre-form/status",
+    response_model=TaskPreFormStatusResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def get_task_pre_form_status(
+    task_id: str,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    task_service: TaskApplicationService = Depends(get_task_application_service),
+    pre_form_service: TaskPreFormService = Depends(get_task_pre_form_service),
+) -> TaskPreFormStatusResponse:
+    task = task_service.get_task_detail(actor, task_id)
+    instance = pre_form_service.get_status(actor, task)
+    if instance is None:
+        raise TaskPreFormNotFoundError()
+
+    response_values = []
+    if instance.response is not None and instance.template_pre_form is not None:
+        field_lookup = {field.field_id: field for field in instance.template_pre_form.fields}
+        for field_value in instance.response.field_values:
+            field = field_lookup.get(field_value.field_id)
+            if field is None:
+                continue
+            response_values.append(
+                {
+                    "field_id": field.field_id,
+                    "label": field.label,
+                    "field_type": field.field_type,
+                    "text_value": field_value.text_value,
+                    "file_attachment_id": field_value.file_attachment_id,
+                }
+            )
+
+    return TaskPreFormStatusResponse(
+        instance_id=instance.instance_id,
+        task_id=instance.task_id,
+        status_label=("respondido" if instance.submitted_at else "pendiente"),
+        expires_at=instance.expires_at,
+        submitted_at=instance.submitted_at,
+        revoked_at=instance.revoked_at,
+        form_link_path=None,
+        response_values=response_values,
+    )

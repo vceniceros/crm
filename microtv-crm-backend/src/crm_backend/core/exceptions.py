@@ -274,6 +274,17 @@ class TaskConflictError(ApplicationError):
         super().__init__(code="task_conflict", message=message, status_code=409)
 
 
+class TaskPreFormNotFoundError(ApplicationError):
+    """Señala que el formulario previo no existe o el token es inválido."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            code="task_pre_form_not_found",
+            message="El formulario previo indicado no existe, expiró o ya fue utilizado.",
+            status_code=404,
+        )
+
+
 class InvalidTaskAttachmentError(ApplicationError):
     """Señala que el adjunto de tarea es inválido."""
 

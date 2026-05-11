@@ -33,6 +33,15 @@ export const routes: Routes = [
 			),
 		data: { title: 'Encuesta de satisfacción' }
 	},
+		{
+			// Public pre-form — NO auth guard
+			path: 'pre-form/:token',
+			loadComponent: () =>
+				import('./features/pre-form/components/public-task-pre-form-page/public-task-pre-form-page.component').then(
+					(m) => m.PublicTaskPreFormPageComponent
+				),
+			data: { title: 'Formulario previo' }
+		},
 	{
 		path: '',
 		canActivate: [authGuard],
@@ -75,25 +84,25 @@ export const routes: Routes = [
 			{
 				path: 'tasks',
 				loadComponent: () => import('./features/tasks/components/tasks-page/tasks-page.component').then((module) => module.TasksPageComponent),
-				data: { title: 'Tareas' }
+				data: { title: 'Pedidos' }
 			},
 			{
 				path: 'tasks/history',
 				canActivate: [adminOrExecutiveGuard],
 				loadComponent: () => import('./features/tasks/components/tasks-page/tasks-page.component').then((module) => module.TasksPageComponent),
-				data: { title: 'Historial de tareas' }
+				data: { title: 'Historial de pedidos' }
 			},
 			{
 				path: 'tasks/templates',
 				canActivate: [adminOnlyGuard],
 				loadComponent: () => import('./features/task-templates/components/task-templates-page/task-templates-page.component').then((module) => module.TaskTemplatesPageComponent),
-				data: { title: 'Templates de tareas' }
+				data: { title: 'Templates de pedidos' }
 			},
 			{
 				path: 'tasks/templates/new',
 				canActivate: [adminOnlyGuard],
 				loadComponent: () => import('./features/task-templates/components/task-template-form-page/task-template-form-page.component').then((module) => module.TaskTemplateFormPageComponent),
-				data: { title: 'Nuevo template de tarea' }
+				data: { title: 'Nuevo template de pedido' }
 			},
 			{
 				path: 'tasks/templates/:templateId',
@@ -105,7 +114,7 @@ export const routes: Routes = [
 				path: 'tasks/templates/:templateId/edit',
 				canActivate: [adminOnlyGuard],
 				loadComponent: () => import('./features/task-templates/components/task-template-form-page/task-template-form-page.component').then((module) => module.TaskTemplateFormPageComponent),
-				data: { title: 'Editar template de tarea' }
+				data: { title: 'Editar template de pedido' }
 			},
 			{
 				path: 'tasks/subtask-success',
@@ -115,7 +124,7 @@ export const routes: Routes = [
 			{
 				path: 'tasks/:taskId',
 				loadComponent: () => import('./features/tasks/components/task-execution-page/task-execution-page.component').then((module) => module.TaskExecutionPageComponent),
-				data: { title: 'Ejecución de tarea' }
+				data: { title: 'Ejecución de pedido' }
 			},
 			{
 				path: 'reports',
