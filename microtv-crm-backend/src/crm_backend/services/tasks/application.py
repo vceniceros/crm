@@ -596,8 +596,8 @@ class TaskApplicationService:
             raise TaskConflictError("La tarea no está pendiente de aprobación ejecutiva.")
         if task.requires_arrival_comment and task.arrival_registered_at is None:
             raise TaskConflictError("Este pedido requiere llegada registrada antes de aprobar el cierre final.")
-        if task.requires_video_evidence and not self._task_has_closure_video_evidence(task):
-            raise TaskConflictError("Este pedido requiere evidencia en video para aprobar el cierre final.")
+        if task.requires_video_evidence and not self._task_has_closure_media_evidence(task):
+            raise TaskConflictError("Este pedido requiere evidencia multimedia (foto o video) para aprobar el cierre final.")
 
         previous_assigned_crm_user_id = task.current_assigned_crm_user_id
         previous_subtask_id = task.current_subtask_id
@@ -950,7 +950,7 @@ class TaskApplicationService:
             )
         )
 
-    def _attachment_ids_have_video(self, task: Task, attachment_ids: list[str]) -> bool:
+    def _attachment_ids_have_media(self, task: Task, attachment_ids: list[str]) -> bool:
         if not attachment_ids:
             return False
 
@@ -966,9 +966,10 @@ class TaskApplicationService:
             if attachment.task_id != task.task_id:
                 raise TaskValidationError("Los adjuntos de cierre deben pertenecer a la misma tarea.")
 
-        return any(attachment.attachment_type == TaskAttachmentType.VIDEO.value for attachment in attachments)
+        allowed_media_types = {TaskAttachmentType.PHOTO.value, TaskAttachmentType.VIDEO.value}
+        return any(attachment.attachment_type in allowed_media_types for attachment in attachments)
 
-    def _task_has_closure_video_evidence(self, task: Task) -> bool:
+    def _task_has_closure_media_evidence(self, task: Task) -> bool:
         closure_comment_ids = {
             comment.task_comment_id
             for comment in task.comments
@@ -977,8 +978,9 @@ class TaskApplicationService:
         if not closure_comment_ids:
             return False
 
+        allowed_media_types = {TaskAttachmentType.PHOTO.value, TaskAttachmentType.VIDEO.value}
         return any(
-            attachment.attachment_type == TaskAttachmentType.VIDEO.value
+            attachment.attachment_type in allowed_media_types
             for attachment in self._task_repository.session.scalars(
                 select(TaskAttachment).where(TaskAttachment.task_id == task.task_id)
             ).all()
@@ -995,8 +997,8 @@ class TaskApplicationService:
                 "Este pedido requiere registrar llegada antes del cierre final. Agregá un comentario con ubicación y multimedia."
             )
 
-        if task.requires_video_evidence and not self._attachment_ids_have_video(task, attachment_ids):
-            raise TaskValidationError("El cierre final requiere al menos un video adjunto como evidencia.")
+        if task.requires_video_evidence and not self._attachment_ids_have_media(task, attachment_ids):
+            raise TaskValidationError("El cierre final requiere al menos un adjunto multimedia (foto o video) como evidencia.")
 
     @staticmethod
     def _hash_token(raw_token: str) -> str:

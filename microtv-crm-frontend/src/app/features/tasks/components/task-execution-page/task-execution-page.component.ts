@@ -255,7 +255,7 @@ export class TaskExecutionPageComponent {
     return Boolean(currentTask?.requires_video_evidence && this.isSelectedSubtaskFinal());
   });
   readonly isCloseBlockedByVideoRequirement = computed(() => {
-    return this.requiresVideoEvidenceForCurrentClose() && !this.pendingAttachments().some((attachment) => attachment.kind === 'video');
+    return this.requiresVideoEvidenceForCurrentClose() && this.pendingAttachments().length === 0;
   });
 
   constructor() {
@@ -1175,10 +1175,6 @@ export class TaskExecutionPageComponent {
 
     const action = this.selectedPrimaryCommentAction();
     if (action === 'comment') {
-      if (this.requiresArrivalRegistration()) {
-        const hasLocation = this.locationLinkService.isValidLocation(this.selectedCommentLocation());
-        return hasLocation && this.pendingAttachments().length > 0;
-      }
       return true;
     }
 
@@ -1267,17 +1263,6 @@ export class TaskExecutionPageComponent {
 
     const selectedLocation = this.selectedCommentLocation();
     const hasSelectedLocation = this.locationLinkService.isValidLocation(selectedLocation);
-
-    if (this.requiresArrivalRegistration()) {
-      if (!hasSelectedLocation) {
-        this.showOperationError('Para registrar llegada, seleccioná una ubicación del comentario.');
-        return;
-      }
-      if (!this.pendingAttachments().length) {
-        this.showOperationError('Para registrar llegada, agregá al menos un adjunto (foto o video).');
-        return;
-      }
-    }
 
     this.isSaving.set(true);
     this.errorMessage.set(null);
