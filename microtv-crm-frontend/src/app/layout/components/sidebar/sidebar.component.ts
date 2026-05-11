@@ -3,10 +3,8 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterModule } from '@angular/router';
 
-import { crmApiConfig } from '../../../core/config/crm-api.config';
 import { BrandInfo } from '../../../core/models/layout.model';
 import { NavigationSection } from '../../../core/models/navigation.model';
-import { resolveBackendAssetUrl } from '../../../core/utils/backend-asset-url.util';
 import { SidebarUserSwitcherComponent } from '../sidebar-user-switcher/sidebar-user-switcher.component';
 
 @Component({
@@ -17,8 +15,7 @@ import { SidebarUserSwitcherComponent } from '../sidebar-user-switcher/sidebar-u
   styleUrl: './sidebar.component.scss'
 })
 export class SidebarComponent {
-  readonly sidebarLogoUrl =
-    resolveBackendAssetUrl('/media/images/branding/logo-192.png', crmApiConfig.baseUrl) ?? '/api/media/images/branding/logo-192.png';
+  readonly sidebarLogoUrl = '/images/branding/logo-192.png?v=20260511';
 
   readonly brand = input.required<BrandInfo>();
   readonly navigation = input.required<NavigationSection[]>();
