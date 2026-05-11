@@ -47,6 +47,7 @@ import { TaskAttachment } from '../../../../core/models/task-attachment.model';
 import { TaskManagementService } from '../../../../core/services/task-management.service';
 import { AppLocation } from '../../../../core/models/location.model';
 import { LocationLinkService } from '../../../../shared/services/location-link.service';
+import { LocationPickerService } from '../../../../shared/services/location-picker.service';
 import { LocationMapComponent } from '../../../../shared/ui/location-map/location-map.component';
 import { TaskAttachmentsSectionComponent } from '../task-attachments-section/task-attachments-section.component';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
@@ -54,6 +55,7 @@ import { StatusBadgeComponent } from '../../../../shared/ui/status-badge/status-
 import { UserAvatarComponent } from '../../../../shared/ui/user-avatar/user-avatar.component';
 
 type DispatchIdentifierType = 'none' | 'serial' | 'barcode';
+type TaskCommentPrimaryAction = 'comment' | TaskAction;
 type TaskExecutionSectionId =
   | 'subtasks_flow'
   | 'required_materials'
@@ -109,6 +111,7 @@ export class TaskExecutionPageComponent {
   private readonly authSessionService = inject(AuthSessionService);
   private readonly router = inject(Router);
   private readonly locationLinkService = inject(LocationLinkService);
+  private readonly locationPickerService = inject(LocationPickerService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -139,6 +142,8 @@ export class TaskExecutionPageComponent {
     subtask_transitions: false,
     subtask_comments: false,
   });
+  readonly selectedPrimaryCommentAction = signal<TaskCommentPrimaryAction>('comment');
+  readonly selectedCommentLocation = signal<AppLocation | null>(null);
   readonly actionOptions = TASK_ACTION_OPTIONS;
   readonly operationForm = this.formBuilder.group({
     items: this.formBuilder.array([]),
@@ -148,9 +153,6 @@ export class TaskExecutionPageComponent {
   readonly adminAssignmentForm = this.formBuilder.group({
     assigned_crm_user_id: this.formBuilder.control<string | null>(null, { validators: [Validators.required] }),
     notes: this.formBuilder.control<string | null>(null)
-  });
-  readonly internalCommentForm = this.formBuilder.group({
-    body: this.formBuilder.control('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(4000)] })
   });
   readonly requestComposerForm = this.formBuilder.group({
     product_id: this.formBuilder.control('', { validators: [Validators.required], nonNullable: true }),
@@ -251,6 +253,9 @@ export class TaskExecutionPageComponent {
   readonly requiresVideoEvidenceForCurrentClose = computed(() => {
     const currentTask = this.task();
     return Boolean(currentTask?.requires_video_evidence && this.isSelectedSubtaskFinal());
+  });
+  readonly isCloseBlockedByVideoRequirement = computed(() => {
+    return this.requiresVideoEvidenceForCurrentClose() && !this.pendingAttachments().some((attachment) => attachment.kind === 'video');
   });
 
   constructor() {
@@ -1122,6 +1127,119 @@ export class TaskExecutionPageComponent {
     this.pendingAttachments.update((current) => [...current, ...attachments]);
   }
 
+  selectPrimaryCommentAction(action: TaskCommentPrimaryAction): void {
+    this.selectedPrimaryCommentAction.set(action);
+  }
+
+  primaryCommentActionLabel(): string {
+    const action = this.selectedPrimaryCommentAction();
+    if (action === 'comment') {
+      return 'Publicar comentario';
+    }
+
+    return this.actionOptions.find((option) => option.value === action)?.label ?? 'Ejecutar acción';
+  }
+
+  commentFieldLabel(): string {
+    const action = this.selectedPrimaryCommentAction();
+    if (action === 'comment') {
+      return 'Comentario operativo';
+    }
+    if (action === 'close_subtask') {
+      return 'Comentario obligatorio de cierre';
+    }
+
+    return 'Comentario de acción';
+  }
+
+  commentFieldPlaceholder(): string {
+    const action = this.selectedPrimaryCommentAction();
+    if (action === 'comment') {
+      return 'Describe diagnóstico, avance, llegada o bloqueo';
+    }
+    if (action === 'close_subtask') {
+      return 'Describe validación y evidencia del cierre';
+    }
+
+    return 'Describe el motivo de esta acción';
+  }
+
+  canExecutePrimaryCommentAction(subtask: Subtask): boolean {
+    if (this.isSaving() || !this.subtaskCanBeOperated(subtask)) {
+      return false;
+    }
+
+    if (!this.operationForm.controls.comment.valid) {
+      return false;
+    }
+
+    const action = this.selectedPrimaryCommentAction();
+    if (action === 'comment') {
+      if (this.requiresArrivalRegistration()) {
+        const hasLocation = this.locationLinkService.isValidLocation(this.selectedCommentLocation());
+        return hasLocation && this.pendingAttachments().length > 0;
+      }
+      return true;
+    }
+
+    if (action === 'close_subtask' && this.isCloseBlockedByVideoRequirement()) {
+      return false;
+    }
+
+    return this.canExecuteFinalAction(subtask);
+  }
+
+  executePrimaryCommentAction(subtask: Subtask): void {
+    const action = this.selectedPrimaryCommentAction();
+    if (action === 'comment') {
+      this.submitTaskComment();
+      return;
+    }
+
+    this.executeAction(action);
+  }
+
+  openCommentLocationPicker(): void {
+    this.locationPickerService
+      .open({
+        title: 'Ubicación del comentario operativo',
+        initialLocation: this.selectedCommentLocation() ?? this.taskLocation()
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((result) => {
+        if (!result) {
+          return;
+        }
+
+        this.selectedCommentLocation.set(result.location);
+      });
+  }
+
+  useTaskLocationForComment(): void {
+    this.selectedCommentLocation.set(this.taskLocation());
+  }
+
+  clearCommentLocation(): void {
+    this.selectedCommentLocation.set(null);
+  }
+
+  selectedCommentLocationLabel(): string {
+    const location = this.selectedCommentLocation();
+    if (!location) {
+      return 'Sin ubicación para comentario';
+    }
+
+    return location.addressLabel?.trim() || `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`;
+  }
+
+  canOpenCommentLocationInMaps(): boolean {
+    return this.locationLinkService.isValidLocation(this.selectedCommentLocation());
+  }
+
+  openCommentLocationInMaps(): void {
+    this.locationLinkService.openInGoogleMaps(this.selectedCommentLocation());
+  }
+
   isSectionCollapsed(section: TaskExecutionSectionId): boolean {
     return this.sectionCollapseState()[section];
   }
@@ -1133,23 +1251,26 @@ export class TaskExecutionPageComponent {
     }));
   }
 
-  addInternalComment(): void {
+  submitTaskComment(): void {
     const currentTask = this.task();
     const subtask = this.selectedSubtask();
     if (!currentTask || !subtask || !this.subtaskCanBeOperated(subtask) || this.isSaving()) {
       return;
     }
 
-    const body = this.internalCommentForm.controls.body.getRawValue().trim();
+    const body = this.operationForm.controls.comment.getRawValue().trim();
     if (!body) {
-      this.internalCommentForm.controls.body.markAsTouched();
-      this.showOperationError('Escribí un comentario interno antes de guardarlo.');
+      this.operationForm.controls.comment.markAsTouched();
+      this.showOperationError('Escribí un comentario antes de publicarlo.');
       return;
     }
 
+    const selectedLocation = this.selectedCommentLocation();
+    const hasSelectedLocation = this.locationLinkService.isValidLocation(selectedLocation);
+
     if (this.requiresArrivalRegistration()) {
-      if (!currentTask.location_id) {
-        this.showOperationError('Para registrar llegada, la tarea debe tener ubicación cargada.');
+      if (!hasSelectedLocation) {
+        this.showOperationError('Para registrar llegada, seleccioná una ubicación del comentario.');
         return;
       }
       if (!this.pendingAttachments().length) {
@@ -1162,26 +1283,23 @@ export class TaskExecutionPageComponent {
     this.errorMessage.set(null);
     this.successMessage.set(null);
 
-    this.taskManagementService
-      .addTaskComment(currentTask.task_id, {
-        body,
-        location_id: currentTask.location_id,
-        attachment_ids: this.pendingAttachments().map((attachment) => attachment.id)
-      })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (task) => {
-          this.internalCommentForm.reset({ body: '' });
-          const infoSuffix = this.requiresArrivalRegistration()
-            ? ' Si este pedido requería llegada, quedó registrada automáticamente.'
-            : '';
-          this.updateTask(task, `Comentario interno guardado.${infoSuffix}`);
-        },
-        error: (error: Error) => {
-          this.showOperationError(error.message);
-          this.isSaving.set(false);
-        }
-      });
+    if (hasSelectedLocation) {
+      this.taskManagementService
+        .createLocation(selectedLocation as AppLocation)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (location) => {
+            this.submitTaskCommentWithLocationId(currentTask.task_id, body, location.locationId);
+          },
+          error: (error: Error) => {
+            this.showOperationError(error.message);
+            this.isSaving.set(false);
+          }
+        });
+      return;
+    }
+
+    this.submitTaskCommentWithLocationId(currentTask.task_id, body, null);
   }
 
   removeAttachment(attachmentId: string): void {
@@ -1257,6 +1375,7 @@ export class TaskExecutionPageComponent {
     this.taskManagementService.getTaskDetail(taskId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (task) => {
         this.task.set(task);
+        this.selectedCommentLocation.set(this.taskLocation());
         this.pageError.set(null);
         this.selectedSubtaskId.set(task.current_subtask_id ?? task.subtasks[0]?.subtask_id ?? null);
         this.rebuildOperationForm();
@@ -1279,6 +1398,7 @@ export class TaskExecutionPageComponent {
     this.taskManagementService.getTaskDetail(taskId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (task) => {
         this.task.set(task);
+        this.selectedCommentLocation.set(this.taskLocation());
         this.successMessage.set(message);
         this.errorMessage.set(null);
         this.loadTaskSatisfactionStatus(task.task_id);
@@ -1318,7 +1438,7 @@ export class TaskExecutionPageComponent {
 
     this.operationForm.controls.comment.setValue('');
     this.operationForm.controls.next_assigned_crm_user_id.setValue(null);
-    this.internalCommentForm.controls.body.setValue('');
+    this.selectedPrimaryCommentAction.set('comment');
     this.adminAssignmentForm.reset({
       assigned_crm_user_id: subtask.assigned_crm_user_id,
       notes: null
@@ -1328,12 +1448,36 @@ export class TaskExecutionPageComponent {
 
   private updateTask(task: TaskDetail, message: string): void {
     this.task.set(task);
+    this.selectedCommentLocation.set(this.taskLocation());
     this.selectedSubtaskId.set(task.current_subtask_id ?? this.selectedSubtaskId());
     this.pendingAttachments.set([]);
     this.rebuildOperationForm();
     this.successMessage.set(message);
     this.errorMessage.set(null);
     this.isSaving.set(false);
+  }
+
+  private submitTaskCommentWithLocationId(taskId: string, body: string, locationId: string | null): void {
+    this.taskManagementService
+      .addTaskComment(taskId, {
+        body,
+        location_id: locationId,
+        attachment_ids: this.pendingAttachments().map((attachment) => attachment.id)
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (task) => {
+          this.operationForm.controls.comment.setValue('');
+          const infoSuffix = this.requiresArrivalRegistration()
+            ? ' Si este pedido requería llegada, quedó registrada automáticamente.'
+            : '';
+          this.updateTask(task, `Comentario guardado.${infoSuffix}`);
+        },
+        error: (error: Error) => {
+          this.showOperationError(error.message);
+          this.isSaving.set(false);
+        }
+      });
   }
 
   private clearPendingAttachments(): void {

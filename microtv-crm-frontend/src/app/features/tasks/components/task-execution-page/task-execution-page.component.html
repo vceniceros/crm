@@ -665,19 +665,45 @@
               </div>
 
               <div class="task-execution-page__comment-box">
-                <mat-form-field appearance="outline" class="task-execution-page__comment-field" [formGroup]="internalCommentForm">
-                  <mat-label>Comentario interno</mat-label>
+                <mat-form-field appearance="outline" class="task-execution-page__comment-field">
+                  <mat-label>{{ commentFieldLabel() }}</mat-label>
                   <textarea
                     matInput
-                    rows="3"
-                    formControlName="body"
+                    rows="4"
+                    formControlName="comment"
                     [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()"
-                    placeholder="Comentario interno para seguimiento operativo (no cierra la subtarea)"></textarea>
+                    [placeholder]="commentFieldPlaceholder()"></textarea>
                 </mat-form-field>
+
+                <div class="task-execution-page__location-composer">
+                  <p class="task-execution-page__summary-label">Ubicación del comentario</p>
+                  <p class="task-execution-page__summary-caption">{{ selectedCommentLocationLabel() }}</p>
+
+                  <div class="task-execution-page__location-actions">
+                    <button mat-stroked-button type="button" (click)="useTaskLocationForComment()" [disabled]="!taskLocation() || isSaving() || !subtaskCanBeOperated(selectedSubtask)">
+                      <mat-icon>my_location</mat-icon>
+                      <span>Usar ubicación de tarea</span>
+                    </button>
+
+                    <button mat-stroked-button type="button" (click)="openCommentLocationPicker()" [disabled]="isSaving() || !subtaskCanBeOperated(selectedSubtask)">
+                      <mat-icon>edit_location_alt</mat-icon>
+                      <span>Elegir en mapa</span>
+                    </button>
+
+                    <button mat-stroked-button type="button" (click)="openCommentLocationInMaps()" [disabled]="!canOpenCommentLocationInMaps()">
+                      <mat-icon>map</mat-icon>
+                      <span>Abrir en Maps</span>
+                    </button>
+
+                    <button mat-button type="button" (click)="clearCommentLocation()" [disabled]="!selectedCommentLocation() || isSaving() || !subtaskCanBeOperated(selectedSubtask)">
+                      Limpiar
+                    </button>
+                  </div>
+                </div>
 
                 @if (requiresArrivalRegistration()) {
                   <p class="task-execution-page__summary-caption">
-                    Este pedido requiere llegada: guardá un comentario interno con al menos un adjunto y ubicación de tarea para registrarla.
+                    Este pedido requiere llegada: publicá un comentario con al menos un adjunto y ubicación para registrarla.
                   </p>
                 }
 
@@ -687,12 +713,7 @@
                   </p>
                 }
 
-                <mat-form-field appearance="outline" class="task-execution-page__comment-field">
-                  <mat-label>Comentario de cierre y/o observaciones</mat-label>
-                  <textarea matInput rows="4" formControlName="comment" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()" placeholder="Comentario de cierre y/o observaciones"></textarea>
-                </mat-form-field>
-
-                @if (selectedSubtask.next_assignment_policy === 'manual_required') {
+                @if (selectedPrimaryCommentAction() !== 'comment' && selectedSubtask.next_assignment_policy === 'manual_required') {
                   <mat-form-field appearance="outline" class="task-execution-page__comment-field">
                     <mat-label>Siguiente usuario</mat-label>
                     <mat-select formControlName="next_assigned_crm_user_id" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()">
@@ -728,23 +749,35 @@
               }
 
               <div class="task-execution-page__footer-actions">
-                <button mat-stroked-button type="button" (click)="addInternalComment()" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving() || internalCommentForm.invalid">
-                  <mat-icon>comment</mat-icon>
-                  <span>Guardar comentario interno</span>
-                </button>
-
                 <button mat-stroked-button type="button" (click)="saveProgress()" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()">
                   <mat-icon>save</mat-icon>
                   <span>Guardar progreso</span>
                 </button>
 
-                <button mat-flat-button color="primary" type="button" [matMenuTriggerFor]="actionsMenu" [disabled]="!canExecuteFinalAction(selectedSubtask)">
-                  <mat-icon>play_circle</mat-icon>
-                  <span>Ejecutar acción final</span>
-                </button>
-                <mat-menu #actionsMenu="matMenu" panelClass="task-execution-page__actions-menu-panel">
+                <div class="task-execution-page__split-button">
+                  <button mat-flat-button color="primary" type="button" (click)="executePrimaryCommentAction(selectedSubtask)" [disabled]="!canExecutePrimaryCommentAction(selectedSubtask)">
+                    <mat-icon>{{ selectedPrimaryCommentAction() === 'comment' ? 'send' : 'play_circle' }}</mat-icon>
+                    <span>{{ primaryCommentActionLabel() }}</span>
+                  </button>
+
+                  <button mat-icon-button type="button" [matMenuTriggerFor]="commentActionMenu" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()" aria-label="Seleccionar tipo de comentario">
+                    <mat-icon>arrow_drop_down</mat-icon>
+                  </button>
+                </div>
+
+                <mat-menu #commentActionMenu="matMenu" panelClass="task-execution-page__actions-menu-panel">
+                  <button mat-menu-item type="button" (click)="selectPrimaryCommentAction('comment')">
+                    <mat-icon>chat</mat-icon>
+                    <span>Comentar</span>
+                  </button>
+
                   @for (action of actionOptions; track action.value) {
-                    <button mat-menu-item type="button" (click)="executeAction(action.value)" [disabled]="!canExecuteFinalAction(selectedSubtask)">
+                    <button
+                      mat-menu-item
+                      type="button"
+                      (click)="selectPrimaryCommentAction(action.value)"
+                      [disabled]="action.value === 'close_subtask' && isCloseBlockedByVideoRequirement()"
+                    >
                       <mat-icon>{{ action.icon }}</mat-icon>
                       <span>{{ action.label }}</span>
                     </button>
