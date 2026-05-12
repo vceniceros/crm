@@ -14,6 +14,9 @@ type RawInventoryProduct = {
   category: string;
   imageUrl?: string | null;
   stock: number;
+  minimumStock?: number;
+  shelfId?: string | null;
+  shelfHeight?: number | null;
 };
 
 const rawCategories = inventoryCategoriesData as { categories: RawInventoryCategory[] };
@@ -34,6 +37,9 @@ const initialProducts: InventoryProduct[] = rawProducts.items.map((product) => (
   category: product.category,
   imageUrl: product.imageUrl ?? null,
   stock: product.stock,
+  minimumStock: Math.max(1, Math.trunc(product.minimumStock ?? 3)),
+  shelfId: product.shelfId ?? null,
+  shelfHeight: product.shelfHeight ?? null,
   requiresTracking: false,
   isActive: true,
   createdAt: new Date().toISOString(),
@@ -46,6 +52,7 @@ const tableColumns: InventoryTableColumn[] = [
   { key: 'name', label: 'Producto' },
   { key: 'category', label: 'Categoria' },
   { key: 'stock', label: 'Stock actual' },
+  { key: 'location', label: 'Ubicacion' },
   { key: 'actions', label: 'Acciones' }
 ];
 
@@ -88,6 +95,9 @@ export class MockInventoryService {
       category: categoryName,
       imageUrl: this.resolveImageUrl(payload.imageFile),
       stock: this.sanitizeStock(payload.initialStock),
+      minimumStock: Math.max(1, Math.trunc(payload.minimumStock ?? 3)),
+      shelfId: null,
+      shelfHeight: null,
       requiresTracking: payload.requiresTracking,
       isActive: true,
       createdAt: new Date().toISOString(),
