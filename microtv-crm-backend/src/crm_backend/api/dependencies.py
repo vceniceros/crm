@@ -16,6 +16,7 @@ from crm_backend.repositories import (
     InventoryFlowRepository,
     LocationRepository,
     NotificationRepository,
+    PushSubscriptionRepository,
     StockCategoryRepository,
     StockProductRepository,
     TaskRepository,
@@ -41,6 +42,7 @@ from crm_backend.services.auth_service import ResolvedCrmSession
 from crm_backend.services.dashboard_service import DashboardService
 from crm_backend.services.reports_service import ReportsService
 from crm_backend.services.settings_service import SettingsService
+from crm_backend.services.push_notification_service import PushNotificationService
 
 
 def get_auth_service_adapter(settings: Settings = Depends(get_settings)) -> AuthServiceAdapter:
@@ -216,13 +218,29 @@ def get_notification_repository(session: Session = Depends(get_db_session)) -> N
     return NotificationRepository(session)
 
 
+def get_push_subscription_repository(session: Session = Depends(get_db_session)) -> PushSubscriptionRepository:
+    """Provide the push subscription repository."""
+
+    return PushSubscriptionRepository(session)
+
+
+def get_push_notification_service(
+    push_subscription_repository: PushSubscriptionRepository = Depends(get_push_subscription_repository),
+    settings: Settings = Depends(get_settings),
+) -> PushNotificationService:
+    """Provide the Web Push notification service."""
+
+    return PushNotificationService(push_subscription_repository=push_subscription_repository, settings=settings)
+
+
 def get_notification_service(
     notification_repository: NotificationRepository = Depends(get_notification_repository),
     user_repository: CrmUserRepository = Depends(get_crm_user_repository),
+    push_notification_service: PushNotificationService = Depends(get_push_notification_service),
 ) -> NotificationService:
     """Provide the in-app notification service."""
 
-    return NotificationService(notification_repository, user_repository)
+    return NotificationService(notification_repository, user_repository, push_notification_service=push_notification_service)
 
 
 def extract_bearer_token(authorization: str | None = Header(default=None)) -> str:

@@ -15,6 +15,7 @@ Requires-Dist: pyjwt<3.0,>=2.10
 Requires-Dist: python-dotenv<2.0,>=1.1
 Requires-Dist: reportlab<5.0,>=4.0
 Requires-Dist: Pillow<12.0,>=10.0
+Requires-Dist: pywebpush<3.0,>=2.0
 Provides-Extra: test
 Requires-Dist: pytest<9.0,>=8.3; extra == "test"
 Requires-Dist: httpx<1.0,>=0.28; extra == "test"

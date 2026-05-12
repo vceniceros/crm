@@ -62,6 +62,7 @@ from crm_backend.models.ticket import (
 from crm_backend.models.task_template import NextAssignmentPolicy, SubtaskType, TaskTemplate, TaskTemplateItem, TaskTemplateSubtask, TemplateItemType
 from crm_backend.models.warehouse import Warehouse
 from crm_backend.models.notification import Notification, NotificationEntityType, NotificationType
+from crm_backend.models.push_subscription import PushSubscription
 from crm_backend.models.settings import CrmCategory, CrmPriority, CrmStatus, NotificationRule, SlaRule
 
 __all__ = [
@@ -131,6 +132,7 @@ __all__ = [
 	"Notification",
 	"NotificationEntityType",
 	"NotificationType",
+	"PushSubscription",
 	"CrmCategory",
 	"CrmPriority",
 	"CrmStatus",

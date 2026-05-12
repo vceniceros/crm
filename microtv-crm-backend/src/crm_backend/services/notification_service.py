@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import logging
+
 from crm_backend.models.notification import Notification, NotificationEntityType, NotificationType
 from crm_backend.repositories.crm_user_repository import CrmUserRepository
 from crm_backend.repositories.notification_repository import NotificationRepository
 from crm_backend.core.exceptions import NotificationNotFoundError, NotificationAccessDeniedError
+from crm_backend.services.push_notification_service import PushNotificationService
+
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationService:
@@ -15,9 +21,11 @@ class NotificationService:
         self,
         notification_repository: NotificationRepository,
         user_repository: CrmUserRepository,
+        push_notification_service: PushNotificationService | None = None,
     ) -> None:
         self._notification_repository = notification_repository
         self._user_repository = user_repository
+        self._push_notification_service = push_notification_service
 
     # ------------------------------------------------------------------
     # Query
@@ -70,7 +78,19 @@ class NotificationService:
             entity_id=entity_id,
             metadata_json=metadata,
         )
-        return self._notification_repository.save(notification)
+        saved = self._notification_repository.save(notification)
+
+        if self._push_notification_service is not None:
+            try:
+                self._push_notification_service.send_to_user(
+                    crm_user_id=recipient_crm_user_id,
+                    title=title,
+                    body=body,
+                )
+            except Exception as exc:
+                logger.warning("Push dispatch failed for notification %s: %s", saved.notification_id, exc)
+
+        return saved
 
     def notify_bulk(
         self,

@@ -7,6 +7,7 @@ export type CrmRuntimeSeedLoginAccount = {
 
 type CrmRuntimeConfig = {
   crmApiBaseUrl?: string;
+  vapidPublicKey?: string;
   devMode?: boolean | string;
   devLoginAccounts?: unknown;
   mediaPublicUrl?: string;
@@ -158,6 +159,10 @@ export const crmMediaConfig = {
 
 export const crmApiConfig = {
   baseUrl: resolveCrmApiBaseUrl(runtimeConfig)
+} as const;
+
+export const crmPushConfig = {
+  vapidPublicKey: runtimeConfig?.vapidPublicKey?.trim() ?? ''
 } as const;
 
 export const crmMapConfig = {
