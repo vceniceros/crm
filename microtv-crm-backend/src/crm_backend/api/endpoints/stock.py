@@ -7,9 +7,11 @@ from crm_backend.infrastructure.product_image_storage import ProductImageStorage
 from crm_backend.schemas import (
     CreateStockProductRequest,
     ErrorResponse,
+    SetStockRequest,
     StockAdjustmentRequest,
     StockCategoryResponse,
     StockProductResponse,
+    UpdateProductLocationRequest,
 )
 from crm_backend.services.auth_service import ResolvedCrmSession
 from crm_backend.services.stock_service import CreateStockProductCommand, StockApplicationService
@@ -56,6 +58,9 @@ def _build_product_response(product) -> StockProductResponse:
         category_name=product.category.name,
         current_stock=product.current_stock,
         image_url=product.image_url,
+        minimum_stock=product.minimum_stock,
+        shelf_id=product.shelf_id,
+        shelf_height=product.shelf_height,
         requires_tracking=product.requires_tracking,
         created_at=product.created_at,
         updated_at=product.updated_at,
@@ -148,6 +153,7 @@ async def create_product(
                 initial_stock=payload.initial_stock,
                 image_url=image_url,
                 requires_tracking=payload.requires_tracking,
+                minimum_stock=payload.minimum_stock,
             ),
         )
     except Exception:
@@ -169,6 +175,7 @@ async def _parse_create_product_request(request: Request) -> tuple[CreateStockPr
                 "product_code": form.get("product_code"),
                 "category_id": form.get("category_id"),
                 "stock_initial": form.get("stock_initial") or form.get("initial_stock") or 0,
+                "minimum_stock": int(form.get("minimum_stock") or 3),
                 "requires_tracking": str(form.get("requires_tracking") or "false").lower() in {"1", "true", "on", "yes"},
                 "image_url": None,
             }
@@ -230,6 +237,38 @@ def decrease_stock(
     """
 
     product = stock_service.decrease_stock(actor, product_id=product_id, quantity=payload.quantity)
+    return _build_product_response(product)
+
+
+@router.patch(
+    "/products/{product_id}/location",
+    response_model=StockProductResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def update_product_location(
+    product_id: str,
+    payload: UpdateProductLocationRequest,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    stock_service: StockApplicationService = Depends(get_stock_application_service),
+) -> StockProductResponse:
+    product = stock_service.update_product_location(
+        actor, product_id=product_id, shelf_id=payload.shelf_id, shelf_height=payload.shelf_height
+    )
+    return _build_product_response(product)
+
+
+@router.patch(
+    "/products/{product_id}/stock",
+    response_model=StockProductResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def set_stock(
+    product_id: str,
+    payload: SetStockRequest,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    stock_service: StockApplicationService = Depends(get_stock_application_service),
+) -> StockProductResponse:
+    product = stock_service.set_stock(actor, product_id=product_id, quantity=payload.quantity)
     return _build_product_response(product)
 
 

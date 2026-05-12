@@ -37,6 +37,7 @@ class CreateStockProductCommand:
     initial_stock: int
     image_url: str | None
     requires_tracking: bool
+    minimum_stock: int = 3
 
 
 class StockApplicationService:
@@ -116,6 +117,7 @@ class StockApplicationService:
             initial_stock=command.initial_stock,
             image_url=command.image_url,
             requires_tracking=command.requires_tracking,
+            minimum_stock=command.minimum_stock,
             actor_crm_user_id=actor.crm_user.crm_user_id,
             warehouse_id=warehouse_id,
         )
@@ -169,10 +171,76 @@ class StockApplicationService:
                 notification_type = NotificationType.STOCK_OUT
                 title = f"Sin stock: {saved_product.visible_product_code}"
                 body = f"El producto '{saved_product.product_name}' llegó a 0 unidades."
-            elif stock_now < 3:
+            elif stock_now < saved_product.minimum_stock:
                 notification_type = NotificationType.STOCK_LOW
                 title = f"Stock bajo: {saved_product.visible_product_code} ({stock_now} unidades)"
-                body = f"El producto '{saved_product.product_name}' tiene menos de 3 unidades disponibles."
+                body = f"El producto '{saved_product.product_name}' tiene menos de {saved_product.minimum_stock} unidades disponibles."
+            else:
+                notification_type = None
+
+            if notification_type is not None:
+                deposito_ids = [user.crm_user_id for user in self._user_repository.list_active_by_role_key("deposito")]
+                ejecutivo_ids = [user.crm_user_id for user in self._user_repository.list_active_by_role_key("ejecutivo")]
+                recipient_ids = list({*deposito_ids, *ejecutivo_ids})
+                self._notification_service.notify_bulk(
+                    recipient_crm_user_ids=recipient_ids,
+                    notification_type=notification_type,
+                    title=title,
+                    body=body,
+                    entity_type=NotificationEntityType.STOCK_PRODUCT,
+                    entity_id=saved_product.product_id,
+                )
+
+        return saved_product
+
+    def update_product_location(
+        self,
+        actor: ResolvedCrmSession,
+        product_id: str,
+        shelf_id: str,
+        shelf_height: int,
+    ) -> StockProduct:
+        self._ensure_inventory_write_access(actor)
+        product = self._get_operable_product(product_id)
+        product.shelf_id = shelf_id
+        product.shelf_height = shelf_height
+        return self._product_repository.save(product)
+
+    def set_stock(
+        self,
+        actor: ResolvedCrmSession,
+        product_id: str,
+        quantity: int,
+    ) -> StockProduct:
+        self._ensure_inventory_write_access(actor)
+        product = self._get_operable_product(product_id)
+
+        current = product.current_stock
+        if quantity > current:
+            product.increase_stock(
+                quantity=quantity - current,
+                actor_crm_user_id=actor.crm_user.crm_user_id,
+                warehouse_id=self._product_repository.get_default_warehouse_id(),
+            )
+        elif quantity < current:
+            product.decrease_stock(
+                quantity=current - quantity,
+                actor_crm_user_id=actor.crm_user.crm_user_id,
+                warehouse_id=self._product_repository.get_default_warehouse_id(),
+            )
+
+        saved_product = self._product_repository.save(product)
+
+        if self._notification_service is not None and self._user_repository is not None:
+            stock_now = saved_product.current_stock
+            if stock_now == 0:
+                notification_type = NotificationType.STOCK_OUT
+                title = f"Sin stock: {saved_product.visible_product_code}"
+                body = f"El producto '{saved_product.product_name}' llegó a 0 unidades."
+            elif stock_now < saved_product.minimum_stock:
+                notification_type = NotificationType.STOCK_LOW
+                title = f"Stock bajo: {saved_product.visible_product_code} ({stock_now} unidades)"
+                body = f"El producto '{saved_product.product_name}' tiene menos de {saved_product.minimum_stock} unidades disponibles."
             else:
                 notification_type = None
 

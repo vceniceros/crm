@@ -13,6 +13,9 @@ export interface InventoryProduct {
   category: string;
   imageUrl?: string | null;
   stock: number;
+  minimumStock: number;
+  shelfId: string | null;
+  shelfHeight: number | null;
   requiresTracking: boolean;
   isActive: boolean;
   createdAt: string;
@@ -20,7 +23,7 @@ export interface InventoryProduct {
 }
 
 export interface InventoryTableColumn {
-  key: 'image' | 'id' | 'name' | 'category' | 'stock' | 'actions';
+  key: 'image' | 'id' | 'name' | 'category' | 'stock' | 'location' | 'actions';
   label: string;
 }
 

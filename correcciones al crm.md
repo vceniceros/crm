@@ -8,3 +8,13 @@
 8. agregar un apartado para configurar el envío de whatsapp (twilio) 
 9. agregar apartado para ver registro de actividad de cada usuario (login, logout, acciones realizadas)
 10. ver si leafleat permite marcar ubicaciones por dirección y no solo por coordenadas
+
+
+11. poder abrir imagenes en el menu de productos en una ventana aparte al hacer click
+12. poder ajsutar stock minimos para que notifique segun el mismo
+13. asignar ubicaciones a los productos (las estanterias son por letra y la alturas son numericas)
+14. poder cambiar el stock numerico 
+15. poder acotar quien maneja el stock
+
+
+16. que refrescar no tire al dashboard, que te mantenga en el menu donde estabas

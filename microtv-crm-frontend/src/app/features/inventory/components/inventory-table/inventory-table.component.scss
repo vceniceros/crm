@@ -37,6 +37,10 @@
   border: 1px solid rgba(23, 24, 26, 0.08);
 }
 
+.inventory-table__image--clickable {
+  cursor: zoom-in;
+}
+
 .inventory-table__product-name {
   font-weight: 700;
 }
@@ -73,6 +77,35 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+}
+
+.inventory-table__stock-edit,
+.inventory-table__location-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.inventory-table__stock-input,
+.inventory-table__location-height-input,
+.inventory-table__location-edit select {
+  height: 2rem;
+  border: 1px solid rgba(23, 24, 26, 0.2);
+  border-radius: 0.5rem;
+  padding-inline: 0.45rem;
+}
+
+.inventory-table__stock-input {
+  width: 5rem;
+}
+
+.inventory-table__location-height-input {
+  width: 4.5rem;
+}
+
+.inventory-table__location-value {
+  margin-right: 0.35rem;
+  font-weight: 600;
 }
 
 .inventory-table__action-button {

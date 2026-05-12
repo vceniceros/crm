@@ -161,15 +161,18 @@ SELECT
   EXISTS(SELECT 1 FROM information_schema.tables   WHERE table_name='task_satisfaction_forms')                         AS table_task_satisfaction_forms,
   EXISTS(SELECT 1 FROM information_schema.tables   WHERE table_name='task_pre_form_instances')                         AS table_task_pre_form_instances,
   EXISTS(SELECT 1 FROM information_schema.tables   WHERE table_name='push_subscriptions')                              AS table_push_subscriptions,
+  EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='inventory_products' AND column_name='minimum_stock') AS inv_col_minimum_stock,
+  EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='inventory_products' AND column_name='shelf_id')      AS inv_col_shelf_id,
+  EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='inventory_products' AND column_name='shelf_height')  AS inv_col_shelf_height,
   (SELECT count(*) FROM crm_roles WHERE is_active = TRUE)                                                              AS active_roles_count;
 ")"
 
-echo "task_col_video_evidence|task_col_arrival_comment|table_task_satisfaction_forms|table_task_pre_form_instances|table_push_subscriptions|active_roles_count"
+echo "task_col_video_evidence|task_col_arrival_comment|table_task_satisfaction_forms|table_task_pre_form_instances|table_push_subscriptions|inv_col_minimum_stock|inv_col_shelf_id|inv_col_shelf_height|active_roles_count"
 echo "$verification_output"
 
-if [[ "$verification_output" != true\|true\|true\|true\|true\|* ]]; then
-  IFS='|' read -r col_video col_arrival table_satisfaction table_preform table_push active_roles <<< "$verification_output"
-  if ! is_truthy "$col_video" || ! is_truthy "$col_arrival" || ! is_truthy "$table_satisfaction" || ! is_truthy "$table_preform" || ! is_truthy "$table_push"; then
+if [[ "$verification_output" != true\|true\|true\|true\|true\|true\|true\|true\|* ]]; then
+  IFS='|' read -r col_video col_arrival table_satisfaction table_preform table_push inv_col_minimum_stock inv_col_shelf_id inv_col_shelf_height active_roles <<< "$verification_output"
+  if ! is_truthy "$col_video" || ! is_truthy "$col_arrival" || ! is_truthy "$table_satisfaction" || ! is_truthy "$table_preform" || ! is_truthy "$table_push" || ! is_truthy "$inv_col_minimum_stock" || ! is_truthy "$inv_col_shelf_id" || ! is_truthy "$inv_col_shelf_height"; then
     echo "ERROR: Verificacion final del schema invalida: $verification_output"
     exit 1
   fi

@@ -62,6 +62,10 @@ export class CreateProductDialogComponent {
     }),
     categoryId: this.formBuilder.control<string | null>(null, Validators.required),
     initialStock: this.formBuilder.control<number | null>(0, [Validators.required, Validators.min(0)]),
+    minimumStock: this.formBuilder.control(3, {
+      validators: [Validators.required, Validators.min(1)],
+      nonNullable: true
+    }),
     requiresTracking: this.formBuilder.control(false, { nonNullable: true })
   });
 
@@ -105,6 +109,7 @@ export class CreateProductDialogComponent {
       categoryId: this.form.controls.categoryId.getRawValue(),
       imageFile: this.selectedFile,
       initialStock: this.form.controls.initialStock.getRawValue(),
+      minimumStock: this.form.controls.minimumStock.getRawValue(),
       requiresTracking: this.form.controls.requiresTracking.getRawValue()
     };
 

@@ -62,6 +62,15 @@
           }
         </mat-form-field>
 
+        <mat-form-field appearance="outline">
+          <mat-label>Stock mínimo</mat-label>
+          <input matInput type="number" min="1" formControlName="minimumStock" />
+          <mat-hint>Notifica cuando el stock baje de este valor. Por defecto: 3.</mat-hint>
+          @if (form.controls.minimumStock.hasError('min')) {
+            <mat-error>Debe ser al menos 1.</mat-error>
+          }
+        </mat-form-field>
+
         <mat-checkbox formControlName="requiresTracking" class="create-product-dialog__wide-field">
           Requiere serial o código de barras por unidad
         </mat-checkbox>

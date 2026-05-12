@@ -35,9 +35,11 @@ from crm_backend.schemas.material_flow import (
 )
 from crm_backend.schemas.stock import (
     CreateStockProductRequest,
+    SetStockRequest,
     StockAdjustmentRequest,
     StockCategoryResponse,
     StockProductResponse,
+    UpdateProductLocationRequest,
 )
 from crm_backend.schemas.tasks import (
     ApproveTaskRequest,
@@ -114,9 +116,11 @@ __all__ = [
     "ReviewInventoryRequestRequest",
     "TokenBundleResponse",
     "CreateStockProductRequest",
+    "SetStockRequest",
     "StockAdjustmentRequest",
     "StockCategoryResponse",
     "StockProductResponse",
+    "UpdateProductLocationRequest",
     "CreateTaskFromTemplateRequest",
     "CreateTaskTemplateRequest",
     "CreateTaskCommentRequest",

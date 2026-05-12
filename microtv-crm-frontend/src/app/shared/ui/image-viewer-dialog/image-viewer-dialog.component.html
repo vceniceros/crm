@@ -1,0 +1,16 @@
+<div class="image-viewer-dialog">
+  <button
+    mat-icon-button
+    type="button"
+    class="image-viewer-dialog__close"
+    aria-label="Cerrar imagen"
+    (click)="close()"
+  >
+    <mat-icon>close</mat-icon>
+  </button>
+  <img
+    class="image-viewer-dialog__image"
+    [src]="data.imageUrl"
+    [alt]="data.altText"
+  />
+</div>

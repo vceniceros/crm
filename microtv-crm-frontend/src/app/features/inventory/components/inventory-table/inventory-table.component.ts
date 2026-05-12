@@ -2,6 +2,7 @@ import { Component, inject, input, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
@@ -9,30 +10,31 @@ import { MatTableModule } from '@angular/material/table';
 import { InventoryProduct, InventoryTableData } from '../../../../core/models/inventory-product.model';
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
 import { InventoryService } from '../../../../core/services/inventory.service';
+import { ImageViewerDialogComponent } from '../../../../shared/ui/image-viewer-dialog/image-viewer-dialog.component';
 
 @Component({
   selector: 'app-inventory-table',
   standalone: true,
-  imports: [MatButtonModule, MatCardModule, MatIconModule, MatSnackBarModule, MatTableModule],
+  imports: [MatButtonModule, MatCardModule, MatDialogModule, MatIconModule, MatSnackBarModule, MatTableModule],
   templateUrl: './inventory-table.component.html',
   styleUrl: './inventory-table.component.scss'
 })
 export class InventoryTableComponent {
   private readonly inventoryService = inject(InventoryService);
   private readonly authSessionService = inject(AuthSessionService);
+  private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
 
   readonly block = input.required<InventoryTableData>();
   readonly pendingProductId = signal<string | null>(null);
   readonly placeholderImageUrl = 'https://placehold.co/96x96/f0f2f4/5c6670?text=YCC';
-  readonly displayedColumns: Array<'image' | 'id' | 'name' | 'category' | 'stock' | 'actions'> = [
-    'image',
-    'id',
-    'name',
-    'category',
-    'stock',
-    'actions'
-  ];
+  readonly displayedColumns = ['image', 'id', 'name', 'category', 'stock', 'location', 'actions'] as const;
+  readonly editingLocationId = signal<string | null>(null);
+  readonly locationEditShelfId = signal<string>('');
+  readonly locationEditHeight = signal<number | null>(null);
+  readonly shelfOptions = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  readonly editingStockId = signal<string | null>(null);
+  readonly stockEditValue = signal<number | null>(null);
 
   async addStock(productId: string): Promise<void> {
     await this.adjustStock(productId, () => this.inventoryService.addStock(productId), 'Stock aumentado correctamente.');
@@ -40,6 +42,79 @@ export class InventoryTableComponent {
 
   async removeStock(productId: string): Promise<void> {
     await this.adjustStock(productId, () => this.inventoryService.removeStock(productId), 'Stock disminuido correctamente.');
+  }
+
+  openImage(product: InventoryProduct): void {
+    if (!product.imageUrl) {
+      return;
+    }
+
+    this.dialog.open(ImageViewerDialogComponent, {
+      data: { imageUrl: product.imageUrl, altText: product.name },
+      maxWidth: '95vw',
+      maxHeight: '95vh',
+      panelClass: 'image-viewer-panel'
+    });
+  }
+
+  startEditLocation(product: InventoryProduct): void {
+    this.editingLocationId.set(product.productId);
+    this.locationEditShelfId.set(product.shelfId ?? '');
+    this.locationEditHeight.set(product.shelfHeight ?? null);
+  }
+
+  cancelEditLocation(): void {
+    this.editingLocationId.set(null);
+  }
+
+  async confirmEditLocation(productId: string): Promise<void> {
+    const shelfId = this.locationEditShelfId();
+    const height = this.locationEditHeight();
+    if (!shelfId || !height || height < 1 || !this.canManageStock()) {
+      return;
+    }
+
+    this.pendingProductId.set(productId);
+    try {
+      await firstValueFrom(this.inventoryService.updateProductLocation(productId, shelfId, height));
+      this.snackBar.open('Ubicación actualizada.', 'Cerrar', { duration: 2500 });
+      this.editingLocationId.set(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo actualizar la ubicación.';
+      this.snackBar.open(message, 'Cerrar', { duration: 4500 });
+    } finally {
+      this.pendingProductId.set(null);
+    }
+  }
+
+  startEditStock(product: InventoryProduct): void {
+    this.editingStockId.set(product.productId);
+    this.stockEditValue.set(product.stock);
+  }
+
+  cancelEditStock(): void {
+    this.editingStockId.set(null);
+    this.stockEditValue.set(null);
+  }
+
+  async confirmEditStock(productId: string): Promise<void> {
+    const value = this.stockEditValue();
+    if (value === null || value < 0 || !this.canManageStock()) {
+      return;
+    }
+
+    this.pendingProductId.set(productId);
+    try {
+      await firstValueFrom(this.inventoryService.setStock(productId, value));
+      this.snackBar.open('Stock actualizado.', 'Cerrar', { duration: 2500 });
+      this.editingStockId.set(null);
+      this.stockEditValue.set(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo actualizar el stock.';
+      this.snackBar.open(message, 'Cerrar', { duration: 4500 });
+    } finally {
+      this.pendingProductId.set(null);
+    }
   }
 
   async deleteProduct(product: InventoryProduct): Promise<void> {
@@ -81,7 +156,7 @@ export class InventoryTableComponent {
       return 'empty';
     }
 
-    if (product.stock <= 3) {
+    if (product.stock < product.minimumStock) {
       return 'low';
     }
 

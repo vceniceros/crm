@@ -5,6 +5,7 @@ export interface CreateProductFormModel {
   productCode: FormControl<string>;
   categoryId: FormControl<string | null>;
   initialStock: FormControl<number | null>;
+  minimumStock: FormControl<number>;
   requiresTracking: FormControl<boolean>;
 }
 

@@ -68,7 +68,13 @@ export class AuthSessionService {
       })
       .subscribe({
         next: (session) => this.setAuthenticatedSession(session),
-        error: () => this.logout({ navigate: true })
+        error: () => {
+          const returnUrl = this.router.url;
+          this.logout({ navigate: false });
+          void this.router.navigate(['/login'], {
+            queryParams: returnUrl && returnUrl !== '/' ? { redirectTo: returnUrl } : {}
+          });
+        }
       });
   }
 
