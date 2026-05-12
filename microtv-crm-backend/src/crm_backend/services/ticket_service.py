@@ -278,12 +278,13 @@ class TicketApplicationService:
                     assigned_user_id=saved_ticket.assigned_user_id,
                     actor_crm_user_id=actor.crm_user.crm_user_id,
                 )
+                actor_name = actor.crm_user.display_name or actor.crm_user.email or actor.crm_user.crm_user_id
                 for recipient_id in recipient_ids:
                     self._notification_service.notify(
                         recipient_crm_user_id=recipient_id,
                         notification_type=NotificationType.TICKET_COMMENT_ADDED,
                         title=f"Nuevo comentario en ticket {saved_ticket.ticket_number}",
-                        body=f"{actor.crm_user.full_name} agregó un comentario en {saved_ticket.ticket_number}.",
+                        body=f"{actor_name} agregó un comentario en {saved_ticket.ticket_number}.",
                         entity_type=NotificationEntityType.TICKET,
                         entity_id=saved_ticket.ticket_id,
                     )

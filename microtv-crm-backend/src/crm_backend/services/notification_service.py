@@ -119,6 +119,17 @@ class NotificationService:
         ]
         self._notification_repository.save_bulk(notifications)
 
+        if self._push_notification_service is not None:
+            for user_id in recipient_crm_user_ids:
+                try:
+                    self._push_notification_service.send_to_user(
+                        crm_user_id=user_id,
+                        title=title,
+                        body=body,
+                    )
+                except Exception as exc:
+                    logger.warning("Push bulk dispatch failed for user %s: %s", user_id, exc)
+
     # ------------------------------------------------------------------
     # Role-based recipient resolution helpers
     # ------------------------------------------------------------------

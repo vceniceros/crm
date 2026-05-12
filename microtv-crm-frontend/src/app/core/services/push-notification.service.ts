@@ -11,9 +11,24 @@ export class PushNotificationService {
   private readonly swPush = inject(SwPush);
   private readonly http = inject(HttpClient);
   private readonly authSessionService = inject(AuthSessionService);
+  private lastKnownAccessToken: string | null = null;
+
+  constructor() {
+    this.authSessionService.session$.subscribe((session) => {
+      const token = session?.tokens.access_token;
+      if (token) {
+        this.lastKnownAccessToken = token;
+      }
+    });
+  }
 
   async requestAndSubscribe(): Promise<void> {
     if (!this.swPush.isEnabled || !crmPushConfig.vapidPublicKey) {
+      return;
+    }
+
+    const token = this.authSessionService.sessionSnapshot()?.tokens.access_token;
+    if (!token) {
       return;
     }
 
@@ -37,7 +52,7 @@ export class PushNotificationService {
             auth: keys.auth,
             user_agent: navigator.userAgent,
           },
-          { headers: this.authHeaders }
+          { headers: this.buildAuthHeaders(token) }
         )
       );
     } catch {
@@ -50,6 +65,8 @@ export class PushNotificationService {
       return;
     }
 
+    const token = this.authSessionService.sessionSnapshot()?.tokens.access_token ?? this.lastKnownAccessToken;
+
     try {
       const subscription = await firstValueFrom(this.swPush.subscription);
       if (!subscription) {
@@ -59,21 +76,27 @@ export class PushNotificationService {
       const endpoint = subscription.endpoint;
       await this.swPush.unsubscribe();
 
+      if (!token) {
+        this.lastKnownAccessToken = null;
+        return;
+      }
+
       await firstValueFrom(
         this.http.delete(`${crmApiConfig.baseUrl}/notifications/push-subscription`, {
           body: { endpoint },
-          headers: this.authHeaders,
+          headers: this.buildAuthHeaders(token),
         })
       ).catch(() => {
         // Si el token expiro durante el logout, ignoramos el error.
       });
+
+      this.lastKnownAccessToken = null;
     } catch {
       // Service worker no disponible o sin suscripcion activa.
     }
   }
 
-  private get authHeaders(): HttpHeaders {
-    const token = this.authSessionService.sessionSnapshot()?.tokens.access_token;
-    return token ? new HttpHeaders({ Authorization: `Bearer ${token}` }) : new HttpHeaders();
+  private buildAuthHeaders(token: string): HttpHeaders {
+    return new HttpHeaders({ Authorization: `Bearer ${token}` });
   }
 }
