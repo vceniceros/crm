@@ -3,6 +3,8 @@
 from crm_backend.models.crm_role import CrmRole
 from crm_backend.models.crm_user import CrmUser
 from crm_backend.models.crm_user_role import CrmUserRole
+from crm_backend.models.permission import RolePermission, UserPermission
+from crm_backend.models.activity_log import ActivityLog, ActivityLogArchive
 from crm_backend.models.stock_category import StockCategory
 from crm_backend.models.stock_level import StockLevel
 from crm_backend.models.stock_movement import StockMovement, StockMovementType
@@ -69,6 +71,10 @@ __all__ = [
 	"CrmRole",
 	"CrmUser",
 	"CrmUserRole",
+	"RolePermission",
+	"UserPermission",
+	"ActivityLog",
+	"ActivityLogArchive",
 	"StockCategory",
 	"StockLevel",
 	"StockMovement",

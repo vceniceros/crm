@@ -1,12 +1,13 @@
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { inject, Injectable, PLATFORM_ID } from '@angular/core';
+import { inject, Injectable, Injector, PLATFORM_ID } from '@angular/core';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, distinctUntilChanged, map, shareReplay, tap } from 'rxjs';
 
 import { crmApiConfig } from '../config/crm-api.config';
 import { CurrentUser } from '../models/layout.model';
 import { AuthenticatedUserResponse, CrmLoginResponse, LoginRequest, LoginSuccessResponse } from '../models/crm-auth.model';
+import { PermissionService } from './permission.service';
 import { resolveBackendAssetUrl } from '../utils/backend-asset-url.util';
 
 type AuthStatus = 'checking' | 'authenticated' | 'anonymous';
@@ -22,6 +23,7 @@ const STORAGE_KEY = 'microtv.crm.session';
 export class AuthSessionService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly injector = inject(Injector);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
   private readonly stateSubject = new BehaviorSubject<AuthState>({
@@ -94,6 +96,7 @@ export class AuthSessionService {
     }
 
     this.stateSubject.next({ status: 'anonymous', session: null });
+    this.permissionService().clear();
 
     if (options.navigate !== false) {
       void this.router.navigate(['/login']);
@@ -130,6 +133,11 @@ export class AuthSessionService {
     }
 
     this.stateSubject.next({ status: 'authenticated', session });
+    this.permissionService().refresh();
+  }
+
+  private permissionService(): PermissionService {
+    return this.injector.get(PermissionService);
   }
 
   private readStoredSession(): LoginSuccessResponse | null {

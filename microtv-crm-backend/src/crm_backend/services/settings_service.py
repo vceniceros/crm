@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
-from sqlalchemy import inspect, select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from crm_backend.core.exceptions import ApplicationError
@@ -15,6 +13,8 @@ from crm_backend.models import (
     CrmStatus,
     CrmUser,
     CrmUserRole,
+    RolePermission,
+    UserPermission,
     NotificationRule,
     SlaRule,
     TaskTemplate,
@@ -29,13 +29,23 @@ from crm_backend.schemas.settings import (
     SettingsTaskTemplateUpdateRequest,
 )
 from crm_backend.services.auth_service import ResolvedCrmSession
+from crm_backend.services.activity_log_service import ActivityLogService
+from crm_backend.services.permission_service import PermissionService
 
 
 class SettingsService:
     """Coordinates CRUD operations for configurable CRM settings."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        permission_service: PermissionService,
+        activity_log_service: ActivityLogService,
+    ) -> None:
         self._session = session
+        self._permission_service = permission_service
+        self._activity_log_service = activity_log_service
 
     def list_roles(self, actor: ResolvedCrmSession) -> list[CrmRole]:
         self._ensure_admin_or_executive(actor)
@@ -313,36 +323,68 @@ class SettingsService:
             return
         raise ApplicationError("settings_admin_required", "La operación requiere rol administrador.", 403)
 
+    def list_role_permissions(self, actor: ResolvedCrmSession) -> list[RolePermission]:
+        self._ensure_admin_or_executive(actor)
+        return self._permission_service.list_role_permissions()
+
+    def update_role_permission(self, actor: ResolvedCrmSession, role_key: str, code: str, is_granted: bool) -> RolePermission:
+        permission = self._permission_service.update_role_permission(actor, role_key, code, is_granted)
+        self._activity_log_service.log(
+            "settings.permissions_updated",
+            actor,
+            entity_type="role_permission",
+            entity_id=permission.role_permission_id,
+            entity_label=f"{permission.role_key}:{permission.permission_code}",
+            summary="Permiso de rol actualizado.",
+            extra={"is_granted": permission.is_granted},
+        )
+        self._session.commit()
+        return permission
+
+    def list_user_permissions(self, actor: ResolvedCrmSession) -> list[UserPermission]:
+        self._ensure_admin_or_executive(actor)
+        return self._permission_service.list_user_overrides()
+
+    def update_user_permission(self, actor: ResolvedCrmSession, user_id: str, code: str, is_granted: bool) -> UserPermission:
+        permission = self._permission_service.update_user_permission(actor, user_id, code, is_granted)
+        self._activity_log_service.log(
+            "settings.user_permission_updated",
+            actor,
+            entity_type="user_permission",
+            entity_id=permission.user_permission_id,
+            entity_label=f"{permission.crm_user_id}:{permission.permission_code}",
+            summary="Override de permiso de usuario actualizado.",
+            extra={"is_granted": permission.is_granted},
+        )
+        self._session.commit()
+        return permission
+
+    def delete_user_permission(self, actor: ResolvedCrmSession, user_id: str, code: str) -> None:
+        self._permission_service.delete_user_permission(actor, user_id, code)
+        self._activity_log_service.log(
+            "settings.user_permission_deleted",
+            actor,
+            entity_type="user_permission",
+            entity_id=f"{user_id}:{code}",
+            summary="Override de permiso de usuario eliminado.",
+            extra={"crm_user_id": user_id, "permission_code": code},
+        )
+        self._session.commit()
+
+    def get_effective_permissions_for_user(self, actor: ResolvedCrmSession, user_id: str) -> dict[str, bool]:
+        if user_id != actor.crm_user.crm_user_id:
+            self._ensure_admin_or_executive(actor)
+        user = self._session.get(CrmUser, user_id)
+        if user is None:
+            raise ApplicationError("settings_user_not_found", "El usuario indicado no existe.", 404)
+        role_keys = [assignment.role.role_key for assignment in user.assigned_roles if assignment.role is not None]
+        return self._permission_service.get_effective_permissions(role_keys, user.crm_user_id)
+
     def _log_activity(self, event_code: str, actor_crm_user_id: str, payload: dict[str, object]) -> None:
-        bind = self._session.get_bind()
-        inspector = inspect(bind)
-        if "activity_log" not in set(inspector.get_table_names()):
-            return
-
-        columns = {column["name"] for column in inspector.get_columns("activity_log")}
-        insert_payload: dict[str, object] = {}
-
-        if "activity_log_id" in columns:
-            # Let DB default/trigger generate IDs when available.
-            pass
-        if "event_code" in columns:
-            insert_payload["event_code"] = event_code
-        elif "event_type" in columns:
-            insert_payload["event_type"] = event_code
-
-        if "actor_crm_user_id" in columns:
-            insert_payload["actor_crm_user_id"] = actor_crm_user_id
-        if "payload_json" in columns:
-            insert_payload["payload_json"] = payload
-        elif "payload" in columns:
-            insert_payload["payload"] = payload
-
-        if "created_at" in columns:
-            insert_payload["created_at"] = datetime.now(UTC)
-
-        if not insert_payload:
-            return
-
-        keys = ", ".join(insert_payload.keys())
-        params = ", ".join(f":{key}" for key in insert_payload)
-        self._session.execute(text(f"INSERT INTO activity_log ({keys}) VALUES ({params})"), insert_payload)
+        self._activity_log_service.log(
+            event_code,
+            None,
+            actor_id=actor_crm_user_id,
+            summary=event_code,
+            extra=payload,
+        )

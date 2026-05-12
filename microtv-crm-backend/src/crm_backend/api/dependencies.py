@@ -10,12 +10,14 @@ from crm_backend.db import get_db_session
 from crm_backend.infrastructure.product_image_storage import ProductImageStorage
 from crm_backend.infrastructure.task_media_storage import TaskMediaStorageFacade
 from crm_backend.repositories import (
+    ActivityLogRepository,
     ClientRepository,
     CrmRoleRepository,
     CrmUserRepository,
     InventoryFlowRepository,
     LocationRepository,
     NotificationRepository,
+    PermissionRepository,
     PushSubscriptionRepository,
     StockCategoryRepository,
     StockProductRepository,
@@ -24,11 +26,13 @@ from crm_backend.repositories import (
     TicketRepository,
 )
 from crm_backend.services import (
+    ActivityLogService,
     AuthApplicationService,
     ClientApplicationService,
     InventoryRequestFacade,
     LocationApplicationService,
     NotificationService,
+    PermissionService,
     RoleResolutionService,
     StockApplicationService,
     TaskApplicationService,
@@ -84,6 +88,20 @@ def get_crm_role_repository(session: Session = Depends(get_db_session)) -> CrmRo
     return CrmRoleRepository(session)
 
 
+def get_activity_log_repository(session: Session = Depends(get_db_session)) -> ActivityLogRepository:
+    """Provide the activity log repository."""
+
+    return ActivityLogRepository(session)
+
+
+def get_activity_log_service(
+    activity_log_repository: ActivityLogRepository = Depends(get_activity_log_repository),
+) -> ActivityLogService:
+    """Provide the activity log service."""
+
+    return ActivityLogService(activity_log_repository)
+
+
 def get_client_repository(session: Session = Depends(get_db_session)) -> ClientRepository:
     """Provide the client repository."""
 
@@ -135,6 +153,7 @@ def get_auth_application_service(
     auth_adapter: AuthServiceAdapter = Depends(get_auth_service_adapter),
     user_repository: CrmUserRepository = Depends(get_crm_user_repository),
     role_resolution_service: RoleResolutionService = Depends(get_role_resolution_service),
+    activity_log_service: ActivityLogService = Depends(get_activity_log_service),
 ) -> AuthApplicationService:
     """Provide the CRM authentication application service.
 
@@ -147,7 +166,12 @@ def get_auth_application_service(
         AuthApplicationService: Configured authentication service.
     """
 
-    return AuthApplicationService(auth_adapter, user_repository, role_resolution_service)
+    return AuthApplicationService(
+        auth_adapter,
+        user_repository,
+        role_resolution_service,
+        activity_log_service=activity_log_service,
+    )
 
 
 def get_stock_category_repository(session: Session = Depends(get_db_session)) -> StockCategoryRepository:
@@ -224,6 +248,12 @@ def get_push_subscription_repository(session: Session = Depends(get_db_session))
     return PushSubscriptionRepository(session)
 
 
+def get_permission_repository(session: Session = Depends(get_db_session)) -> PermissionRepository:
+    """Provide the permission repository."""
+
+    return PermissionRepository(session)
+
+
 def get_push_notification_service(
     push_subscription_repository: PushSubscriptionRepository = Depends(get_push_subscription_repository),
     settings: Settings = Depends(get_settings),
@@ -241,6 +271,15 @@ def get_notification_service(
     """Provide the in-app notification service."""
 
     return NotificationService(notification_repository, user_repository, push_notification_service=push_notification_service)
+
+
+def get_permission_service(
+    permission_repository: PermissionRepository = Depends(get_permission_repository),
+    user_repository: CrmUserRepository = Depends(get_crm_user_repository),
+) -> PermissionService:
+    """Provide the permission service."""
+
+    return PermissionService(permission_repository, user_repository)
 
 
 def extract_bearer_token(authorization: str | None = Header(default=None)) -> str:
@@ -284,6 +323,8 @@ def get_stock_application_service(
     product_repository: StockProductRepository = Depends(get_stock_product_repository),
     notification_service: NotificationService = Depends(get_notification_service),
     user_repository: CrmUserRepository = Depends(get_crm_user_repository),
+    permission_service: PermissionService = Depends(get_permission_service),
+    activity_log_service: ActivityLogService = Depends(get_activity_log_service),
 ) -> StockApplicationService:
     """Provide the stock application service.
 
@@ -302,6 +343,8 @@ def get_stock_application_service(
         product_repository,
         notification_service=notification_service,
         user_repository=user_repository,
+        permission_service=permission_service,
+        activity_log_service=activity_log_service,
     )
 
 
@@ -369,6 +412,8 @@ def get_ticket_application_service(
     role_repository: CrmRoleRepository = Depends(get_crm_role_repository),
     task_media_storage: TaskMediaStorageFacade = Depends(get_task_media_storage),
     notification_service: NotificationService = Depends(get_notification_service),
+    permission_service: PermissionService = Depends(get_permission_service),
+    activity_log_service: ActivityLogService = Depends(get_activity_log_service),
 ) -> TicketApplicationService:
     """Provide the ticket application service."""
 
@@ -380,6 +425,8 @@ def get_ticket_application_service(
         role_repository=role_repository,
         media_storage=task_media_storage,
         notification_service=notification_service,
+        permission_service=permission_service,
+        activity_log_service=activity_log_service,
     )
 
 
@@ -395,10 +442,18 @@ def get_reports_service(session: Session = Depends(get_db_session)) -> ReportsSe
     return ReportsService(session)
 
 
-def get_settings_service(session: Session = Depends(get_db_session)) -> SettingsService:
+def get_settings_service(
+    session: Session = Depends(get_db_session),
+    permission_service: PermissionService = Depends(get_permission_service),
+    activity_log_service: ActivityLogService = Depends(get_activity_log_service),
+) -> SettingsService:
     """Provide the settings service."""
 
-    return SettingsService(session)
+    return SettingsService(
+        session,
+        permission_service=permission_service,
+        activity_log_service=activity_log_service,
+    )
 
 
 def get_satisfaction_form_service(

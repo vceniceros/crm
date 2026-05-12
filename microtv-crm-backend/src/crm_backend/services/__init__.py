@@ -11,6 +11,8 @@ from crm_backend.services.dashboard_service import DashboardService
 from crm_backend.services.location_service import CreateLocationCommand, LocationApplicationService
 from crm_backend.services.material_flow_service import InventoryRequestFacade, TaskMaterialFlowFacade
 from crm_backend.services.notification_service import NotificationService
+from crm_backend.services.permission_service import PermissionService
+from crm_backend.services.activity_log_service import ActivityLogService
 from crm_backend.services.role_resolution_service import RoleResolutionService
 from crm_backend.services.reports_service import ReportsService
 from crm_backend.services.settings_service import SettingsService
@@ -33,6 +35,8 @@ __all__ = [
 	"InventoryRequestFacade",
 	"TaskMaterialFlowFacade",
 	"NotificationService",
+	"PermissionService",
+	"ActivityLogService",
 	"RoleResolutionService",
 	"ReportsService",
 	"SettingsService",

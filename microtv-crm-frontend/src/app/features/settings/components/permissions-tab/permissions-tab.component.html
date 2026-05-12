@@ -1,0 +1,71 @@
+<section class="permissions-tab">
+  @if (isExecutiveMode()) {
+    <mat-card class="permissions-tab__banner">
+      <p>Podes ver los permisos pero solo los administradores pueden modificarlos.</p>
+    </mat-card>
+  }
+
+  @if (error(); as error) {
+    <mat-card class="permissions-tab__error">
+      <p>{{ error }}</p>
+    </mat-card>
+  }
+
+  @if (loading()) {
+    <p>Cargando permisos...</p>
+  } @else {
+    <mat-card>
+      <h3>Permisos por rol</h3>
+      <table class="permissions-tab__table">
+        <thead>
+          <tr>
+            <th>Permiso</th>
+            <th>Rol</th>
+            <th>Concedido</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (group of groupedRolePermissions(); track group.permissionCode) {
+            @for (item of group.values; track item.role_key + ':' + item.permission_code) {
+              <tr>
+                <td>{{ item.permission_code }}</td>
+                <td>{{ item.role_key }}</td>
+                <td>
+                  <button mat-stroked-button type="button" (click)="toggleRolePermission(item)" [disabled]="isExecutiveMode() || item.role_key === 'admin'">
+                    {{ item.is_granted ? 'Si' : 'No' }}
+                  </button>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </mat-card>
+
+    <mat-card>
+      <h3>Overrides por usuario</h3>
+      <table class="permissions-tab__table">
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Permiso</th>
+            <th>Concedido</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of userOverrides(); track item.user_permission_id || (item.crm_user_id + ':' + item.permission_code)) {
+            <tr>
+              <td>{{ item.display_name || item.email || item.crm_user_id }}</td>
+              <td>{{ item.permission_code }}</td>
+              <td>{{ item.is_granted ? 'Si' : 'No' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </mat-card>
+
+    <div class="permissions-tab__actions">
+      <button mat-flat-button color="primary" type="button" (click)="refreshPermissions()">Refrescar permisos</button>
+    </div>
+  }
+</section>

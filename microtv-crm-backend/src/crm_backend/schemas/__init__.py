@@ -84,6 +84,17 @@ from crm_backend.schemas.tickets import (
     TicketSummaryResponse,
     UpdateTicketStatusRequest,
 )
+from crm_backend.schemas.permissions import (
+    EffectivePermissionsResponse,
+    PermissionUpdateRequest,
+    RolePermissionResponse,
+    UserPermissionOverrideResponse,
+)
+from crm_backend.schemas.activity_log import (
+    ActivityLogEntryResponse,
+    ActivityLogFilters,
+    ActivityLogPageResponse,
+)
 
 __all__ = [
     "AccessPendingResponse",
@@ -160,4 +171,11 @@ __all__ = [
     "TicketStatusTransitionResponse",
     "TicketSummaryResponse",
     "UpdateTicketStatusRequest",
+    "RolePermissionResponse",
+    "UserPermissionOverrideResponse",
+    "PermissionUpdateRequest",
+    "EffectivePermissionsResponse",
+    "ActivityLogEntryResponse",
+    "ActivityLogFilters",
+    "ActivityLogPageResponse",
 ]

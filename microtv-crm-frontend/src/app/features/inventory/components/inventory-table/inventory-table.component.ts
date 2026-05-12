@@ -8,8 +8,8 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 
 import { InventoryProduct, InventoryTableData } from '../../../../core/models/inventory-product.model';
-import { AuthSessionService } from '../../../../core/services/auth-session.service';
 import { InventoryService } from '../../../../core/services/inventory.service';
+import { PermissionService } from '../../../../core/services/permission.service';
 import { ImageViewerDialogComponent } from '../../../../shared/ui/image-viewer-dialog/image-viewer-dialog.component';
 
 @Component({
@@ -21,7 +21,7 @@ import { ImageViewerDialogComponent } from '../../../../shared/ui/image-viewer-d
 })
 export class InventoryTableComponent {
   private readonly inventoryService = inject(InventoryService);
-  private readonly authSessionService = inject(AuthSessionService);
+  private readonly permissionService = inject(PermissionService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
 
@@ -168,12 +168,11 @@ export class InventoryTableComponent {
   }
 
   canManageStock(): boolean {
-    const primaryRole = this.authSessionService.sessionSnapshot()?.user.primary_role;
-    return primaryRole === 'admin' || primaryRole === 'deposito';
+    return this.permissionService.canManageStock();
   }
 
   canDeleteProducts(): boolean {
-    return this.authSessionService.sessionSnapshot()?.user.primary_role === 'admin';
+    return this.permissionService.canDeleteProduct();
   }
 
   isPending(productId: string): boolean {

@@ -35,6 +35,7 @@ import { InventoryService } from '../../../../core/services/inventory.service';
 import { InventoryFlowService } from '../../../../core/services/inventory-flow.service';
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
 import { TicketManagementService } from '../../../../core/services/ticket-management.service';
+import { PermissionService } from '../../../../core/services/permission.service';
 import { TicketInventoryRequest, TicketInventoryRequestItem, TicketInventoryRequestStatus } from '../../../../core/models/ticket-inventory-request.model';
 import { isVideoFile, optimizeImagesForUpload } from '../../../../core/utils/media-upload-optimization';
 import { LocationLinkService } from '../../../../shared/services/location-link.service';
@@ -119,6 +120,7 @@ export class TicketExecutionPageComponent {
   private readonly router = inject(Router);
   private readonly snackBar = inject(MatSnackBar);
   private readonly authSessionService = inject(AuthSessionService);
+  private readonly permissionService = inject(PermissionService);
   private readonly inventoryService = inject(InventoryService);
   private readonly inventoryFlowService = inject(InventoryFlowService);
   private readonly ticketManagementService = inject(TicketManagementService);
@@ -222,6 +224,9 @@ export class TicketExecutionPageComponent {
     return false;
   });
   readonly canReassign = computed(() => {
+    if (this.permissionService.canReassignTickets()) {
+      return true;
+    }
     const ticket = this.ticket();
     if (!ticket) {
       return false;

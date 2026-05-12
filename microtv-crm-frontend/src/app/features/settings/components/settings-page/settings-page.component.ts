@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ViewChild, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -37,6 +37,8 @@ import {
   SettingsDialogRoleOption,
   SettingsEditDialogComponent
 } from '../settings-edit-dialog/settings-edit-dialog.component';
+import { PermissionsTabComponent } from '../permissions-tab/permissions-tab.component';
+import { ActivityLogTabComponent } from '../activity-log-tab/activity-log-tab.component';
 
 @Component({
   selector: 'app-settings-page',
@@ -49,7 +51,9 @@ import {
     MatProgressSpinnerModule,
     MatTabsModule,
     ContextHelpCardComponent,
-    PageTitleComponent
+    PageTitleComponent,
+    PermissionsTabComponent,
+    ActivityLogTabComponent
   ],
   templateUrl: './settings-page.component.html',
   styleUrl: './settings-page.component.scss',
@@ -82,6 +86,9 @@ export class SettingsPageComponent {
     { code: 'operador_deposito', label: 'Operador depósito' }
   ];
 
+  @ViewChild(PermissionsTabComponent) private permissionsTab?: PermissionsTabComponent;
+  @ViewChild(ActivityLogTabComponent) private activityLogTab?: ActivityLogTabComponent;
+
   constructor() {
     this.reload();
   }
@@ -104,6 +111,15 @@ export class SettingsPageComponent {
           this.loading.set(false);
         }
       });
+  }
+
+  onSelectedTabChange(index: number): void {
+    if (index === 1 && this.permissionsTab) {
+      this.permissionsTab.load(!this.isAdmin());
+    }
+    if (index === 2 && this.activityLogTab) {
+      this.activityLogTab.load();
+    }
   }
 
   openRoleDialog(role: SettingsRole): void {

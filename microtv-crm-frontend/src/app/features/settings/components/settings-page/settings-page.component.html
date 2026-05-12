@@ -26,7 +26,7 @@
     </mat-card>
   } @else {
     <mat-card class="settings-page__tabs-card">
-      <mat-tab-group>
+      <mat-tab-group (selectedTabChange)="onSelectedTabChange($event.index)">
         @if (isAdminOrExecutive()) {
           <mat-tab label="User management">
             <section class="settings-page__tab-content">
@@ -63,6 +63,18 @@
                   }
                 </tbody>
               </table>
+            </section>
+          </mat-tab>
+
+          <mat-tab label="Permisos y acceso">
+            <section class="settings-page__tab-content">
+              <app-permissions-tab></app-permissions-tab>
+            </section>
+          </mat-tab>
+
+          <mat-tab label="Registro de actividad">
+            <section class="settings-page__tab-content">
+              <app-activity-log-tab></app-activity-log-tab>
             </section>
           </mat-tab>
         }

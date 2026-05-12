@@ -1,0 +1,20 @@
+.permissions-tab {
+  display: grid;
+  gap: 1rem;
+}
+
+.permissions-tab__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.permissions-tab__table th,
+.permissions-tab__table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #d8d8d8;
+}
+
+.permissions-tab__actions {
+  display: flex;
+  justify-content: flex-end;
+}

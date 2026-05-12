@@ -1,0 +1,23 @@
+.activity-log-tab {
+  display: grid;
+  gap: 1rem;
+}
+
+.activity-log-tab__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.activity-log-tab__table th,
+.activity-log-tab__table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #d8d8d8;
+}
+
+.activity-log-tab__pager {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
