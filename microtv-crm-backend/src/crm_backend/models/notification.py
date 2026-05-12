@@ -23,6 +23,7 @@ class NotificationType(StrEnum):
     TICKET_APPROVED = "ticket_approved"
     TICKET_REJECTED = "ticket_rejected"
     TICKET_RETURNED_TO_TECHNICIAN = "ticket_returned_to_technician"
+    TICKET_COMMENT_ADDED = "ticket_comment_added"
 
     # Task / subtask events
     TASK_ASSIGNED = "task_assigned"

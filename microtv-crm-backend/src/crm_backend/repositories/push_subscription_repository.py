@@ -18,7 +18,8 @@ class PushSubscriptionRepository:
             existing.p256dh = p256dh
             existing.auth = auth
             existing.user_agent = user_agent
-            self._session.flush()
+            self._session.commit()
+            self._session.refresh(existing)
             return existing
 
         subscription = PushSubscription(
@@ -29,12 +30,13 @@ class PushSubscriptionRepository:
             user_agent=user_agent,
         )
         self._session.add(subscription)
-        self._session.flush()
+        self._session.commit()
+        self._session.refresh(subscription)
         return subscription
 
     def delete_by_endpoint(self, endpoint: str) -> None:
         self._session.query(PushSubscription).filter_by(endpoint=endpoint).delete()
-        self._session.flush()
+        self._session.commit()
 
     def list_for_user(self, crm_user_id: str) -> list[PushSubscription]:
         return self._session.query(PushSubscription).filter_by(crm_user_id=crm_user_id).all()

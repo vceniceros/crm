@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import UploadFile
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 from crm_backend.core.exceptions import (
     InvalidTaskAttachmentError,
@@ -22,6 +22,7 @@ from crm_backend.infrastructure.task_media_storage import StoredTaskMedia, TaskM
 from crm_backend.models import (
     CrmRole,
     CrmUser,
+    NotificationRule,
     Ticket,
     TicketAssignmentHistory,
     TicketAttachment,
@@ -268,7 +269,28 @@ class TicketApplicationService:
                 },
             )
         )
-        return self._ticket_repository.save(ticket)
+        saved_ticket = self._ticket_repository.save(ticket)
+
+        try:
+            if self._notification_service is not None:
+                recipient_ids = self._resolve_notification_recipients_for_event(
+                    event_code=NotificationType.TICKET_COMMENT_ADDED.value,
+                    assigned_user_id=saved_ticket.assigned_user_id,
+                    actor_crm_user_id=actor.crm_user.crm_user_id,
+                )
+                for recipient_id in recipient_ids:
+                    self._notification_service.notify(
+                        recipient_crm_user_id=recipient_id,
+                        notification_type=NotificationType.TICKET_COMMENT_ADDED,
+                        title=f"Nuevo comentario en ticket {saved_ticket.ticket_number}",
+                        body=f"{actor.crm_user.full_name} agregó un comentario en {saved_ticket.ticket_number}.",
+                        entity_type=NotificationEntityType.TICKET,
+                        entity_id=saved_ticket.ticket_id,
+                    )
+        except Exception:
+            _logger.exception("Error sending add_comment notification for ticket %s", saved_ticket.ticket_id)
+
+        return saved_ticket
 
     def assign_ticket(
         self,
@@ -1260,6 +1282,35 @@ class TicketApplicationService:
             entity_type=NotificationEntityType.TICKET,
             entity_id=ticket.ticket_id,
         )
+
+    def _resolve_notification_recipients_for_event(
+        self,
+        *,
+        event_code: str,
+        assigned_user_id: str | None,
+        actor_crm_user_id: str,
+    ) -> list[str]:
+        if self._notification_service is None:
+            return []
+
+        rule = self._ticket_repository.session.scalar(
+            select(NotificationRule).where(
+                NotificationRule.event_code == event_code,
+                NotificationRule.is_active.is_(True),
+            )
+        )
+        if rule is None:
+            return []
+
+        recipients: set[str] = set()
+        if rule.notify_assigned and assigned_user_id:
+            recipients.add(assigned_user_id)
+
+        for role_key in rule.notify_roles_json or []:
+            recipients.update(self._notification_service.resolve_users_with_role_key(role_key))
+
+        recipients.discard(actor_crm_user_id)
+        return list(recipients)
 
     def _normalize_role_key(self, role_key: str | None) -> str | None:
         if not isinstance(role_key, str):
