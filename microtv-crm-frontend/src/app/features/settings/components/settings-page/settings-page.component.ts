@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, ViewChild, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -86,9 +86,6 @@ export class SettingsPageComponent {
     { code: 'operador_deposito', label: 'Operador depósito' }
   ];
 
-  @ViewChild(PermissionsTabComponent) private permissionsTab?: PermissionsTabComponent;
-  @ViewChild(ActivityLogTabComponent) private activityLogTab?: ActivityLogTabComponent;
-
   constructor() {
     this.reload();
   }
@@ -96,6 +93,13 @@ export class SettingsPageComponent {
   reload(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
+
+    if (!this.isAdmin()) {
+      // Ejecutivos no tienen acceso a la gestión de usuarios del auth
+      this.authUsers.set([]);
+      this.loading.set(false);
+      return;
+    }
 
     forkJoin({
       authUsers: this.settingsService.listAuthUsers()
@@ -111,15 +115,6 @@ export class SettingsPageComponent {
           this.loading.set(false);
         }
       });
-  }
-
-  onSelectedTabChange(index: number): void {
-    if (index === 1 && this.permissionsTab) {
-      this.permissionsTab.load(!this.isAdmin());
-    }
-    if (index === 2 && this.activityLogTab) {
-      this.activityLogTab.load();
-    }
   }
 
   openRoleDialog(role: SettingsRole): void {
