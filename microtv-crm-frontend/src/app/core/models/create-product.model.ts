@@ -4,5 +4,6 @@ export interface CreateInventoryProductFormValue {
   categoryId: string | null;
   imageFile?: File | null;
   initialStock: number | null;
+  minimumStock: number;
   requiresTracking: boolean;
 }

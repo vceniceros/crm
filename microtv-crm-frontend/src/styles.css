@@ -564,3 +564,9 @@ html.theme-dark .login-card__account code {
   color: var(--text-secondary);
   margin-top: 0.1rem;
 }
+
+.image-viewer-panel .mat-mdc-dialog-container .mdc-dialog__surface {
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
+}

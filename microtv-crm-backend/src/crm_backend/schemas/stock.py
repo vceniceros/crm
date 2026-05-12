@@ -54,6 +54,9 @@ class StockProductResponse(BaseModel):
     category_name: str
     current_stock: int
     image_url: str | None
+    minimum_stock: int
+    shelf_id: str | None
+    shelf_height: int | None
     requires_tracking: bool
     created_at: datetime
     updated_at: datetime | None
@@ -75,6 +78,7 @@ class CreateStockProductRequest(BaseModel):
     product_code: str = Field(..., min_length=3, max_length=100)
     category_id: str
     initial_stock: int = Field(default=0, ge=0, validation_alias=AliasChoices("initial_stock", "stock_initial"))
+    minimum_stock: int = Field(default=3, ge=1)
     image_url: str | None = Field(default=None, max_length=500)
     requires_tracking: bool = False
 
@@ -129,3 +133,13 @@ class StockAdjustmentRequest(BaseModel):
     """
 
     quantity: int = Field(..., gt=0)
+
+
+class UpdateProductLocationRequest(BaseModel):
+    shelf_id: str = Field(..., pattern=r"^[A-Z]$")
+    shelf_height: int = Field(..., ge=1)
+
+
+class SetStockRequest(BaseModel):
+    quantity: int = Field(..., ge=0)
+    reason: str | None = Field(default=None, max_length=255)

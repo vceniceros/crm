@@ -7,7 +7,7 @@ from decimal import Decimal
 import re
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, Uuid, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, SmallInteger, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from crm_backend.core.exceptions import InsufficientStockError, InvalidStockQuantityError, StockProductInactiveError
@@ -42,6 +42,9 @@ class StockProduct(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     unit_of_measure: Mapped[str | None] = mapped_column(String(50), nullable=True)
     image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    minimum_stock: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
+    shelf_id: Mapped[str | None] = mapped_column(String(1), nullable=True)
+    shelf_height: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     requires_tracking: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -105,6 +108,7 @@ class StockProduct(Base):
         requires_tracking: bool,
         actor_crm_user_id: str | None,
         warehouse_id: str,
+        minimum_stock: int = 3,
     ) -> "StockProduct":
         """Construye un producto listo para persistir.
 
@@ -126,6 +130,7 @@ class StockProduct(Base):
             category_id=stock_category_id,
             product_code=product_code.strip().upper(),
             image_url=image_url,
+            minimum_stock=minimum_stock,
             unit_of_measure="unidad",
             requires_tracking=requires_tracking,
             is_active=True,

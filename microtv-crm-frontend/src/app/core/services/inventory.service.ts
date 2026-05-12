@@ -33,6 +33,9 @@ interface StockProductResponseDto {
   category_name: string;
   current_stock: number;
   image_url: string | null;
+  minimum_stock: number;
+  shelf_id: string | null;
+  shelf_height: number | null;
   requires_tracking: boolean;
   created_at: string;
   updated_at: string | null;
@@ -45,6 +48,7 @@ const tableColumns: InventoryTableColumn[] = [
   { key: 'name', label: 'Producto' },
   { key: 'category', label: 'Categoria' },
   { key: 'stock', label: 'Stock actual' },
+  { key: 'location', label: 'Ubicacion' },
   { key: 'actions', label: 'Acciones' }
 ];
 
@@ -117,6 +121,7 @@ export class InventoryService {
     formData.append('product_code', payload.productCode.trim().toUpperCase());
     formData.append('category_id', payload.categoryId ?? '');
     formData.append('stock_initial', String(Math.max(0, Math.trunc(payload.initialStock ?? 0))));
+    formData.append('minimum_stock', String(payload.minimumStock));
     formData.append('requires_tracking', String(payload.requiresTracking));
     if (payload.imageFile) {
       formData.append('image', payload.imageFile);
@@ -140,6 +145,50 @@ export class InventoryService {
 
   removeStock(productId: string, quantity = 1): Observable<InventoryProduct> {
     return this.adjustStock(productId, quantity, 'decrease-stock', 'No se pudo disminuir el stock.');
+  }
+
+  setStock(productId: string, quantity: number): Observable<InventoryProduct> {
+    const headers = this.buildAuthHeaders();
+    if (!headers) {
+      return this.failRequest('No hay sesión activa.');
+    }
+
+    return this.http
+      .patch<StockProductResponseDto>(this.buildUrl(`/stock/products/${productId}/stock`), { quantity }, { headers })
+      .pipe(
+        tap((dto) => {
+          const updated = this.mapProduct(dto);
+          this.productsSubject.next(
+            this.productsSubject.value.map((product) => (product.productId === updated.productId ? updated : product))
+          );
+        }),
+        map((dto) => this.mapProduct(dto)),
+        catchError((error) => this.handleError(error))
+      );
+  }
+
+  updateProductLocation(productId: string, shelfId: string, shelfHeight: number): Observable<InventoryProduct> {
+    const headers = this.buildAuthHeaders();
+    if (!headers) {
+      return this.failRequest('No hay sesión activa.');
+    }
+
+    return this.http
+      .patch<StockProductResponseDto>(
+        this.buildUrl(`/stock/products/${productId}/location`),
+        { shelf_id: shelfId, shelf_height: shelfHeight },
+        { headers }
+      )
+      .pipe(
+        tap((dto) => {
+          const updated = this.mapProduct(dto);
+          this.productsSubject.next(
+            this.productsSubject.value.map((product) => (product.productId === updated.productId ? updated : product))
+          );
+        }),
+        map((dto) => this.mapProduct(dto)),
+        catchError((error) => this.handleError(error))
+      );
   }
 
   deleteProduct(productId: string): Observable<void> {
@@ -203,6 +252,9 @@ export class InventoryService {
       category: product.category_name,
       imageUrl: this.resolveProductImageUrl(product.image_url),
       stock: product.current_stock,
+      minimumStock: product.minimum_stock,
+      shelfId: product.shelf_id,
+      shelfHeight: product.shelf_height,
       requiresTracking: product.requires_tracking,
       isActive: product.is_active,
       createdAt: product.created_at,
@@ -243,6 +295,10 @@ export class InventoryService {
   private failRequest(message: string): Observable<never> {
     this.errorMessageSubject.next(message);
     return throwError(() => new Error(message));
+  }
+
+  private handleError(error: unknown): Observable<never> {
+    return this.handleRequestError(error, 'No se pudo completar la operación en depósito.');
   }
 
   private resolveErrorMessage(error: unknown, fallbackMessage: string): string {
