@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { SettingsRolePermission, SettingsUserPermissionOverride } from '../../../../core/models/settings-management.model';
+import { AuthSessionService } from '../../../../core/services/auth-session.service';
 import { PermissionService } from '../../../../core/services/permission.service';
 import { SettingsManagementService } from '../../../../core/services/settings-management.service';
 
@@ -16,8 +17,9 @@ import { SettingsManagementService } from '../../../../core/services/settings-ma
   styleUrl: './permissions-tab.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class PermissionsTabComponent {
+export class PermissionsTabComponent implements OnInit {
   private readonly settingsManagementService = inject(SettingsManagementService);
+  private readonly authSessionService = inject(AuthSessionService);
   private readonly permissionService = inject(PermissionService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly destroyRef = inject(DestroyRef);
@@ -28,6 +30,11 @@ export class PermissionsTabComponent {
   readonly userOverrides = signal<SettingsUserPermissionOverride[]>([]);
   readonly isExecutiveMode = signal(false);
 
+  ngOnInit(): void {
+    const roleKeys = this.authSessionService.sessionSnapshot()?.user.role_keys ?? [];
+    const isExecutive = !roleKeys.includes('admin');
+    this.load(isExecutive);
+  }
   readonly groupedRolePermissions = computed(() => {
     const grouped = new Map<string, SettingsRolePermission[]>();
     for (const row of this.rolePermissions()) {

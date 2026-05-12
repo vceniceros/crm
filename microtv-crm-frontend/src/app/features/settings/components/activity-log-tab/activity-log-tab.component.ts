@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -15,7 +15,7 @@ import { SettingsManagementService } from '../../../../core/services/settings-ma
   styleUrl: './activity-log-tab.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ActivityLogTabComponent {
+export class ActivityLogTabComponent implements OnInit {
   private readonly settingsManagementService = inject(SettingsManagementService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -25,6 +25,10 @@ export class ActivityLogTabComponent {
   readonly page = signal(1);
   readonly perPage = signal(50);
   readonly total = signal(0);
+
+  ngOnInit(): void {
+    this.load();
+  }
 
   load(): void {
     this.loading.set(true);
