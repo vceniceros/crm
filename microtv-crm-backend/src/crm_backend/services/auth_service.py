@@ -14,6 +14,7 @@ from crm_backend.adapters.auth_service_adapter import (
 )
 from crm_backend.models import CrmUser
 from crm_backend.repositories import CrmUserRepository
+from crm_backend.services.activity_log_service import ActivityLogService
 from crm_backend.services.role_resolution_service import RoleResolutionService
 
 
@@ -42,6 +43,7 @@ class AuthApplicationService:
         auth_adapter: AuthServiceAdapter,
         user_repository: CrmUserRepository,
         role_resolution_service: RoleResolutionService,
+        activity_log_service: ActivityLogService,
     ) -> None:
         """Crea el servicio.
 
@@ -54,12 +56,14 @@ class AuthApplicationService:
         self._auth_adapter = auth_adapter
         self._user_repository = user_repository
         self._role_resolution_service = role_resolution_service
+        self._activity_log_service = activity_log_service
 
     def login(
         self,
         *,
         email: str,
         password: str,
+        ip_address: str | None = None,
     ) -> ResolvedCrmSession | ContextSelectionRequiredResult | AccessPendingResult:
         """Autentica un usuario contra auth y aprovisiona el perfil local del CRM.
 
@@ -75,7 +79,7 @@ class AuthApplicationService:
         auth_result = self._auth_adapter.login(email=email, password=password)
         if isinstance(auth_result, (ContextSelectionRequiredResult, AccessPendingResult)):
             return auth_result
-        return self._resolve_crm_session(auth_result)
+        return self._resolve_crm_session(auth_result, log_login=True, ip_address=ip_address)
 
     def resolve_session_from_token(self, access_token: str) -> ResolvedCrmSession:
         """Resuelve un token existente de auth hacia una sesión del CRM.
@@ -88,9 +92,15 @@ class AuthApplicationService:
         """
 
         auth_result = self._auth_adapter.validate_access_token(access_token)
-        return self._resolve_crm_session(auth_result)
+        return self._resolve_crm_session(auth_result, log_login=False, ip_address=None)
 
-    def _resolve_crm_session(self, auth_result: AuthenticatedAuthResult) -> ResolvedCrmSession:
+    def _resolve_crm_session(
+        self,
+        auth_result: AuthenticatedAuthResult,
+        *,
+        log_login: bool,
+        ip_address: str | None,
+    ) -> ResolvedCrmSession:
         """Aprovisiona estado local y resuelve roles locales del CRM.
 
         Args:
@@ -130,12 +140,24 @@ class AuthApplicationService:
         role_keys = self._role_resolution_service.ensure_local_roles(crm_user, auth_result)
         primary_role = self._role_resolution_service.select_primary_role(role_keys)
         persisted_user = self._user_repository.save(crm_user)
-        return ResolvedCrmSession(
+        resolved = ResolvedCrmSession(
             crm_user=persisted_user,
             primary_role=primary_role,
             role_keys=role_keys,
             auth_result=auth_result,
         )
+        if log_login:
+            self._activity_log_service.log(
+                "auth.login",
+                resolved,
+                entity_type="crm_user",
+                entity_id=resolved.crm_user.crm_user_id,
+                entity_label=resolved.crm_user.display_name or resolved.crm_user.email,
+                summary="Login exitoso en CRM.",
+                extra={"primary_role": primary_role},
+                ip_address=ip_address,
+            )
+        return resolved
 
     def _select_preferred_user(
         self,

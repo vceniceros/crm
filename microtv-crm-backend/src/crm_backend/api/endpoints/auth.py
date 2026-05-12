@@ -1,9 +1,14 @@
 """Endpoints de autenticación del backend CRM."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request, Response, status
 
 from crm_backend.adapters.auth_service_adapter import AccessPendingResult, ContextSelectionRequiredResult
-from crm_backend.api.dependencies import extract_bearer_token, get_auth_application_service
+from crm_backend.api.dependencies import (
+    extract_bearer_token,
+    get_activity_log_service,
+    get_auth_application_service,
+    get_authenticated_crm_session,
+)
 from crm_backend.schemas import (
     AccessPendingResponse,
     ActiveMembershipResponse,
@@ -16,6 +21,7 @@ from crm_backend.schemas import (
     TokenBundleResponse,
 )
 from crm_backend.services.auth_service import AuthApplicationService, ResolvedCrmSession
+from crm_backend.services.activity_log_service import ActivityLogService
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -28,6 +34,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 )
 def login(
     payload: LoginRequest,
+    request: Request,
     auth_service: AuthApplicationService = Depends(get_auth_application_service),
 ) -> LoginSuccessResponse | ContextSelectionRequiredResponse | AccessPendingResponse:
     """Autentica un usuario del CRM vía auth.microtv.ar.
@@ -41,7 +48,7 @@ def login(
             Resultado de login apto para el frontend.
     """
 
-    result = auth_service.login(email=payload.email, password=payload.password)
+    result = auth_service.login(email=payload.email, password=payload.password, ip_address=request.client.host if request.client else None)
     if isinstance(result, ContextSelectionRequiredResult):
         return ContextSelectionRequiredResponse(
             login_ticket=result.login_ticket,
@@ -73,6 +80,28 @@ def get_me(
 
     session = auth_service.resolve_session_from_token(bearer_token)
     return _build_login_success_response(session)
+
+
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={401: {"model": ErrorResponse}},
+)
+def logout(
+    request: Request,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    activity_log_service: ActivityLogService = Depends(get_activity_log_service),
+) -> Response:
+    activity_log_service.log(
+        "auth.logout",
+        actor,
+        entity_type="crm_user",
+        entity_id=actor.crm_user.crm_user_id,
+        entity_label=actor.crm_user.display_name or actor.crm_user.email,
+        summary="Logout de CRM.",
+        ip_address=request.client.host if request.client else None,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 def _build_login_success_response(session: ResolvedCrmSession) -> LoginSuccessResponse:

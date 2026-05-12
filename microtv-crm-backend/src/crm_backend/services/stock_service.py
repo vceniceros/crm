@@ -15,8 +15,14 @@ from crm_backend.core.exceptions import (
 from crm_backend.models import StockCategory, StockProduct
 from crm_backend.models.notification import NotificationEntityType, NotificationType
 from crm_backend.repositories import CrmUserRepository, StockCategoryRepository, StockProductRepository
+from crm_backend.services.activity_log_service import ActivityLogService
 from crm_backend.services.auth_service import ResolvedCrmSession
 from crm_backend.services.notification_service import NotificationService
+from crm_backend.services.permission_service import (
+    PERMISSION_STOCK_DELETE_PRODUCT,
+    PERMISSION_STOCK_MANAGE,
+    PermissionService,
+)
 
 
 @dataclass(slots=True)
@@ -50,6 +56,8 @@ class StockApplicationService:
         product_repository: StockProductRepository,
         notification_service: NotificationService | None = None,
         user_repository: CrmUserRepository | None = None,
+        permission_service: PermissionService | None = None,
+        activity_log_service: ActivityLogService | None = None,
     ) -> None:
         """Crea el servicio.
 
@@ -64,6 +72,8 @@ class StockApplicationService:
         self._product_repository = product_repository
         self._notification_service = notification_service
         self._user_repository = user_repository
+        self._permission_service = permission_service
+        self._activity_log_service = activity_log_service
 
     def list_categories(self, actor: ResolvedCrmSession) -> list[StockCategory]:
         """Lista categorías disponibles para el actor autenticado.
@@ -121,7 +131,15 @@ class StockApplicationService:
             actor_crm_user_id=actor.crm_user.crm_user_id,
             warehouse_id=warehouse_id,
         )
-        return self._product_repository.save(product)
+        saved = self._product_repository.save(product)
+        self._log_event(
+            "stock.product_created",
+            actor,
+            saved.product_id,
+            saved.product_name,
+            {"product_code": saved.visible_product_code, "stock": saved.current_stock},
+        )
+        return saved
 
     def increase_stock(self, actor: ResolvedCrmSession, product_id: str, quantity: int) -> StockProduct:
         """Aumenta el stock de un producto existente.
@@ -142,7 +160,15 @@ class StockApplicationService:
             actor_crm_user_id=actor.crm_user.crm_user_id,
             warehouse_id=self._product_repository.get_default_warehouse_id(),
         )
-        return self._product_repository.save(product)
+        saved = self._product_repository.save(product)
+        self._log_event(
+            "stock.movement",
+            actor,
+            saved.product_id,
+            saved.product_name,
+            {"kind": "increase", "quantity": quantity, "stock": saved.current_stock},
+        )
+        return saved
 
     def decrease_stock(self, actor: ResolvedCrmSession, product_id: str, quantity: int) -> StockProduct:
         """Disminuye el stock de un producto existente.
@@ -164,6 +190,13 @@ class StockApplicationService:
             warehouse_id=self._product_repository.get_default_warehouse_id(),
         )
         saved_product = self._product_repository.save(product)
+        self._log_event(
+            "stock.movement",
+            actor,
+            saved_product.product_id,
+            saved_product.product_name,
+            {"kind": "decrease", "quantity": quantity, "stock": saved_product.current_stock},
+        )
 
         if self._notification_service is not None and self._user_repository is not None:
             stock_now = saved_product.current_stock
@@ -204,7 +237,15 @@ class StockApplicationService:
         product = self._get_operable_product(product_id)
         product.shelf_id = shelf_id
         product.shelf_height = shelf_height
-        return self._product_repository.save(product)
+        saved = self._product_repository.save(product)
+        self._log_event(
+            "stock.product_updated",
+            actor,
+            saved.product_id,
+            saved.product_name,
+            {"shelf_id": shelf_id, "shelf_height": shelf_height},
+        )
+        return saved
 
     def set_stock(
         self,
@@ -230,6 +271,13 @@ class StockApplicationService:
             )
 
         saved_product = self._product_repository.save(product)
+        self._log_event(
+            "stock.movement",
+            actor,
+            saved_product.product_id,
+            saved_product.product_name,
+            {"kind": "set", "quantity": quantity, "stock": saved_product.current_stock},
+        )
 
         if self._notification_service is not None and self._user_repository is not None:
             stock_now = saved_product.current_stock
@@ -273,7 +321,9 @@ class StockApplicationService:
         self._ensure_inventory_admin(actor)
         product = self._get_operable_product(product_id)
         product.deactivate()
-        return self._product_repository.save(product)
+        saved = self._product_repository.save(product)
+        self._log_event("stock.product_deleted", actor, saved.product_id, saved.product_name, {})
+        return saved
 
     def _get_operable_product(self, product_id: str) -> StockProduct:
         """Obtiene un producto existente listo para operar.
@@ -315,11 +365,39 @@ class StockApplicationService:
         """
 
         self._ensure_inventory_read_access(actor)
-        if "deposito" not in actor.role_keys and "admin" not in actor.role_keys:
+        if self._permission_service is None:
+            if "deposito" in actor.role_keys or "admin" in actor.role_keys:
+                return
+            raise InventoryAccessDeniedError()
+        if not self._permission_service.resolve(actor.role_keys, actor.crm_user.crm_user_id, PERMISSION_STOCK_MANAGE):
             raise InventoryAccessDeniedError()
 
     def _ensure_inventory_admin(self, actor: ResolvedCrmSession) -> None:
         """Valida que la sesión tenga permisos administrativos en el CRM."""
 
-        if "admin" not in actor.role_keys:
+        if self._permission_service is None:
+            if "admin" in actor.role_keys:
+                return
             raise InventoryAdminRequiredError()
+        if not self._permission_service.resolve(actor.role_keys, actor.crm_user.crm_user_id, PERMISSION_STOCK_DELETE_PRODUCT):
+            raise InventoryAdminRequiredError()
+
+    def _log_event(
+        self,
+        event_code: str,
+        actor: ResolvedCrmSession,
+        entity_id: str,
+        entity_label: str,
+        extra: dict[str, object],
+    ) -> None:
+        if self._activity_log_service is None:
+            return
+        self._activity_log_service.log(
+            event_code,
+            actor,
+            entity_type="stock_product",
+            entity_id=entity_id,
+            entity_label=entity_label,
+            summary=event_code,
+            extra=extra,
+        )

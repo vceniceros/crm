@@ -43,8 +43,10 @@ from crm_backend.repositories import (
     TicketRepository,
 )
 from crm_backend.schemas.tickets import CreateTicketRequest
+from crm_backend.services.activity_log_service import ActivityLogService
 from crm_backend.services.auth_service import ResolvedCrmSession
 from crm_backend.services.notification_service import NotificationService
+from crm_backend.services.permission_service import PERMISSION_TICKET_REASSIGN, PermissionService
 from crm_backend.models.notification import NotificationEntityType, NotificationType
 
 
@@ -80,6 +82,8 @@ class TicketApplicationService:
         role_repository: CrmRoleRepository,
         media_storage: TaskMediaStorageFacade,
         notification_service: NotificationService | None = None,
+        permission_service: PermissionService | None = None,
+        activity_log_service: ActivityLogService | None = None,
     ) -> None:
         self._ticket_repository = ticket_repository
         self._client_repository = client_repository
@@ -88,6 +92,8 @@ class TicketApplicationService:
         self._role_repository = role_repository
         self._media_storage = media_storage
         self._notification_service = notification_service
+        self._permission_service = permission_service
+        self._activity_log_service = activity_log_service
         self._legacy_status_id_cache: dict[str, str | None] = {}
         self._legacy_priority_id_cache: dict[str, str | None] = {}
 
@@ -153,6 +159,7 @@ class TicketApplicationService:
             )
         )
         saved_ticket = self._ticket_repository.save(ticket)
+        self._log_event("ticket.created", actor, saved_ticket, {"status": saved_ticket.status})
         self._notify_ticket_unassigned_to_tecnicos(saved_ticket)
         return saved_ticket
 
@@ -342,6 +349,12 @@ class TicketApplicationService:
             )
         )
         saved_ticket = self._ticket_repository.save(ticket)
+        self._log_event(
+            "ticket.reassigned",
+            actor,
+            saved_ticket,
+            {"assigned_role_id": saved_ticket.assigned_role_id, "assigned_user_id": saved_ticket.assigned_user_id},
+        )
         # Notify the newly assigned user when there is one.
         try:
             if self._notification_service is not None and saved_ticket.assigned_user_id is not None:
@@ -420,7 +433,14 @@ class TicketApplicationService:
                 payload_json={"from_status": from_status, "to_status": to_status},
             )
         )
-        return self._ticket_repository.save(ticket)
+        saved_ticket = self._ticket_repository.save(ticket)
+        self._log_event(
+            "ticket.status_changed",
+            actor,
+            saved_ticket,
+            {"from_status": from_status, "to_status": to_status},
+        )
+        return saved_ticket
 
     def register_arrival(
         self,
@@ -569,6 +589,7 @@ class TicketApplicationService:
             )
         )
         saved_ticket = self._ticket_repository.save(ticket)
+        self._log_event("ticket.closed", actor, saved_ticket, {"status": saved_ticket.status})
         # If sent to approval, notify all executives/admins.
         try:
             if self._notification_service is not None and not is_executive_closure:
@@ -659,6 +680,7 @@ class TicketApplicationService:
             )
         )
         saved_ticket = self._ticket_repository.save(ticket)
+        self._log_event("ticket.approved", actor, saved_ticket, {"status": saved_ticket.status})
         # Notify the technician who originally resolved the ticket.
         try:
             if self._notification_service is not None and saved_ticket.resolved_by_crm_user_id is not None:
@@ -727,6 +749,7 @@ class TicketApplicationService:
             )
         )
         saved_ticket = self._ticket_repository.save(ticket)
+        self._log_event("ticket.reopened", actor, saved_ticket, {"status": saved_ticket.status})
         try:
             if self._notification_service is not None and next_user_id is not None:
                 self._notification_service.notify(
@@ -1218,6 +1241,12 @@ class TicketApplicationService:
         raise TicketAccessDeniedError("Solo el usuario asignado o el mismo rol puede operar este ticket.")
 
     def _ensure_assignment_access(self, actor: ResolvedCrmSession, ticket: Ticket, role: CrmRole | None) -> None:
+        if self._permission_service is not None and self._permission_service.resolve(
+            actor.role_keys,
+            actor.crm_user.crm_user_id,
+            PERMISSION_TICKET_REASSIGN,
+        ):
+            return
         if {"admin", "ejecutivo"}.intersection(actor.role_keys):
             return
 
@@ -1324,3 +1353,16 @@ class TicketApplicationService:
         if normalized == "encargado_deposito":
             return "deposito"
         return normalized or None
+
+    def _log_event(self, event_code: str, actor: ResolvedCrmSession, ticket: Ticket, extra: dict[str, object]) -> None:
+        if self._activity_log_service is None:
+            return
+        self._activity_log_service.log(
+            event_code,
+            actor,
+            entity_type="ticket",
+            entity_id=ticket.ticket_id,
+            entity_label=ticket.ticket_number,
+            summary=event_code,
+            extra=extra,
+        )

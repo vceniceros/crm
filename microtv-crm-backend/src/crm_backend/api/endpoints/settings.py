@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 
 from crm_backend.adapters.auth_service_adapter import AuthManagedUser, AuthServiceAdapter
 from crm_backend.api.dependencies import get_auth_service_adapter, get_authenticated_crm_session, get_settings_service
@@ -31,6 +31,12 @@ from crm_backend.schemas.settings import (
     SettingsTaskTemplateUpdateRequest,
     SettingsUserRoleAssignmentRequest,
     SettingsUserRoleAssignmentResponse,
+)
+from crm_backend.schemas.permissions import (
+    EffectivePermissionsResponse,
+    PermissionUpdateRequest,
+    RolePermissionResponse,
+    UserPermissionOverrideResponse,
 )
 from crm_backend.services.auth_service import ResolvedCrmSession
 from crm_backend.services.settings_service import SettingsService
@@ -61,6 +67,89 @@ def list_roles(
     settings_service: SettingsService = Depends(get_settings_service),
 ) -> list[SettingsRoleResponse]:
     return [SettingsRoleResponse.model_validate(role) for role in settings_service.list_roles(actor)]
+
+
+@router.get(
+    "/permissions/roles",
+    response_model=list[RolePermissionResponse],
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
+)
+def list_role_permissions(
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    settings_service: SettingsService = Depends(get_settings_service),
+) -> list[RolePermissionResponse]:
+    return [RolePermissionResponse.model_validate(item) for item in settings_service.list_role_permissions(actor)]
+
+
+@router.put(
+    "/permissions/roles/{role_key}/{permission_code}",
+    response_model=RolePermissionResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+)
+def update_role_permission(
+    role_key: str,
+    permission_code: str,
+    payload: PermissionUpdateRequest,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    settings_service: SettingsService = Depends(get_settings_service),
+) -> RolePermissionResponse:
+    return RolePermissionResponse.model_validate(
+        settings_service.update_role_permission(actor, role_key, permission_code, payload.is_granted)
+    )
+
+
+@router.get(
+    "/permissions/users",
+    response_model=list[UserPermissionOverrideResponse],
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
+)
+def list_user_permissions(
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    settings_service: SettingsService = Depends(get_settings_service),
+) -> list[UserPermissionOverrideResponse]:
+    return [UserPermissionOverrideResponse.model_validate(item) for item in settings_service.list_user_permissions(actor)]
+
+
+@router.put(
+    "/permissions/users/{user_id}/{permission_code}",
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+)
+def update_user_permission(
+    user_id: str,
+    permission_code: str,
+    payload: PermissionUpdateRequest,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    settings_service: SettingsService = Depends(get_settings_service),
+) -> Response:
+    settings_service.update_user_permission(actor, user_id, permission_code, payload.is_granted)
+    return Response(status_code=204)
+
+
+@router.delete(
+    "/permissions/users/{user_id}/{permission_code}",
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+)
+def delete_user_permission(
+    user_id: str,
+    permission_code: str,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    settings_service: SettingsService = Depends(get_settings_service),
+) -> Response:
+    settings_service.delete_user_permission(actor, user_id, permission_code)
+    return Response(status_code=204)
+
+
+@router.get(
+    "/permissions/me",
+    response_model=EffectivePermissionsResponse,
+    responses={401: {"model": ErrorResponse}},
+)
+def get_my_permissions(
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    settings_service: SettingsService = Depends(get_settings_service),
+) -> EffectivePermissionsResponse:
+    permissions = settings_service.get_effective_permissions_for_user(actor, actor.crm_user.crm_user_id)
+    return EffectivePermissionsResponse(permissions=permissions)
 
 
 @router.put("/roles/{role_id}", response_model=SettingsRoleResponse, responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}})

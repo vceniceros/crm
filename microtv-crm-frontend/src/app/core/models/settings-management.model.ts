@@ -48,6 +48,60 @@ export interface SettingsAuthUserStatusRequest {
   is_active: boolean;
 }
 
+export interface SettingsRolePermission {
+  role_permission_id?: string;
+  role_key: string;
+  permission_code: string;
+  is_granted: boolean;
+}
+
+export interface SettingsUserPermissionOverride {
+  user_permission_id?: string;
+  crm_user_id: string;
+  display_name?: string;
+  email?: string;
+  permission_code: string;
+  is_granted: boolean;
+  granted_by_crm_user_id?: string | null;
+}
+
+export interface SettingsPermissionUpdateRequest {
+  is_granted: boolean;
+}
+
+export type SettingsEffectivePermissions = Record<string, boolean>;
+
+export interface ActivityLogEntry {
+  activity_log_id: string;
+  actor_crm_user_id: string | null;
+  actor_display_name: string | null;
+  event_code: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  entity_label: string | null;
+  summary: string | null;
+  payload_json: Record<string, unknown>;
+  ip_address: string | null;
+  created_at: string;
+}
+
+export interface ActivityLogFilters {
+  userId?: string;
+  eventCode?: string;
+  entityType?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page: number;
+  perPage: number;
+}
+
+export interface ActivityLogPage {
+  items: ActivityLogEntry[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
 export interface SettingsAuthUserRolesRequest {
   roles: string[];
 }

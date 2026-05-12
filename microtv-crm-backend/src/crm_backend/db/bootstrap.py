@@ -7,7 +7,7 @@ from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
 
 from crm_backend.db import Base
-from crm_backend.models import CrmRole, CrmUser, CrmUserRole, StockCategory, StockProduct, Warehouse
+from crm_backend.models import CrmRole, CrmUser, CrmUserRole, RolePermission, StockCategory, StockProduct, Warehouse
 
 
 _logger = logging.getLogger(__name__)
@@ -81,6 +81,18 @@ STOCK_PRODUCT_SEEDS = (
         "image_url": None,
         "stock": 0,
     },
+)
+
+ROLE_PERMISSION_SEEDS = (
+    ("admin", "stock.manage", True),
+    ("admin", "stock.delete_product", True),
+    ("admin", "ticket.reassign", True),
+    ("admin", "order.reassign", True),
+    ("admin", "comment.delete", True),
+    ("deposito", "stock.manage", True),
+    ("deposito", "stock.delete_product", False),
+    ("ejecutivo", "ticket.reassign", True),
+    ("ejecutivo", "order.reassign", True),
 )
 
 
@@ -192,6 +204,7 @@ def _initialize_database_inner(session: Session) -> None:
         )
 
     _ensure_seed_tech_user(session)
+    _ensure_seed_role_permissions(session)
     session.commit()
 
 
@@ -246,6 +259,10 @@ def _ensure_seed_tech_user(session: Session) -> None:
 
 def _ensure_extension_tables(session: Session) -> None:
     table_names = [
+        "crm_role_permissions",
+        "crm_user_permissions",
+        "activity_log",
+        "activity_log_archive",
         "template_materials",
         "task_required_materials",
         "inventory_requests",
@@ -279,6 +296,15 @@ def _ensure_extension_tables(session: Session) -> None:
     _ensure_crm_user_columns(session, inspector)
     _ensure_crm_role_columns(session, inspector)
     _ensure_satisfaction_columns(session, inspector)
+
+
+def _ensure_seed_role_permissions(session: Session) -> None:
+    existing = {(row.role_key, row.permission_code) for row in session.query(RolePermission).all()}
+    for role_key, permission_code, is_granted in ROLE_PERMISSION_SEEDS:
+        key = (role_key, permission_code)
+        if key in existing:
+            continue
+        session.add(RolePermission(role_key=role_key, permission_code=permission_code, is_granted=is_granted))
 
 
 def _ensure_inventory_product_columns(session: Session, inspector=None) -> None:

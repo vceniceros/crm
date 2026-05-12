@@ -8,8 +8,8 @@ import { BehaviorSubject, combineLatest, map } from 'rxjs';
 
 import { InventoryProduct } from '../../../../core/models/inventory-product.model';
 import { UI_HELP_TEXTS } from '../../../../core/config/ui-help-texts.config';
-import { AuthSessionService } from '../../../../core/services/auth-session.service';
 import { InventoryService } from '../../../../core/services/inventory.service';
+import { PermissionService } from '../../../../core/services/permission.service';
 import { ContextHelpCardComponent } from '../../../../shared/ui/context-help-card/context-help-card.component';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 import { CreateProductDialogComponent } from '../create-product-dialog/create-product-dialog.component';
@@ -33,7 +33,7 @@ import { InventoryTableComponent } from '../inventory-table/inventory-table.comp
 export class InventoryPageComponent {
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly authSessionService = inject(AuthSessionService);
+  private readonly permissionService = inject(PermissionService);
   private readonly inventoryService = inject(InventoryService);
   private readonly querySubject = new BehaviorSubject('');
   private readonly categoryIdSubject = new BehaviorSubject('all');
@@ -113,8 +113,7 @@ export class InventoryPageComponent {
   }
 
   canCreateProducts(): boolean {
-    const primaryRole = this.authSessionService.sessionSnapshot()?.user.primary_role;
-    return primaryRole === 'admin' || primaryRole === 'deposito';
+    return this.permissionService.canManageStock();
   }
 
   private matchesCategory(product: InventoryProduct, categoryId: string): boolean {

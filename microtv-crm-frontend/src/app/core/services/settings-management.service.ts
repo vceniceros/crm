@@ -1,10 +1,13 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, map } from 'rxjs/operators';
 
 import { crmApiConfig } from '../config/crm-api.config';
 import {
+  ActivityLogFilters,
+  ActivityLogPage,
+  SettingsEffectivePermissions,
   SettingsAuthUser,
   SettingsAuthUserCreateRequest,
   SettingsAuthUserResetPasswordRequest,
@@ -18,6 +21,7 @@ import {
   SettingsPriority,
   SettingsPriorityWriteRequest,
   SettingsRole,
+  SettingsRolePermission,
   SettingsRoleUpdateRequest,
   SettingsSlaRule,
   SettingsSlaRuleWriteRequest,
@@ -25,6 +29,7 @@ import {
   SettingsStatusWriteRequest,
   SettingsTaskTemplate,
   SettingsTaskTemplateUpdateRequest,
+  SettingsUserPermissionOverride,
   SettingsUserRoleAssignment,
   SettingsUserRoleAssignmentRequest
 } from '../models/settings-management.model';
@@ -152,7 +157,49 @@ export class SettingsManagementService {
     return this.request<SettingsNotificationRule>('put', `/settings/notification-rules/${ruleId}`, payload);
   }
 
-  private request<T>(method: 'get' | 'post' | 'put', path: string, body?: unknown): Observable<T> {
+  listRolePermissions(): Observable<SettingsRolePermission[]> {
+    return this.request<SettingsRolePermission[]>('get', '/settings/permissions/roles');
+  }
+
+  updateRolePermission(roleKey: string, code: string, isGranted: boolean): Observable<SettingsRolePermission> {
+    return this.request<SettingsRolePermission>('put', `/settings/permissions/roles/${encodeURIComponent(roleKey)}/${encodeURIComponent(code)}`, {
+      is_granted: isGranted
+    });
+  }
+
+  listUserPermissionOverrides(): Observable<SettingsUserPermissionOverride[]> {
+    return this.request<SettingsUserPermissionOverride[]>('get', '/settings/permissions/users');
+  }
+
+  updateUserPermission(userId: string, code: string, isGranted: boolean): Observable<void> {
+    return this.request<void>('put', `/settings/permissions/users/${encodeURIComponent(userId)}/${encodeURIComponent(code)}`, {
+      is_granted: isGranted
+    });
+  }
+
+  deleteUserPermission(userId: string, code: string): Observable<void> {
+    return this.request<void>('delete', `/settings/permissions/users/${encodeURIComponent(userId)}/${encodeURIComponent(code)}`);
+  }
+
+  getMyEffectivePermissions(): Observable<SettingsEffectivePermissions> {
+    return this.request<{ permissions: SettingsEffectivePermissions }>('get', '/settings/permissions/me').pipe(
+      map((response) => response.permissions ?? {})
+    );
+  }
+
+  listActivityLog(filters: ActivityLogFilters): Observable<ActivityLogPage> {
+    const params = new URLSearchParams();
+    if (filters.userId) params.set('user_id', filters.userId);
+    if (filters.eventCode) params.set('event_code', filters.eventCode);
+    if (filters.entityType) params.set('entity_type', filters.entityType);
+    if (filters.dateFrom) params.set('date_from', filters.dateFrom);
+    if (filters.dateTo) params.set('date_to', filters.dateTo);
+    params.set('page', String(filters.page));
+    params.set('per_page', String(filters.perPage));
+    return this.request<ActivityLogPage>('get', `/activity-log?${params.toString()}`);
+  }
+
+  private request<T>(method: 'get' | 'post' | 'put' | 'delete', path: string, body?: unknown): Observable<T> {
     const headers = this.buildAuthHeaders();
     if (!headers) {
       return throwError(() => new Error('No hay una sesión autenticada válida para operar configuración.'));
@@ -165,6 +212,10 @@ export class SettingsManagementService {
 
     if (method === 'put') {
       return this.http.put<T>(url, body ?? {}, { headers }).pipe(catchError((error) => this.handleRequestError(error)));
+    }
+
+    if (method === 'delete') {
+      return this.http.delete<T>(url, { headers }).pipe(catchError((error) => this.handleRequestError(error)));
     }
 
     return this.http.post<T>(url, body ?? {}, { headers }).pipe(catchError((error) => this.handleRequestError(error)));

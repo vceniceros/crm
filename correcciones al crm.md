@@ -1,20 +1,38 @@
-1. cuando el menu alcance el limite de la pantalla salga el scroll lateral y crezca hacia abajo
-2. notificaciones: que la app pida permiso para mostrar notificaciones y te salten en el teléfono/navegador
-3. resolver el tema del refresh del token para que no se caiga la sesión
-4. agregar apartado de configurar roles y permisos de roles
+1. agregar apartado de configurar roles y permisos de roles
+4. menu de configuraciones habilitado para ejecutivos
 5. en configuraciones agregar un apartado para configurar el envío de mails (smtp)
 6. agregar envio de mails a las notificaciones del crm
 7. agregar un apartado para configurar el envío de sms (twilio)
 8. agregar un apartado para configurar el envío de whatsapp (twilio) 
 9. agregar apartado para ver registro de actividad de cada usuario (login, logout, acciones realizadas)
+11. poder acotar quien puede manejar el stock dentro de configuraciones, configurar quien puede manejar stock independiente al rol
+
+
+
+2. agregar carga de documentos a los tickets y permitir descargar los documentos cargados en los tickets
+3. mismo para tareas
+
 10. ver si leafleat permite marcar ubicaciones por dirección y no solo por coordenadas
 
+12. que refrescar no tire al dashboard, que te mantenga en el menu donde estabas
 
-11. poder abrir imagenes en el menu de productos en una ventana aparte al hacer click
-12. poder ajsutar stock minimos para que notifique segun el mismo
-13. asignar ubicaciones a los productos (las estanterias son por letra y la alturas son numericas)
-14. poder cambiar el stock numerico 
-15. poder acotar quien maneja el stock
+1. Add a dedicated section inside the Settings menu to manage role permissions and special user-level permissions. This section must be highly UX-friendly, so that any administrator can clearly understand what is being configured without ambiguity. Do not make it a raw technical permissions matrix only; present permissions grouped by functional domain and with clear labels, descriptions, and examples of impact. This section should also unify the stock-related and override permissions into the same permission system. In addition to role-based permissions, allow defining specific user-level overrides for sensitive actions. At minimum, support configuring:
+   - which users can manage stock,
+   - which users can delete products,
+   - which users can reassign tickets or warehouse requests/orders to any role,
+   - which users can delete comments.
+   All users should still be allowed to edit their own comments, so comment editing must remain broadly available while comment deletion stays permission-based. The goal is to make permissions understandable, auditable, and easy to manage from a single coherent settings area.
 
+2. Enable executive users to access and use the Settings menu as well. However, executive users must not be allowed to modify permissions that affect administrator capabilities or administrator-level access control. In practice, executives should be able to use operational and configuration areas that are relevant to business management, but the highest-sensitivity permission management must remain restricted to administrators only. Reflect this clearly both in backend authorization rules and in frontend visibility and UX, so the interface explains why some options are visible but read-only or hidden.
 
-16. que refrescar no tire al dashboard, que te mantenga en el menu donde estabas
+3. Add a Settings section to configure email delivery through SMTP. This configuration should be optional and safe by design. The CRM must continue working correctly even if SMTP is not configured. The system should validate configuration values, provide a clear status indicator, and explain whether email notifications are currently enabled or disabled. Include a test action if possible, but do not make email configuration mandatory for the rest of the platform to function.
+
+4. Add email delivery as an optional channel for CRM notifications. Notification delivery must not break if SMTP has not been configured yet. If email settings are missing, invalid, or disabled, the system must continue sending in-app notifications normally and simply skip the email channel gracefully. Apply the same optional and fault-tolerant design to SMS and WhatsApp notifications as well: if Twilio or any related provider settings are not configured, the notification pipeline must still work without crashing, blocking, or producing broken UX. In short, external delivery channels must be additive and optional, never required for core notification functionality.
+
+5. Add a Settings section to configure SMS delivery through Twilio. This configuration must be optional, validated, and integrated into the same notification channel strategy described above. If it is not configured, the CRM must keep functioning normally and notifications must continue through the channels that are available.
+
+6. Add a Settings section to configure WhatsApp delivery through Twilio. This must follow the same design rules as SMTP and SMS: optional setup, clear status visibility, graceful fallback behavior, and no disruption to core CRM notifications if it is missing or disabled.
+
+7. Add an imperative and comprehensive user activity log section. This is a required feature. Use the full database context to determine which relevant actions should be recorded. The activity log should allow administrators to inspect each user’s relevant actions across the system, including at minimum login, logout, and meaningful business actions performed inside the CRM. The log should not be limited to authentication events only; it should cover the operational actions already represented in the database and workflows. Design it so it is actually useful for audit, support, and internal control, not just as a passive technical log. Prefer structured records with actor, action, target entity, timestamp, and contextual summary.
+
+8. Do not implement stock-related permission control as a separate disconnected feature. Merge it into the unified permissions system described in point 1. Stock handling permissions, product deletion permissions, reassignment permissions, and comment deletion permissions should all belong to the same centralized permission management model, with role-based defaults and optional user-specific overrides where necessary.
