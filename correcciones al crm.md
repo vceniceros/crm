@@ -1,5 +1,10 @@
-1. en el menu de deposito la imagen de los productos muestra solo el placehold y no laimagen en si cargada del producto
-2. en las subtareas el usuario por defecto deberia mostrarse por nombre y no id
-3. fixear el menu de subtareas en tema oscuro
-4. alinear la vista ejecutivo para que en los pedidios  el "flujo de subtareas quede al lado del productos necesarios y abajo de eso lo comentarios / checkboxes"
-5. al editar el formulario lanza error 500 
+1. cuando el menu alcance el limite de la pantalla salga el scroll lateral y crezca hacia abajo
+2. notificaciones: que la app pida permiso para mostrar notificaciones y te salten en el teléfono/navegador
+3. resolver el tema del refresh del token para que no se caiga la sesión
+4. agregar apartado de configurar roles y permisos de roles
+5. en configuraciones agregar un apartado para configurar el envío de mails (smtp)
+6. agregar envio de mails a las notificaciones del crm
+7. agregar un apartado para configurar el envío de sms (twilio)
+8. agregar un apartado para configurar el envío de whatsapp (twilio) 
+9. agregar apartado para ver registro de actividad de cada usuario (login, logout, acciones realizadas)
+10. ver si leafleat permite marcar ubicaciones por dirección y no solo por coordenadas

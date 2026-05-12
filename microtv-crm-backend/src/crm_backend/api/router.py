@@ -11,6 +11,7 @@ from crm_backend.api.endpoints.inventory_flow import router as inventory_flow_ro
 from crm_backend.api.endpoints.locations import router as locations_router
 from crm_backend.api.endpoints.me import router as me_router
 from crm_backend.api.endpoints.notifications import router as notifications_router
+from crm_backend.api.endpoints.push_subscriptions import router as push_subscriptions_router
 from crm_backend.api.endpoints.reports import router as reports_router
 from crm_backend.api.endpoints.settings import router as settings_router
 from crm_backend.api.endpoints.stock import router as stock_router
@@ -35,5 +36,6 @@ api_router.include_router(tickets_router)
 api_router.include_router(public_tickets_router)
 api_router.include_router(public_tasks_router)
 api_router.include_router(notifications_router)
+api_router.include_router(push_subscriptions_router)
 api_router.include_router(reports_router)
 api_router.include_router(settings_router)

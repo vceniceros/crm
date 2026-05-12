@@ -20,6 +20,12 @@ set "CRM_DB_PORT=5433"
 set "CRM_SCHEMA_FILE=%ROOT%docs\diagrams\schema-propuesto-v4.sql"
 set "CRM_SQL_DIR=%ROOT%microtv-crm-backend\sql"
 set "CRM_DATABASE_URL=postgresql+psycopg://%CRM_DB_USER%:%CRM_DB_PASSWORD%@localhost:%CRM_DB_PORT%/%CRM_DB_NAME%"
+set "BACKEND_ENV_FILE=%ROOT%microtv-crm-backend\.env"
+set "BACKEND_ENV_EXAMPLE_FILE=%ROOT%microtv-crm-backend\.env.example"
+set "FRONTEND_ENV_FILE=%ROOT%microtv-crm-frontend\.env"
+set "FRONTEND_ENV_EXAMPLE_FILE=%ROOT%microtv-crm-frontend\.env.example"
+set "LAB_VAPID_PUBLIC_KEY="
+set "LAB_VAPID_PRIVATE_KEY="
 
 echo.
 echo =========================================================
@@ -39,6 +45,72 @@ if errorlevel 1 (
     exit /b 1
 )
 echo   OK - Docker activo.
+echo.
+
+:: ---- 1b. Preparar .env y push para laboratorio ------------------
+echo [1b/6] Preparando .env de backend/frontend para laboratorio...
+
+if not exist "%BACKEND_ENV_FILE%" (
+    if exist "%BACKEND_ENV_EXAMPLE_FILE%" (
+        echo   [*] Creando microtv-crm-backend\.env desde .env.example
+        copy "%BACKEND_ENV_EXAMPLE_FILE%" "%BACKEND_ENV_FILE%" > nul
+    ) else (
+        echo.
+        echo   ERROR: No se encontro %BACKEND_ENV_EXAMPLE_FILE%
+        echo.
+        pause
+        exit /b 1
+    )
+)
+
+if not exist "%FRONTEND_ENV_FILE%" (
+    if exist "%FRONTEND_ENV_EXAMPLE_FILE%" (
+        echo   [*] Creando microtv-crm-frontend\.env desde .env.example
+        copy "%FRONTEND_ENV_EXAMPLE_FILE%" "%FRONTEND_ENV_FILE%" > nul
+    ) else (
+        echo.
+        echo   ERROR: No se encontro %FRONTEND_ENV_EXAMPLE_FILE%
+        echo.
+        pause
+        exit /b 1
+    )
+)
+
+for /f "usebackq tokens=1* delims==" %%A in (`findstr /R /C:"^VAPID_PUBLIC_KEY=" "%BACKEND_ENV_FILE%"`) do set "LAB_VAPID_PUBLIC_KEY=%%B"
+for /f "usebackq tokens=1* delims==" %%A in (`findstr /R /C:"^VAPID_PRIVATE_KEY=" "%BACKEND_ENV_FILE%"`) do set "LAB_VAPID_PRIVATE_KEY=%%B"
+
+if not defined LAB_VAPID_PUBLIC_KEY (
+    echo   [*] No se encontraron VAPID keys en backend .env. Generando claves para dev...
+    for /f "usebackq tokens=1* delims==" %%A in (`powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $output = npx --yes web-push generate-vapid-keys --json 2^> $null; $jsonLine = $output ^| Where-Object { $_ -match '^\s*\{.*\}\s*$' } ^| Select-Object -Last 1; if (-not $jsonLine) { throw 'No se pudo parsear salida JSON de web-push.' }; $obj = $jsonLine ^| ConvertFrom-Json; Write-Output ('PUBLIC=' + $obj.publicKey); Write-Output ('PRIVATE=' + $obj.privateKey)"`) do (
+        if /I "%%A"=="PUBLIC" set "LAB_VAPID_PUBLIC_KEY=%%B"
+        if /I "%%A"=="PRIVATE" set "LAB_VAPID_PRIVATE_KEY=%%B"
+    )
+)
+
+if not defined LAB_VAPID_PUBLIC_KEY (
+    echo   [!] WARNING: No se pudo generar VAPID_PUBLIC_KEY. Push quedara deshabilitado.
+) else (
+    call :upsert_env_value "%BACKEND_ENV_FILE%" "VAPID_PUBLIC_KEY" "%LAB_VAPID_PUBLIC_KEY%"
+)
+
+if not defined LAB_VAPID_PRIVATE_KEY (
+    echo   [!] WARNING: No se pudo generar VAPID_PRIVATE_KEY. Push quedara deshabilitado.
+) else (
+    call :upsert_env_value "%BACKEND_ENV_FILE%" "VAPID_PRIVATE_KEY" "%LAB_VAPID_PRIVATE_KEY%"
+)
+
+call :upsert_env_value "%BACKEND_ENV_FILE%" "VAPID_CLAIMS_SUB" "mailto:admin@microtv.ar"
+call :upsert_env_value "%BACKEND_ENV_FILE%" "DATABASE_URL" "%CRM_DATABASE_URL%"
+call :upsert_env_value "%BACKEND_ENV_FILE%" "AUTH_BASE_URL" "http://localhost:8001"
+call :upsert_env_value "%FRONTEND_ENV_FILE%" "CRM_API_BASE_URL" "http://localhost:8010"
+call :upsert_env_value "%FRONTEND_ENV_FILE%" "CRM_MEDIA_PUBLIC_URL" "/media"
+if defined LAB_VAPID_PUBLIC_KEY call :upsert_env_value "%FRONTEND_ENV_FILE%" "VAPID_PUBLIC_KEY" "%LAB_VAPID_PUBLIC_KEY%"
+
+if defined LAB_VAPID_PUBLIC_KEY (
+    echo   [*] Push dev habilitado con VAPID_PUBLIC_KEY en backend y frontend .env
+) else (
+    echo   [*] Push dev no configurado automaticamente. Completa VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY manualmente.
+)
 echo.
 
 :: ---- 2. Levantar auth interno + PostgreSQL CRM ------------------
@@ -241,3 +313,14 @@ echo     CRM schema: %CRM_SCHEMA_FILE%
 echo.
 endlocal
 pause
+goto :eof
+
+:upsert_env_value
+set "UPSERT_FILE=%~1"
+set "UPSERT_KEY=%~2"
+set "UPSERT_VALUE=%~3"
+powershell -NoProfile -Command "$path = $env:UPSERT_FILE; $key = $env:UPSERT_KEY; $value = $env:UPSERT_VALUE; if (-not (Test-Path -LiteralPath $path)) { New-Item -ItemType File -Path $path -Force ^| Out-Null }; $lines = Get-Content -LiteralPath $path; $found = $false; for ($i = 0; $i -lt $lines.Count; $i++) { if ($lines[$i] -match ('^\s*' + [regex]::Escape($key) + '\s*=')) { $lines[$i] = ($key + '=' + $value); $found = $true; break } }; if (-not $found) { $lines += ($key + '=' + $value) }; Set-Content -LiteralPath $path -Value $lines -Encoding UTF8"
+if errorlevel 1 (
+    echo   [!] WARNING: No se pudo actualizar %UPSERT_KEY% en %UPSERT_FILE%
+)
+exit /b 0

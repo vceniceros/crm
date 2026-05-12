@@ -3,10 +3,12 @@ import { Component, DestroyRef, ViewChild, inject } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
-import { filter, map, startWith } from 'rxjs';
+import { distinctUntilChanged, filter, map, pairwise, startWith } from 'rxjs';
 import { MatSidenav, MatSidenavContent, MatSidenavModule } from '@angular/material/sidenav';
 
+import { AuthSessionService } from '../../../core/services/auth-session.service';
 import { MockLayoutDataService } from '../../../core/services/mock-layout-data.service';
+import { PushNotificationService } from '../../../core/services/push-notification.service';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import { TopbarComponent } from '../topbar/topbar.component';
 
@@ -18,9 +20,11 @@ import { TopbarComponent } from '../topbar/topbar.component';
   styleUrl: './app-shell.component.scss'
 })
 export class AppShellComponent {
+  private readonly authSessionService = inject(AuthSessionService);
   private readonly breakpointObserver = inject(BreakpointObserver);
   private readonly destroyRef = inject(DestroyRef);
   private readonly mockLayoutDataService = inject(MockLayoutDataService);
+  private readonly pushNotificationService = inject(PushNotificationService);
   private readonly router = inject(Router);
 
   @ViewChild(MatSidenavContent) private sidenavContent?: MatSidenavContent;
@@ -49,6 +53,24 @@ export class AppShellComponent {
       )
       .subscribe(() => {
         this.sidenavContent?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      });
+
+    this.authSessionService.isAuthenticated$
+      .pipe(
+        startWith(false),
+        distinctUntilChanged(),
+        pairwise(),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(([previous, current]) => {
+        if (!previous && current) {
+          void this.pushNotificationService.requestAndSubscribe();
+          return;
+        }
+
+        if (previous && !current) {
+          void this.pushNotificationService.unsubscribe();
+        }
       });
   }
 

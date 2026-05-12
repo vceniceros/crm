@@ -6,6 +6,7 @@ from crm_backend.repositories.crm_user_repository import CrmUserRepository
 from crm_backend.repositories.inventory_flow_repository import InventoryFlowRepository
 from crm_backend.repositories.location_repository import LocationRepository
 from crm_backend.repositories.notification_repository import NotificationRepository
+from crm_backend.repositories.push_subscription_repository import PushSubscriptionRepository
 from crm_backend.repositories.stock_category_repository import StockCategoryRepository
 from crm_backend.repositories.stock_product_repository import StockProductRepository
 from crm_backend.repositories.task_repository import TaskRepository
@@ -19,6 +20,7 @@ __all__ = [
 	"InventoryFlowRepository",
 	"LocationRepository",
 	"NotificationRepository",
+	"PushSubscriptionRepository",
 	"StockCategoryRepository",
 	"StockProductRepository",
 	"TaskRepository",

@@ -160,15 +160,16 @@ SELECT
   EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='tasks' AND column_name='arrival_comment_id')      AS task_col_arrival_comment,
   EXISTS(SELECT 1 FROM information_schema.tables   WHERE table_name='task_satisfaction_forms')                         AS table_task_satisfaction_forms,
   EXISTS(SELECT 1 FROM information_schema.tables   WHERE table_name='task_pre_form_instances')                         AS table_task_pre_form_instances,
+  EXISTS(SELECT 1 FROM information_schema.tables   WHERE table_name='push_subscriptions')                              AS table_push_subscriptions,
   (SELECT count(*) FROM crm_roles WHERE is_active = TRUE)                                                              AS active_roles_count;
 ")"
 
-echo "task_col_video_evidence|task_col_arrival_comment|table_task_satisfaction_forms|table_task_pre_form_instances|active_roles_count"
+echo "task_col_video_evidence|task_col_arrival_comment|table_task_satisfaction_forms|table_task_pre_form_instances|table_push_subscriptions|active_roles_count"
 echo "$verification_output"
 
-if [[ "$verification_output" != true\|true\|true\|true\|* ]]; then
-  IFS='|' read -r col_video col_arrival table_satisfaction table_preform active_roles <<< "$verification_output"
-  if ! is_truthy "$col_video" || ! is_truthy "$col_arrival" || ! is_truthy "$table_satisfaction" || ! is_truthy "$table_preform"; then
+if [[ "$verification_output" != true\|true\|true\|true\|true\|* ]]; then
+  IFS='|' read -r col_video col_arrival table_satisfaction table_preform table_push active_roles <<< "$verification_output"
+  if ! is_truthy "$col_video" || ! is_truthy "$col_arrival" || ! is_truthy "$table_satisfaction" || ! is_truthy "$table_preform" || ! is_truthy "$table_push"; then
     echo "ERROR: Verificacion final del schema invalida: $verification_output"
     exit 1
   fi
