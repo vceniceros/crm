@@ -32,7 +32,16 @@ class PushNotificationService:
         if not self._settings.vapid_private_key:
             return
 
-        subscriptions = self._repo.list_for_user(crm_user_id)
+        try:
+            subscriptions = self._repo.list_for_user(crm_user_id)
+        except Exception as exc:
+            logger.warning(
+                "Push dispatch skipped for user %s: failed to load subscriptions: %s",
+                crm_user_id,
+                exc,
+            )
+            return
+
         payload = json.dumps(
             {
                 "title": title,
