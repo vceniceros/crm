@@ -133,6 +133,54 @@
         <p class="create-ticket-dialog__location-label">{{ selectedLocationLabel() }}</p>
       </section>
 
+      <section class="create-ticket-dialog__section">
+        <div class="create-ticket-dialog__materials-header">
+          <p class="create-ticket-dialog__section-title">Materiales requeridos (opcional)</p>
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="addMaterial()"
+            [disabled]="!inventoryProducts().length || requiredMaterials().length >= inventoryProducts().length"
+          >
+            Agregar material
+          </button>
+        </div>
+
+        @if (requiredMaterials().length) {
+          <div class="create-ticket-dialog__materials-grid">
+            @for (material of requiredMaterials(); track $index; let index = $index) {
+              <div class="create-ticket-dialog__material-row">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Producto</mat-label>
+                  <mat-select [value]="material.product_id" (selectionChange)="updateMaterialProduct(index, $event.value)">
+                    @for (product of availableProductsForMaterial(index); track product.productId) {
+                      <mat-option [value]="product.productId">{{ product.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Cantidad</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    min="1"
+                    [value]="material.quantity"
+                    (input)="updateMaterialQuantity(index, +$any($event.target).value)"
+                  />
+                </mat-form-field>
+
+                <button mat-icon-button type="button" (click)="removeMaterial(index)" aria-label="Eliminar material">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="create-ticket-dialog__material-empty">No se agregaron materiales opcionales.</p>
+        }
+      </section>
+
       <mat-dialog-actions align="end">
         <button mat-button type="button" mat-dialog-close [disabled]="isSubmitting()">Cancelar</button>
         <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || isSubmitting()">

@@ -17,6 +17,7 @@ from crm_backend.models import (
     TicketSatisfactionResponse,
     TicketStatus,
     TicketStatusTransition,
+    TicketRequiredMaterial,
 )
 
 
@@ -50,6 +51,7 @@ class TicketRepository:
             selectinload(Ticket.status_history),
             selectinload(Ticket.assignment_history),
             selectinload(Ticket.audit_events),
+            selectinload(Ticket.required_materials).selectinload(TicketRequiredMaterial.product),
             selectinload(Ticket.satisfaction_forms)
             .selectinload(TicketSatisfactionForm.response)
             .selectinload(TicketSatisfactionResponse.media),

@@ -15,7 +15,7 @@ from crm_backend.db.base import Base
 if TYPE_CHECKING:
     from crm_backend.models.crm_role import CrmRole
     from crm_backend.models.crm_user import CrmUser
-    from crm_backend.models.material_flow import InventoryDispatch, InventoryRequest
+    from crm_backend.models.material_flow import InventoryDispatch, InventoryRequest, TicketRequiredMaterial
     from crm_backend.models.task_reference import Client, Location
 
 
@@ -170,6 +170,13 @@ class Ticket(Base):
         back_populates="ticket",
         cascade="all, delete-orphan",
         order_by="TicketAuditEvent.created_at",
+        lazy="selectin",
+    )
+    required_materials: Mapped[list["TicketRequiredMaterial"]] = relationship(
+        "TicketRequiredMaterial",
+        back_populates="ticket",
+        cascade="all, delete-orphan",
+        order_by="TicketRequiredMaterial.created_at",
         lazy="selectin",
     )
     inventory_requests: Mapped[list["InventoryRequest"]] = relationship(

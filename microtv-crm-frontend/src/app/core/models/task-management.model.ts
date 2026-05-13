@@ -85,6 +85,12 @@ export interface CreateTaskFromTemplateRequest {
   task_description: string | null;
   requires_arrival_comment?: boolean | null;
   requires_video_evidence?: boolean | null;
+  extra_materials?: TaskExtraMaterialWrite[];
+}
+
+export interface TaskExtraMaterialWrite {
+  product_id: string;
+  quantity: number;
 }
 
 export interface TaskLocation {
@@ -332,11 +338,21 @@ export interface TaskDetail {
   created_at: string;
   updated_at: string | null;
   required_materials: RequiredMaterial[];
+  extra_materials: TaskExtraMaterial[];
   inventory_requests: InventoryRequest[];
   dispatches: InventoryDispatch[];
   subtasks: Subtask[];
   comments: TaskComment[];
   audit_events: TaskAuditEvent[];
+}
+
+export interface TaskExtraMaterial {
+  required_material_id: string;
+  product_id: string;
+  product_code: string;
+  product_name: string;
+  quantity: number;
+  requires_tracking: boolean;
 }
 
 export interface GenerateTaskSatisfactionFormResponse {

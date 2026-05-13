@@ -28,8 +28,8 @@
           @for (group of groupedRolePermissions(); track group.permissionCode) {
             @for (item of group.values; track item.role_key + ':' + item.permission_code) {
               <tr>
-                <td>{{ item.permission_code }}</td>
-                <td>{{ item.role_key }}</td>
+                <td>{{ getPermissionLabel(item.permission_code) }}</td>
+                <td>{{ getRoleLabel(item.role_key) }}</td>
                 <td>
                   <button mat-stroked-button type="button" (click)="toggleRolePermission(item)" [disabled]="isExecutiveMode() || item.role_key === 'admin'">
                     {{ item.is_granted ? 'Si' : 'No' }}
@@ -56,7 +56,7 @@
           @for (item of userOverrides(); track item.user_permission_id || (item.crm_user_id + ':' + item.permission_code)) {
             <tr>
               <td>{{ item.display_name || item.email || item.crm_user_id }}</td>
-              <td>{{ item.permission_code }}</td>
+              <td>{{ getPermissionLabel(item.permission_code) }}</td>
               <td>{{ item.is_granted ? 'Si' : 'No' }}</td>
             </tr>
           }

@@ -16,7 +16,9 @@ from crm_backend.models.material_flow import (
 	InventoryRequestItem,
 	InventoryRequestStatus,
 	InventorySourceType,
+	TaskExtraMaterial,
 	TaskRequiredMaterial,
+	TicketRequiredMaterial,
 	TemplateMaterial,
 )
 from crm_backend.models.task_reference import Client, ClientLocation, Location
@@ -86,7 +88,9 @@ __all__ = [
 	"InventoryRequestItem",
 	"InventoryRequestStatus",
 	"InventorySourceType",
+	"TaskExtraMaterial",
 	"TaskRequiredMaterial",
+	"TicketRequiredMaterial",
 	"TemplateMaterial",
 	"Client",
 	"ClientLocation",

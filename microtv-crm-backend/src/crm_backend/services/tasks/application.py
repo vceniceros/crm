@@ -29,6 +29,8 @@ from crm_backend.models import (
     TaskComment,
     TaskCommentType,
     Location,
+    StockProduct,
+    TaskExtraMaterial,
     TaskPreFormInstance,
     TaskStatus,
     TaskTemplate,
@@ -71,6 +73,7 @@ from crm_backend.services.tasks.validators import (
     StateActionValidator,
     TransitionIntegrityValidator,
 )
+from crm_backend.services.permission_service import PERMISSION_TICKET_REASSIGN, PermissionService
 from crm_backend.services.material_flow_service import TaskMaterialFlowFacade
 
 
@@ -156,6 +159,7 @@ class TaskApplicationService:
         task_media_storage: TaskMediaStorageFacade,
         task_material_flow: TaskMaterialFlowFacade,
         notification_service: NotificationService | None = None,
+        permission_service: PermissionService | None = None,
     ) -> None:
         self._template_repository = template_repository
         self._task_repository = task_repository
@@ -163,6 +167,7 @@ class TaskApplicationService:
         self._task_media_storage = task_media_storage
         self._task_material_flow = task_material_flow
         self._notification_service = notification_service
+        self._permission_service = permission_service
         self._task_builder = TaskBuilder()
         self._item_strategy_registry = SubtaskItemValueStrategyRegistry()
         self._assignment_strategy_registry = NextAssignmentStrategyRegistry()
@@ -316,6 +321,7 @@ class TaskApplicationService:
                 )
             )
         self._task_material_flow.materialize_task_requirements(task, template)
+        self._append_extra_materials(task, payload)
         for subtask in task.subtasks:
             if subtask.assigned_crm_user_id is None:
                 continue
@@ -1031,12 +1037,14 @@ class TaskApplicationService:
             raise TaskAccessDeniedError("La operación requiere rol administrador.")
 
     def _ensure_assignment_access(self, actor: ResolvedCrmSession, subtask: Subtask) -> None:
-        if {"admin", "ejecutivo"}.intersection(actor.role_keys):
-            return
-        if subtask.responsible_role_key in actor.role_keys:
+        if self._permission_service is not None and self._permission_service.resolve(
+            actor.role_keys,
+            actor.crm_user.crm_user_id,
+            PERMISSION_TICKET_REASSIGN,
+        ):
             return
         raise TaskAccessDeniedError(
-            "Solo usuarios del mismo rol responsable, o perfiles ejecutivo/admin, pueden reasignar esta subtarea."
+            "La operación requiere permiso para reasignar tickets/pedidos."
         )
 
     def _is_task_pending_executive_approval(self, task: Task) -> bool:
@@ -1099,6 +1107,36 @@ class TaskApplicationService:
         valid_role_keys = {role_key, {"admin": "admin_crm", "deposito": "encargado_deposito", "tecnico": "tecnico_campo"}.get(role_key, role_key)}
         if not any(assignment.role and assignment.role.role_key in valid_role_keys for assignment in user.assigned_roles):
             raise TaskValidationError("El usuario responsable por defecto no posee el rol requerido.")
+
+    def _append_extra_materials(self, task: Task, payload: CreateTaskFromTemplateRequest) -> None:
+        if not payload.extra_materials:
+            return
+
+        product_ids = [item.product_id for item in payload.extra_materials]
+        if len(product_ids) != len(set(product_ids)):
+            raise TaskValidationError("No se puede repetir el mismo producto en materiales adicionales.")
+
+        products = {
+            product.product_id: product
+            for product in self._task_repository.session.scalars(
+                select(StockProduct).where(
+                    StockProduct.product_id.in_(product_ids),
+                    StockProduct.is_active.is_(True),
+                    StockProduct.deleted_at.is_(None),
+                )
+            ).all()
+        }
+
+        for item in payload.extra_materials:
+            product = products.get(item.product_id)
+            if product is None:
+                raise TaskValidationError("Uno de los productos indicados no existe o está inactivo.")
+            task.extra_materials.append(
+                TaskExtraMaterial(
+                    product_id=product.product_id,
+                    quantity=int(item.quantity),
+                )
+            )
 
     def _notify_task_creation_state(self, task: Task) -> None:
         if self._notification_service is None:

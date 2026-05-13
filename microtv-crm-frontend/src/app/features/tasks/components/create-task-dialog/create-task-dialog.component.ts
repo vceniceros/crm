@@ -10,13 +10,21 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { switchMap, take } from 'rxjs';
 
+import { InventoryProduct } from '../../../../core/models/inventory-product.model';
 import { AppLocation } from '../../../../core/models/location.model';
 import { ClientSummary, TaskDetail, TaskTemplate } from '../../../../core/models/task-management.model';
+import { InventoryService } from '../../../../core/services/inventory.service';
 import { TaskManagementService } from '../../../../core/services/task-management.service';
 import { LocationLinkService } from '../../../../shared/services/location-link.service';
 import { LocationPickerService } from '../../../../shared/services/location-picker.service';
 import { LocationMapComponent } from '../../../../shared/ui/location-map/location-map.component';
+
+interface ExtraMaterialSelection {
+  product_id: string;
+  quantity: number;
+}
 
 @Component({
   selector: 'app-create-task-dialog',
@@ -47,6 +55,7 @@ export class CreateTaskDialogComponent {
   private readonly dialogRef = inject(MatDialogRef<CreateTaskDialogComponent, TaskDetail>);
   private readonly formBuilder = inject(FormBuilder);
   private readonly taskManagementService = inject(TaskManagementService);
+  private readonly inventoryService = inject(InventoryService);
   private readonly locationPickerService = inject(LocationPickerService);
   private readonly locationLinkService = inject(LocationLinkService);
 
@@ -55,6 +64,8 @@ export class CreateTaskDialogComponent {
   readonly errorMessage = signal<string | null>(null);
   readonly templates = signal<TaskTemplate[]>([]);
   readonly clients = signal<ClientSummary[]>([]);
+  readonly inventoryProducts = signal<InventoryProduct[]>([]);
+  readonly extraMaterials = signal<ExtraMaterialSelection[]>([]);
   readonly selectedLocation = signal<AppLocation | null>(null);
 
   readonly form = this.formBuilder.group({
@@ -143,10 +154,57 @@ export class CreateTaskDialogComponent {
     return location.addressLabel?.trim() || `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`;
   }
 
+  addExtraMaterial(): void {
+    const products = this.inventoryProducts();
+    if (!products.length) {
+      return;
+    }
+
+    const selectedIds = new Set(this.extraMaterials().map((item) => item.product_id));
+    const firstAvailable = products.find((product) => !selectedIds.has(product.productId));
+    if (!firstAvailable) {
+      return;
+    }
+
+    this.extraMaterials.update((current) => [
+      ...current,
+      {
+        product_id: firstAvailable.productId,
+        quantity: 1
+      }
+    ]);
+  }
+
+  removeExtraMaterial(index: number): void {
+    this.extraMaterials.update((current) => current.filter((_, currentIndex) => currentIndex !== index));
+  }
+
+  updateExtraMaterialProduct(index: number, productId: string): void {
+    this.extraMaterials.update((current) =>
+      current.map((item, currentIndex) => (currentIndex === index ? { ...item, product_id: productId } : item))
+    );
+  }
+
+  updateExtraMaterialQuantity(index: number, quantity: number): void {
+    const normalizedQuantity = Math.max(1, Number.isFinite(quantity) ? Math.trunc(quantity) : 1);
+    this.extraMaterials.update((current) =>
+      current.map((item, currentIndex) => (currentIndex === index ? { ...item, quantity: normalizedQuantity } : item))
+    );
+  }
+
+  availableProductsForExtraMaterial(index: number): InventoryProduct[] {
+    const selectedByOthers = new Set(
+      this.extraMaterials()
+        .map((item, currentIndex) => (currentIndex === index ? '' : item.product_id))
+        .filter((productId) => Boolean(productId))
+    );
+    return this.inventoryProducts().filter((product) => !selectedByOthers.has(product.productId));
+  }
+
   private loadBootstrapData(): void {
     this.isLoading.set(true);
 
-    let pendingRequests = 2;
+    let pendingRequests = 3;
     const onRequestCompleted = () => {
       pendingRequests -= 1;
       if (pendingRequests <= 0) {
@@ -181,6 +239,23 @@ export class CreateTaskDialogComponent {
           onRequestCompleted();
         }
       });
+
+    this.inventoryService
+      .refresh()
+      .pipe(
+        switchMap(() => this.inventoryService.products$.pipe(take(1))),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: (products) => {
+          this.inventoryProducts.set(products.filter((product) => product.isActive));
+          onRequestCompleted();
+        },
+        error: (error: Error) => {
+          this.errorMessage.set(error.message);
+          onRequestCompleted();
+        }
+      });
   }
 
   private submitTaskCreation(locationId: string | null): void {
@@ -192,7 +267,8 @@ export class CreateTaskDialogComponent {
         task_title: this.form.controls.task_title.getRawValue()?.trim() || null,
         task_description: this.form.controls.task_description.getRawValue()?.trim() || null,
         requires_arrival_comment: this.form.controls.requires_arrival_comment.getRawValue(),
-        requires_video_evidence: this.form.controls.requires_video_evidence.getRawValue()
+        requires_video_evidence: this.form.controls.requires_video_evidence.getRawValue(),
+        extra_materials: this.buildExtraMaterialsPayload()
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -205,5 +281,20 @@ export class CreateTaskDialogComponent {
           this.isSubmitting.set(false);
         }
       });
+  }
+
+  private buildExtraMaterialsPayload(): { product_id: string; quantity: number }[] {
+    const seen = new Set<string>();
+    const payload: { product_id: string; quantity: number }[] = [];
+    for (const material of this.extraMaterials()) {
+      const productId = material.product_id?.trim();
+      if (!productId || seen.has(productId)) {
+        continue;
+      }
+      const quantity = Math.max(1, Math.trunc(material.quantity || 1));
+      seen.add(productId);
+      payload.push({ product_id: productId, quantity });
+    }
+    return payload;
   }
 }
