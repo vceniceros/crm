@@ -17,6 +17,7 @@ from crm_backend.models import (
     TaskAttachment,
     TaskAuditEvent,
     TaskComment,
+    TaskExtraMaterial,
     TaskRequiredMaterial,
     TaskStatus,
 )
@@ -49,6 +50,7 @@ class TaskRepository:
             selectinload(Task.comments).selectinload(TaskComment.attachments),
             selectinload(Task.audit_events),
             selectinload(Task.required_materials).selectinload(TaskRequiredMaterial.product),
+            selectinload(Task.extra_materials).selectinload(TaskExtraMaterial.product),
             selectinload(Task.inventory_requests).selectinload(InventoryRequest.items).selectinload(InventoryRequestItem.product),
             selectinload(Task.inventory_requests).selectinload(InventoryRequest.dispatches).selectinload(InventoryDispatch.items).selectinload(InventoryDispatchItem.product),
             selectinload(Task.dispatches).selectinload(InventoryDispatch.items).selectinload(InventoryDispatchItem.product),

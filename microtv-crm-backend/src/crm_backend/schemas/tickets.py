@@ -16,6 +16,11 @@ TicketPriorityLiteral = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
 TicketCommentTypeLiteral = Literal["general", "system", "closure", "arrival_registration", "closure_evidence"]
 
 
+class RequiredMaterialItem(BaseModel):
+    product_id: str
+    quantity: int = Field(..., gt=0)
+
+
 class CreateTicketRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
     client_id: str
@@ -26,6 +31,7 @@ class CreateTicketRequest(BaseModel):
     requires_video_evidence: bool = True
     assigned_role_id: str | None = None
     assigned_user_id: str | None = None
+    required_materials: list[RequiredMaterialItem] = Field(default_factory=list)
 
 
 class AssignTicketRequest(BaseModel):
@@ -88,6 +94,17 @@ class TicketCommentResponse(BaseModel):
     created_at: datetime
     location: LocationResponse | None = None
     attachments: list[TicketAttachmentResponse] = Field(default_factory=list)
+
+
+class TicketRequiredMaterialResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    required_material_id: str
+    product_id: str
+    product_code: str
+    product_name: str
+    quantity: int
+    requires_tracking: bool
 
 
 class TicketStatusTransitionResponse(BaseModel):
@@ -174,6 +191,7 @@ class TicketSummaryResponse(BaseModel):
 class TicketDetailResponse(TicketSummaryResponse):
     has_arrival_registered: bool = False
     can_register_arrival: bool = False
+    required_materials: list[TicketRequiredMaterialResponse] = Field(default_factory=list)
     comments: list[TicketCommentResponse] = Field(default_factory=list)
     status_history: list[TicketStatusTransitionResponse] = Field(default_factory=list)
     assignment_history: list[TicketAssignmentHistoryResponse] = Field(default_factory=list)

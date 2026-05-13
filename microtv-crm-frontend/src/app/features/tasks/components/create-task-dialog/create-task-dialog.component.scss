@@ -120,6 +120,27 @@
   color: var(--text-secondary);
 }
 
+.create-task-dialog__materials-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.create-task-dialog__materials-grid {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.8rem;
+}
+
+.create-task-dialog__material-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(8rem, 0.8fr) auto;
+  align-items: start;
+  gap: 0.6rem;
+}
+
 mat-dialog-content {
   max-height: min(78dvh, 54rem);
   padding-top: 0.25rem;
@@ -147,5 +168,9 @@ mat-dialog-actions {
 
   .create-task-dialog__description-field {
     grid-column: auto;
+  }
+
+  .create-task-dialog__material-row {
+    grid-template-columns: 1fr;
   }
 }

@@ -14,7 +14,7 @@ from crm_backend.db.base import Base
 
 if TYPE_CHECKING:
     from crm_backend.models.crm_user import CrmUser
-    from crm_backend.models.material_flow import InventoryDispatch, InventoryRequest, TaskRequiredMaterial
+    from crm_backend.models.material_flow import InventoryDispatch, InventoryRequest, TaskExtraMaterial, TaskRequiredMaterial
     from crm_backend.models.task_reference import Client, Location
     from crm_backend.models.task_template import TaskTemplate
 
@@ -174,6 +174,13 @@ class Task(Base):
         back_populates="task",
         cascade="all, delete-orphan",
         order_by="TaskRequiredMaterial.created_at",
+        lazy="selectin",
+    )
+    extra_materials: Mapped[list[TaskExtraMaterial]] = relationship(
+        "TaskExtraMaterial",
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="TaskExtraMaterial.created_at",
         lazy="selectin",
     )
     inventory_requests: Mapped[list[InventoryRequest]] = relationship(

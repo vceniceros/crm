@@ -10,10 +10,13 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { switchMap, take } from 'rxjs';
 
+import { InventoryProduct } from '../../../../core/models/inventory-product.model';
 import { AppLocation } from '../../../../core/models/location.model';
 import { CrmUserOption } from '../../../../core/models/task-management.model';
 import { CreateTicketRequest, TicketClientOption, TicketDetail, TicketPriority, TicketRoleOption } from '../../../../core/models/ticket-management.model';
+import { InventoryService } from '../../../../core/services/inventory.service';
 import { TicketManagementService } from '../../../../core/services/ticket-management.service';
 import { LocationLinkService } from '../../../../shared/services/location-link.service';
 import { LocationPickerService } from '../../../../shared/services/location-picker.service';
@@ -23,6 +26,11 @@ type LocationMode = 'client' | 'custom' | 'none';
 interface PriorityOption {
   id: TicketPriority;
   label: string;
+}
+
+interface RequiredMaterialSelection {
+  product_id: string;
+  quantity: number;
 }
 
 @Component({
@@ -53,6 +61,7 @@ export class CreateTicketDialogComponent {
   private readonly dialogRef = inject(MatDialogRef<CreateTicketDialogComponent, TicketDetail>);
   private readonly formBuilder = inject(FormBuilder);
   private readonly ticketManagementService = inject(TicketManagementService);
+  private readonly inventoryService = inject(InventoryService);
   private readonly locationPickerService = inject(LocationPickerService);
   private readonly locationLinkService = inject(LocationLinkService);
 
@@ -62,6 +71,8 @@ export class CreateTicketDialogComponent {
   readonly roles = signal<TicketRoleOption[]>([]);
   readonly clients = signal<TicketClientOption[]>([]);
   readonly assignees = signal<CrmUserOption[]>([]);
+  readonly inventoryProducts = signal<InventoryProduct[]>([]);
+  readonly requiredMaterials = signal<RequiredMaterialSelection[]>([]);
   readonly customLocation = signal<AppLocation | null>(null);
   readonly priorities: readonly PriorityOption[] = [
     { id: 'LOW', label: 'Baja' },
@@ -204,6 +215,53 @@ export class CreateTicketDialogComponent {
     this.customLocation.set(null);
   }
 
+  addMaterial(): void {
+    const products = this.inventoryProducts();
+    if (!products.length) {
+      return;
+    }
+
+    const selectedIds = new Set(this.requiredMaterials().map((item) => item.product_id));
+    const firstAvailable = products.find((product) => !selectedIds.has(product.productId));
+    if (!firstAvailable) {
+      return;
+    }
+
+    this.requiredMaterials.update((current) => [
+      ...current,
+      {
+        product_id: firstAvailable.productId,
+        quantity: 1
+      }
+    ]);
+  }
+
+  removeMaterial(index: number): void {
+    this.requiredMaterials.update((current) => current.filter((_, currentIndex) => currentIndex !== index));
+  }
+
+  updateMaterialProduct(index: number, productId: string): void {
+    this.requiredMaterials.update((current) =>
+      current.map((item, currentIndex) => (currentIndex === index ? { ...item, product_id: productId } : item))
+    );
+  }
+
+  updateMaterialQuantity(index: number, quantity: number): void {
+    const normalizedQuantity = Math.max(1, Number.isFinite(quantity) ? Math.trunc(quantity) : 1);
+    this.requiredMaterials.update((current) =>
+      current.map((item, currentIndex) => (currentIndex === index ? { ...item, quantity: normalizedQuantity } : item))
+    );
+  }
+
+  availableProductsForMaterial(index: number): InventoryProduct[] {
+    const selectedByOthers = new Set(
+      this.requiredMaterials()
+        .map((item, currentIndex) => (currentIndex === index ? '' : item.product_id))
+        .filter((productId) => Boolean(productId))
+    );
+    return this.inventoryProducts().filter((product) => !selectedByOthers.has(product.productId));
+  }
+
   selectedLocationLabel(): string {
     const location = this.selectedLocation();
     if (!location) {
@@ -223,7 +281,7 @@ export class CreateTicketDialogComponent {
 
   private loadBootstrapData(): void {
     this.isLoading.set(true);
-    let pendingRequests = 2;
+    let pendingRequests = 3;
     const onRequestCompleted = () => {
       pendingRequests -= 1;
       if (pendingRequests <= 0) {
@@ -251,6 +309,23 @@ export class CreateTicketDialogComponent {
       .subscribe({
         next: (clients) => {
           this.clients.set(clients.filter((client) => client.is_active));
+          onRequestCompleted();
+        },
+        error: (error: Error) => {
+          this.errorMessage.set(error.message);
+          onRequestCompleted();
+        }
+      });
+
+    this.inventoryService
+      .refresh()
+      .pipe(
+        switchMap(() => this.inventoryService.products$.pipe(take(1))),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: (products) => {
+          this.inventoryProducts.set(products.filter((product) => product.isActive));
           onRequestCompleted();
         },
         error: (error: Error) => {
@@ -309,7 +384,8 @@ export class CreateTicketDialogComponent {
       requires_arrival_comment: this.form.controls.requires_arrival_comment.getRawValue(),
       requires_video_evidence: this.form.controls.requires_video_evidence.getRawValue(),
       assigned_role_id: this.form.controls.assigned_role_id.getRawValue(),
-      assigned_user_id: this.form.controls.assigned_user_id.getRawValue()
+      assigned_user_id: this.form.controls.assigned_user_id.getRawValue(),
+      required_materials: this.buildRequiredMaterialsPayload()
     };
 
     this.ticketManagementService
@@ -325,5 +401,20 @@ export class CreateTicketDialogComponent {
           this.isSubmitting.set(false);
         }
       });
+  }
+
+  private buildRequiredMaterialsPayload(): { product_id: string; quantity: number }[] {
+    const seen = new Set<string>();
+    const payload: { product_id: string; quantity: number }[] = [];
+    for (const material of this.requiredMaterials()) {
+      const productId = material.product_id?.trim();
+      if (!productId || seen.has(productId)) {
+        continue;
+      }
+      const quantity = Math.max(1, Math.trunc(material.quantity || 1));
+      seen.add(productId);
+      payload.push({ product_id: productId, quantity });
+    }
+    return payload;
   }
 }

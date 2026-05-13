@@ -7,7 +7,7 @@ from decimal import Decimal
 from enum import StrEnum
 from uuid import uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, Uuid, func
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from crm_backend.db.base import Base
@@ -88,6 +88,68 @@ class TaskRequiredMaterial(Base):
     @property
     def required_material_id(self) -> str:
         return self.task_required_material_id
+
+    @property
+    def product_code(self) -> str:
+        return self.product.visible_product_code
+
+    @property
+    def product_name(self) -> str:
+        return self.product.name
+
+    @property
+    def requires_tracking(self) -> bool:
+        return self.product.requires_tracking
+
+
+class TicketRequiredMaterial(Base):
+    """Optional material requirements provided during ticket creation."""
+
+    __tablename__ = "ticket_required_materials"
+
+    ticket_required_material_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    ticket_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("tickets.ticket_id", ondelete="CASCADE"), index=True)
+    product_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("inventory_products.product_id", ondelete="CASCADE"), index=True)
+    quantity: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    ticket: Mapped[Ticket] = relationship("Ticket", back_populates="required_materials")
+    product: Mapped[StockProduct] = relationship("StockProduct", lazy="joined")
+
+    @property
+    def required_material_id(self) -> str:
+        return self.ticket_required_material_id
+
+    @property
+    def product_code(self) -> str:
+        return self.product.visible_product_code
+
+    @property
+    def product_name(self) -> str:
+        return self.product.name
+
+    @property
+    def requires_tracking(self) -> bool:
+        return self.product.requires_tracking
+
+
+class TaskExtraMaterial(Base):
+    """Optional extra materials provided during task creation."""
+
+    __tablename__ = "task_extra_materials"
+
+    task_extra_material_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    task_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("tasks.task_id", ondelete="CASCADE"), index=True)
+    product_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("inventory_products.product_id", ondelete="CASCADE"), index=True)
+    quantity: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    task: Mapped[Task] = relationship("Task", back_populates="extra_materials")
+    product: Mapped[StockProduct] = relationship("StockProduct", lazy="joined")
+
+    @property
+    def required_material_id(self) -> str:
+        return self.task_extra_material_id
 
     @property
     def product_code(self) -> str:

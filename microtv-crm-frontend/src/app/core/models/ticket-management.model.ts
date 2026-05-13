@@ -137,12 +137,27 @@ export interface TicketSummary {
 }
 
 export interface TicketDetail extends TicketSummary {
+  required_materials: TicketRequiredMaterial[];
   comments: TicketComment[];
   status_history: TicketStatusTransition[];
   assignment_history: TicketAssignmentHistory[];
   audit_events: TicketAuditEvent[];
   inventory_requests: InventoryRequest[];
   dispatches: InventoryDispatch[];
+}
+
+export interface TicketRequiredMaterialWrite {
+  product_id: string;
+  quantity: number;
+}
+
+export interface TicketRequiredMaterial {
+  required_material_id: string;
+  product_id: string;
+  product_code: string;
+  product_name: string;
+  quantity: number;
+  requires_tracking: boolean;
 }
 
 export interface CreateTicketRequest {
@@ -155,6 +170,7 @@ export interface CreateTicketRequest {
   requires_video_evidence?: boolean;
   assigned_role_id: string | null;
   assigned_user_id: string | null;
+  required_materials?: TicketRequiredMaterialWrite[];
 }
 
 export interface AssignTicketRequest {

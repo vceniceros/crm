@@ -96,6 +96,52 @@
           } @else {
             <p class="create-task-dialog__material-empty">El template seleccionado no define productos mínimos.</p>
           }
+
+          <div class="create-task-dialog__materials-header">
+            <p class="create-task-dialog__section-title">Materiales adicionales (opcional)</p>
+            <button
+              mat-stroked-button
+              type="button"
+              (click)="addExtraMaterial()"
+              [disabled]="!inventoryProducts().length || extraMaterials().length >= inventoryProducts().length"
+            >
+              Agregar material
+            </button>
+          </div>
+
+          @if (extraMaterials().length) {
+            <div class="create-task-dialog__materials-grid">
+              @for (material of extraMaterials(); track $index; let index = $index) {
+                <div class="create-task-dialog__material-row">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>Producto</mat-label>
+                    <mat-select [value]="material.product_id" (selectionChange)="updateExtraMaterialProduct(index, $event.value)">
+                      @for (product of availableProductsForExtraMaterial(index); track product.productId) {
+                        <mat-option [value]="product.productId">{{ product.name }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>Cantidad</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      min="1"
+                      [value]="material.quantity"
+                      (input)="updateExtraMaterialQuantity(index, +$any($event.target).value)"
+                    />
+                  </mat-form-field>
+
+                  <button mat-icon-button type="button" (click)="removeExtraMaterial(index)" aria-label="Eliminar material adicional">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="create-task-dialog__material-empty">No se agregaron materiales adicionales.</p>
+          }
         </section>
       }
 

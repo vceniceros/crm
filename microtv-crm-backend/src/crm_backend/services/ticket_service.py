@@ -23,6 +23,7 @@ from crm_backend.models import (
     CrmRole,
     CrmUser,
     NotificationRule,
+    StockProduct,
     Ticket,
     TicketAssignmentHistory,
     TicketAttachment,
@@ -31,6 +32,7 @@ from crm_backend.models import (
     TicketComment,
     TicketCommentType,
     TicketPriority,
+    TicketRequiredMaterial,
     TicketStatus,
     TicketStatusTransition,
     TicketTransitionAction,
@@ -98,8 +100,6 @@ class TicketApplicationService:
         self._legacy_priority_id_cache: dict[str, str | None] = {}
 
     def create_ticket(self, actor: ResolvedCrmSession, payload: CreateTicketRequest) -> Ticket:
-        self._ensure_admin_or_executive(actor)
-
         client = self._client_repository.get_active_by_id(payload.client_id)
         if client is None:
             raise TicketValidationError("El cliente indicado no existe o está inactivo.")
@@ -142,6 +142,8 @@ class TicketApplicationService:
                     notes="Asignación inicial del ticket.",
                 )
             )
+
+        self._append_required_materials(ticket, payload)
 
         ticket.audit_events.append(
             TicketAuditEvent(
@@ -1083,6 +1085,37 @@ class TicketApplicationService:
         if user is None and role is None:
             return None, None
         return role, user
+
+    def _append_required_materials(self, ticket: Ticket, payload: CreateTicketRequest) -> None:
+        if not payload.required_materials:
+            return
+
+        product_ids = [item.product_id for item in payload.required_materials]
+        if len(product_ids) != len(set(product_ids)):
+            raise TicketValidationError("No se puede repetir el mismo producto en materiales requeridos.")
+
+        products = {
+            product.product_id: product
+            for product in self._ticket_repository.session.scalars(
+                select(StockProduct).where(
+                    StockProduct.product_id.in_(product_ids),
+                    StockProduct.is_active.is_(True),
+                    StockProduct.deleted_at.is_(None),
+                )
+            ).all()
+        }
+
+        for item in payload.required_materials:
+            product = products.get(item.product_id)
+            if product is None:
+                raise TicketValidationError("Uno de los productos indicados no existe o está inactivo.")
+
+            ticket.required_materials.append(
+                TicketRequiredMaterial(
+                    product_id=product.product_id,
+                    quantity=int(item.quantity),
+                )
+            )
 
     def _ensure_valid_transition(self, current_status: str, to_status: str) -> None:
         allowed_targets = self.ALLOWED_STATUS_TRANSITIONS.get(current_status, set())

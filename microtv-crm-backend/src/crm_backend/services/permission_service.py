@@ -33,6 +33,8 @@ DEFAULT_ROLE_PERMISSIONS = [
     ("admin", "auth_user.create_non_admin", True),
     ("deposito", "stock.manage", True),
     ("deposito", "stock.delete_product", False),
+    ("deposito", "ticket.reassign", True),
+    ("tecnico", "ticket.reassign", True),
     ("ejecutivo", "ticket.reassign", True),
     ("ejecutivo", "order.reassign", True),
     ("ejecutivo", "auth_user.create_non_admin", True),
@@ -106,8 +108,6 @@ class PermissionService:
                 "Un ejecutivo no puede modificar permisos de un administrador.",
                 403,
             )
-        if "admin" not in actor.role_keys:
-            raise ApplicationError("permission_admin_required", "La operación requiere rol administrador.", 403)
 
         return self._repository.set_user_permission(
             target_user_id,

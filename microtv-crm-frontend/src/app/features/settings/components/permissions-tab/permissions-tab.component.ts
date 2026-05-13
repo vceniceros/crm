@@ -29,6 +29,20 @@ export class PermissionsTabComponent implements OnInit {
   readonly rolePermissions = signal<SettingsRolePermission[]>([]);
   readonly userOverrides = signal<SettingsUserPermissionOverride[]>([]);
   readonly isExecutiveMode = signal(false);
+  readonly PERMISSION_LABELS: Record<string, string> = {
+    'stock.manage': 'Gestión de inventario',
+    'stock.delete_product': 'Eliminar productos del inventario',
+    'ticket.reassign': 'Reasignar tickets',
+    'order.reassign': 'Reasignar pedidos',
+    'comment.delete': 'Eliminar comentarios',
+    'auth_user.create_non_admin': 'Gestionar usuarios (no administradores)'
+  };
+  readonly ROLE_LABELS: Record<string, string> = {
+    admin: 'Administrador',
+    ejecutivo: 'Ejecutivo',
+    tecnico: 'Técnico de campo',
+    deposito: 'Encargado de depósito'
+  };
 
   ngOnInit(): void {
     const roleKeys = this.authSessionService.sessionSnapshot()?.user.role_keys ?? [];
@@ -119,5 +133,13 @@ export class PermissionsTabComponent implements OnInit {
   refreshPermissions(): void {
     this.permissionService.refresh();
     this.snackBar.open('Permisos recargados.', 'Cerrar', { duration: 3000 });
+  }
+
+  getPermissionLabel(code: string): string {
+    return this.PERMISSION_LABELS[code] ?? code;
+  }
+
+  getRoleLabel(key: string): string {
+    return this.ROLE_LABELS[key] ?? key;
   }
 }

@@ -71,6 +71,11 @@ class SetTaskTemplateActivationRequest(BaseModel):
     is_active: bool
 
 
+class RequiredMaterialItem(BaseModel):
+    product_id: str
+    quantity: int = Field(..., gt=0)
+
+
 class CreateTaskFromTemplateRequest(BaseModel):
     template_id: str
     client_id: str
@@ -79,6 +84,7 @@ class CreateTaskFromTemplateRequest(BaseModel):
     task_description: str | None = None
     requires_arrival_comment: bool | None = None
     requires_video_evidence: bool | None = None
+    extra_materials: list[RequiredMaterialItem] = Field(default_factory=list)
 
 
 class UpdateSubtaskItemValueRequest(BaseModel):
@@ -295,6 +301,17 @@ class TaskAuditEventResponse(BaseModel):
     created_at: datetime
 
 
+class TaskExtraMaterialResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    required_material_id: str
+    product_id: str
+    product_code: str
+    product_name: str
+    quantity: int
+    requires_tracking: bool
+
+
 class SubtaskResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -347,6 +364,7 @@ class TaskDetailResponse(BaseModel):
     created_at: datetime
     updated_at: datetime | None
     required_materials: list[RequiredMaterialResponse]
+    extra_materials: list[TaskExtraMaterialResponse] = Field(default_factory=list)
     inventory_requests: list[InventoryRequestResponse]
     dispatches: list[InventoryDispatchResponse]
     subtasks: list[SubtaskResponse]
