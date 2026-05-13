@@ -65,6 +65,11 @@
     </mat-card>
 
     <div class="permissions-tab__actions">
+      @if (!isExecutiveMode()) {
+        <button mat-flat-button color="accent" type="button" (click)="seedDefaultPermissions()" [disabled]="loading()">
+          Cargar Permisos Predeterminados
+        </button>
+      }
       <button mat-flat-button color="primary" type="button" (click)="refreshPermissions()">Refrescar permisos</button>
     </div>
   }

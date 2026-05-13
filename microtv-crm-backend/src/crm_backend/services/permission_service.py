@@ -22,6 +22,18 @@ KNOWN_PERMISSION_CODES = [
     PERMISSION_COMMENT_DELETE,
 ]
 
+DEFAULT_ROLE_PERMISSIONS = [
+    ("admin", "stock.manage", True),
+    ("admin", "stock.delete_product", True),
+    ("admin", "ticket.reassign", True),
+    ("admin", "order.reassign", True),
+    ("admin", "comment.delete", True),
+    ("deposito", "stock.manage", True),
+    ("deposito", "stock.delete_product", False),
+    ("ejecutivo", "ticket.reassign", True),
+    ("ejecutivo", "order.reassign", True),
+]
+
 
 class PermissionService:
     """Resolve effective permissions from role defaults and user overrides."""
@@ -114,6 +126,22 @@ class PermissionService:
 
     def get_user_overrides(self, crm_user_id: str):
         return self._repository.get_user_overrides(crm_user_id)
+
+    def seed_default_permissions(self, actor: ResolvedCrmSession) -> int:
+        """Carga los permisos por defecto para cada rol (idempotente).
+
+        Args:
+            actor: Sesión autenticada (requiere admin).
+
+        Returns:
+            int: Cantidad de permisos insertados/actualizados.
+        """
+        self._ensure_admin(actor)
+        count = 0
+        for role_key, permission_code, is_granted in DEFAULT_ROLE_PERMISSIONS:
+            self._repository.set_role_permission(role_key, permission_code, is_granted, actor_id=actor.crm_user.crm_user_id)
+            count += 1
+        return count
 
     def _find_user_override(self, crm_user_id: str, code: str) -> UserPermission | None:
         for override in self._repository.get_user_overrides(crm_user_id):

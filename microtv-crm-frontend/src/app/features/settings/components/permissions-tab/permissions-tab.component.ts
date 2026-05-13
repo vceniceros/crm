@@ -98,6 +98,24 @@ export class PermissionsTabComponent implements OnInit {
       });
   }
 
+  seedDefaultPermissions(): void {
+    this.loading.set(true);
+    this.error.set(null);
+    this.settingsManagementService
+      .seedDefaultPermissions()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (response) => {
+          this.snackBar.open(`Permisos cargados: ${response.count} registros`, 'Cerrar', { duration: 5000 });
+          this.load(this.isExecutiveMode());
+        },
+        error: (error: Error) => {
+          this.error.set(error.message);
+          this.loading.set(false);
+        }
+      });
+  }
+
   refreshPermissions(): void {
     this.permissionService.refresh();
     this.snackBar.open('Permisos recargados.', 'Cerrar', { duration: 3000 });

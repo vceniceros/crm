@@ -187,6 +187,10 @@ export class SettingsManagementService {
     );
   }
 
+  seedDefaultPermissions(): Observable<{ message: string; count: number }> {
+    return this.request<{ message: string; count: number }>('post', '/settings/permissions/seed');
+  }
+
   listActivityLog(filters: ActivityLogFilters): Observable<ActivityLogPage> {
     const params = new URLSearchParams();
     if (filters.userId) params.set('user_id', filters.userId);
