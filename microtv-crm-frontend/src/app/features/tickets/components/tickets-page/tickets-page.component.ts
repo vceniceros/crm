@@ -87,10 +87,7 @@ export class TicketsPageComponent {
 
   readonly currentRoles = computed(() => this.authSessionService.sessionSnapshot()?.user.role_keys ?? []);
   readonly currentUserId = computed(() => this.authSessionService.sessionSnapshot()?.user.crm_user_id ?? null);
-  readonly canViewHistory = computed(() => {
-    const roles = this.currentRoles();
-    return roles.includes('admin') || roles.includes('ejecutivo');
-  });
+  readonly canViewHistory = computed(() => this.currentRoles().length > 0);
   readonly assignedRows = computed(() => this.mapTickets(this.assignedTickets()));
   readonly unassignedRows = computed(() => this.mapTickets(this.unassignedTickets(), { forUnassignedTab: true }));
   readonly trackingRows = computed(() => this.mapTickets(this.trackingTickets()));
@@ -127,7 +124,7 @@ export class TicketsPageComponent {
     this.errorMessage.set(null);
     this.successMessage.set(null);
 
-    let pendingRequests = this.canViewHistory() ? 4 : 3;
+    let pendingRequests = 4;
     const onRequestCompleted = () => {
       pendingRequests -= 1;
       if (pendingRequests <= 0) {

@@ -343,7 +343,7 @@ class TaskMaterialFlowFacade:
                     barcode_value=(item_payload.barcode_value or "").strip() or None,
                 )
             )
-            product.increase_stock(
+            product.decrease_stock(
                 quantity=item_payload.quantity_dispatched,
                 actor_crm_user_id=actor.crm_user.crm_user_id,
                 warehouse_id=warehouse_id,
@@ -729,9 +729,8 @@ class InventoryRequestFacade:
         raise InventoryAccessDeniedError("Solo depósito, ejecutivo o administrador puede ver solicitudes adicionales.")
 
     def _ensure_request_create_access(self, actor: ResolvedCrmSession) -> None:
-        if "admin" in actor.role_keys or "tecnico" in actor.role_keys:
-            return
-        raise InventoryAccessDeniedError("Solo un técnico o administrador puede crear solicitudes adicionales.")
+        if not actor.role_keys:
+            raise InventoryAccessDeniedError("El usuario no tiene roles asignados.")
 
     def _ensure_request_review_access(self, actor: ResolvedCrmSession) -> None:
         if "admin" in actor.role_keys or "deposito" in actor.role_keys:
