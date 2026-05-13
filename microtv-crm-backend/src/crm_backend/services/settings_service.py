@@ -380,6 +380,27 @@ class SettingsService:
         role_keys = [assignment.role.role_key for assignment in user.assigned_roles if assignment.role is not None]
         return self._permission_service.get_effective_permissions(role_keys, user.crm_user_id)
 
+    def seed_default_permissions(self, actor: ResolvedCrmSession) -> int:
+        """Carga los permisos por defecto para cada rol (idempotente).
+        
+        Args:
+            actor: Sesión autenticada (requiere admin).
+            
+        Returns:
+            int: Cantidad de permisos cargados.
+        """
+        count = self._permission_service.seed_default_permissions(actor)
+        self._activity_log_service.log(
+            "settings.permissions_seeded",
+            actor,
+            entity_type="permission",
+            entity_label="default_role_permissions",
+            summary=f"Permisos por defecto cargados ({count} registros).",
+            extra={"count": count},
+        )
+        self._session.commit()
+        return count
+
     def _log_activity(self, event_code: str, actor_crm_user_id: str, payload: dict[str, object]) -> None:
         self._activity_log_service.log(
             event_code,

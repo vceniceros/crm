@@ -98,6 +98,23 @@ def update_role_permission(
     )
 
 
+@router.post(
+    "/permissions/seed",
+    response_model=dict,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
+)
+def seed_default_permissions(
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    settings_service: SettingsService = Depends(get_settings_service),
+) -> dict:
+    """Carga los permisos por defecto para admin, deposito, ejecutivo (idempotente).
+    
+    Solo accesible a administradores. Útil para inicializar una BD nueva.
+    """
+    count = settings_service.seed_default_permissions(actor)
+    return {"message": "Permisos por defecto cargados", "count": count}
+
+
 @router.get(
     "/permissions/users",
     response_model=list[UserPermissionOverrideResponse],
