@@ -133,6 +133,8 @@ CORS_ORIGIN_REGEX=
 AUTH_BASE_URL=http://127.0.0.1:8203
 AUTH_LOGIN_PATH=/v1/auth/login
 AUTH_TIMEOUT_SECONDS=10
+AUTH_MANAGEMENT_EMAIL=admin@ycc.local
+AUTH_MANAGEMENT_PASSWORD=<MISMA_PASSWORD_DE_CRM_AUTH_ADMIN_PASSWORD>
 AUTH_JWT_SECRET=<MISMO_JWT_SECRET_DEL_AUTH_INTERNO>
 AUTH_JWT_ALGORITHM=HS256
 AUTH_JWT_ISSUER=auth.crm.ycc.internal
@@ -157,6 +159,8 @@ DEFAULT_TECH_AUTH_ROLES=tecnico_campo
 ```
 
 Importante: si cambias el `PORT` del auth en su `.env`, actualizar `AUTH_BASE_URL` para apuntar al nuevo puerto.
+
+Importante: `AUTH_MANAGEMENT_EMAIL` y `AUTH_MANAGEMENT_PASSWORD` son obligatorias para que User Management funcione con ejecutivos cuando auth devuelva 403 por rol del token activo.
 
 ### 7.3 Frontend CRM
 Archivo: `/opt/ycc/crm/microtv-crm-ycc/microtv-crm-frontend/.env`

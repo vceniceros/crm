@@ -365,16 +365,22 @@ class AuthServiceAdapter:
             raise UpstreamAuthError() from exc
 
         if response.status_code == 403:
-            detail = self._extract_error_detail(response).lower()
-            if "admin role required" in detail or "admin or ejecutivo role required" in detail:
-                management_access_token = self._login_management_user_access_token()
-                if management_access_token:
-                    retry_headers = {"Authorization": f"Bearer {management_access_token}"}
-                    try:
-                        with httpx.Client(base_url=self._settings.auth_base_url, timeout=self._settings.auth_timeout_seconds) as client:
-                            response = client.request(method, path, json=body, headers=retry_headers)
-                    except httpx.HTTPError as exc:
-                        raise UpstreamAuthError() from exc
+            # Para endpoints crm-admin, usar fallback técnico ante cualquier 403.
+            # Evita depender de un mensaje textual específico del auth service.
+            management_access_token = self._login_management_user_access_token()
+            if management_access_token:
+                retry_headers = {"Authorization": f"Bearer {management_access_token}"}
+                try:
+                    with httpx.Client(base_url=self._settings.auth_base_url, timeout=self._settings.auth_timeout_seconds) as client:
+                        response = client.request(method, path, json=body, headers=retry_headers)
+                except httpx.HTTPError as exc:
+                    raise UpstreamAuthError() from exc
+            else:
+                detail = self._extract_error_detail(response).lower()
+                if "admin role required" in detail or "admin or ejecutivo role required" in detail:
+                    raise AuthenticationContextError(
+                        "No se pudo usar fallback técnico para gestionar usuarios. Configure AUTH_MANAGEMENT_EMAIL y AUTH_MANAGEMENT_PASSWORD en el backend CRM."
+                    )
 
         if response.status_code >= 500:
             raise UpstreamAuthError("El servicio auth respondió con un error interno.")
