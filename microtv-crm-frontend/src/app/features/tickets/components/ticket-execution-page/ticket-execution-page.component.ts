@@ -198,7 +198,7 @@ export class TicketExecutionPageComponent {
   readonly canManageDispatch = computed(() => {
     return this.isDeposito();
   });
-  readonly canCreateInventoryRequest = computed(() => this.canOperateTicket() && (this.isTecnico() || this.isAdmin()));
+  readonly canCreateInventoryRequest = computed(() => this.canOperateTicket());
   readonly canViewDispatchedHistory = computed(() => this.isDeposito() || this.isTecnico() || this.isAdmin() || this.isExecutive());
   readonly canReviewRequests = computed(() => this.canManageDispatch());
   readonly canOperateTicket = computed(() => {

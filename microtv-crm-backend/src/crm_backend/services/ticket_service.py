@@ -195,9 +195,11 @@ class TicketApplicationService:
             return []
 
     def list_closed_tickets_for_actor(self, actor: ResolvedCrmSession) -> list[Ticket]:
-        self._ensure_admin_or_executive(actor)
+        self._ensure_read_access(actor)
         try:
-            return self._ticket_repository.list_closed_tickets()
+            if {"admin", "ejecutivo"}.intersection(self._normalized_actor_role_keys(actor)):
+                return self._ticket_repository.list_closed_tickets()
+            return self._ticket_repository.list_closed_tickets_for_user(actor.crm_user.crm_user_id)
         except Exception:
             _logger.exception("Failed to list closed tickets for actor %s", getattr(actor.crm_user, "crm_user_id", "unknown"))
             return []
@@ -222,7 +224,8 @@ class TicketApplicationService:
             actor_role_ids = self._actor_role_ids(actor)
             if {"tecnico", "deposito"}.intersection(actor_role_keys):
                 for role in roles:
-                    if self._normalize_role_key(role.role_key) == "admin":
+                    normalized = self._normalize_role_key(role.role_key)
+                    if normalized in {"admin", "tecnico", "deposito"}:
                         actor_role_ids.add(role.crm_role_id)
             return [role for role in roles if role.crm_role_id in actor_role_ids]
         except Exception:
@@ -653,6 +656,7 @@ class TicketApplicationService:
                 body=normalized_comment,
             )
             ticket.comments.append(ticket_comment)
+            self._ticket_repository.session.flush()
 
         ticket.status = TicketStatus.CLOSED.value
         ticket.closed_at = datetime.now(UTC)
@@ -718,6 +722,7 @@ class TicketApplicationService:
             body=normalized_comment,
         )
         ticket.comments.append(reject_comment)
+        self._ticket_repository.session.flush()
 
         ticket.status = TicketStatus.IN_PROGRESS.value
         ticket.closed_at = None
@@ -1284,20 +1289,31 @@ class TicketApplicationService:
             return
 
         actor_role_ids = self._actor_role_ids(actor)
+        roles_cache = self._role_repository.list_active()
         if not actor_role_ids:
             raise TicketAccessDeniedError("El usuario no tiene roles válidos para reasignar tickets.")
 
-        if role is not None and role.crm_role_id not in actor_role_ids and not self._can_escalate_to_admin(actor, role):
+        if role is not None and role.crm_role_id not in actor_role_ids and not self._can_cross_assign_to_peer(actor, role):
             raise TicketAccessDeniedError("Solo podés asignar tickets dentro de tus propios roles.")
 
         if ticket.assigned_role_id is not None and ticket.assigned_role_id not in actor_role_ids:
-            raise TicketAccessDeniedError("Solo podés reasignar tickets dentro de tus propios roles.")
+            assigned_role = next((item for item in roles_cache if item.crm_role_id == ticket.assigned_role_id), None)
+            if not self._can_cross_assign_to_peer(actor, assigned_role):
+                raise TicketAccessDeniedError("Solo podés reasignar tickets dentro de tus propios roles.")
 
         if ticket.assigned_role_id is None and ticket.assigned_user_id != actor.crm_user.crm_user_id:
             raise TicketAccessDeniedError("No podés reasignar un ticket fuera de tu ámbito de rol.")
 
     def _can_escalate_to_admin(self, actor: ResolvedCrmSession, role: CrmRole) -> bool:
         return self._normalize_role_key(role.role_key) == "admin" and bool({"tecnico", "deposito"}.intersection(actor.role_keys))
+
+    def _can_cross_assign_to_peer(self, actor: ResolvedCrmSession, role: CrmRole | None) -> bool:
+        """Deposito y tecnico pueden asignarse tickets mutuamente y a admin."""
+        actor_keys = self._normalized_actor_role_keys(actor)
+        if not {"tecnico", "deposito"}.intersection(actor_keys):
+            return False
+        normalized_target = self._normalize_role_key(getattr(role, "role_key", None)) if role else None
+        return normalized_target in {"admin", "tecnico", "deposito"}
 
     def _can_view_ticket(self, actor: ResolvedCrmSession, ticket: Ticket) -> bool:
         if {"admin", "ejecutivo"}.intersection(actor.role_keys):

@@ -218,7 +218,7 @@ def test_closing_ticket_requires_comment_and_moves_to_history(client, db_session
     assert any(item["ticket_id"] == ticket_id for item in history_response.json())
 
 
-def test_non_admin_reassignment_is_limited_to_same_role(client, db_session) -> None:
+def test_tecnico_can_reassign_to_deposito_and_same_role(client, db_session) -> None:
     tech_user = _seed_local_role_user(
         db_session,
         role_key="tecnico_campo",
@@ -259,7 +259,7 @@ def test_non_admin_reassignment_is_limited_to_same_role(client, db_session) -> N
     assert created.status_code == 200, created.text
     ticket_id = created.json()["ticket_id"]
 
-    forbidden_cross_role = client.patch(
+    allowed_cross_role = client.patch(
         f"/tickets/{ticket_id}/assignment",
         headers=_auth_header("tech-token"),
         json={
@@ -268,7 +268,8 @@ def test_non_admin_reassignment_is_limited_to_same_role(client, db_session) -> N
             "notes": "Derivar a depósito",
         },
     )
-    assert forbidden_cross_role.status_code == 403
+    assert allowed_cross_role.status_code == 200, allowed_cross_role.text
+    assert allowed_cross_role.json()["assigned_user_id"] == deposito_user.crm_user_id
 
     allowed_same_role = client.patch(
         f"/tickets/{ticket_id}/assignment",

@@ -1,6 +1,6 @@
 """Repository for ticket aggregates."""
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from crm_backend.models import (
@@ -123,6 +123,31 @@ class TicketRepository:
             select(Ticket)
             .options(*self._summary_options())
             .where(Ticket.status == TicketStatus.CLOSED.value)
+            .order_by(Ticket.closed_at.desc(), Ticket.updated_at.desc())
+        )
+        return list(self._session.scalars(statement).all())
+
+    def list_closed_tickets_for_user(self, crm_user_id: str) -> list[Ticket]:
+        participated_ids = (
+            select(TicketAssignmentHistory.ticket_id)
+            .where(
+                or_(
+                    TicketAssignmentHistory.assigned_user_id == crm_user_id,
+                    TicketAssignmentHistory.previous_user_id == crm_user_id,
+                )
+            )
+        )
+        statement = (
+            select(Ticket)
+            .options(*self._summary_options())
+            .where(
+                Ticket.status == TicketStatus.CLOSED.value,
+                or_(
+                    Ticket.ticket_id.in_(participated_ids),
+                    Ticket.closed_by_crm_user_id == crm_user_id,
+                    Ticket.created_by_crm_user_id == crm_user_id,
+                ),
+            )
             .order_by(Ticket.closed_at.desc(), Ticket.updated_at.desc())
         )
         return list(self._session.scalars(statement).all())
