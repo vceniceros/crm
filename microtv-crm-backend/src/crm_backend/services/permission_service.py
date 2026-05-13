@@ -13,6 +13,7 @@ PERMISSION_STOCK_DELETE_PRODUCT = "stock.delete_product"
 PERMISSION_TICKET_REASSIGN = "ticket.reassign"
 PERMISSION_ORDER_REASSIGN = "order.reassign"
 PERMISSION_COMMENT_DELETE = "comment.delete"
+PERMISSION_AUTH_USER_CREATE_NON_ADMIN = "auth_user.create_non_admin"
 
 KNOWN_PERMISSION_CODES = [
     PERMISSION_STOCK_MANAGE,
@@ -20,6 +21,7 @@ KNOWN_PERMISSION_CODES = [
     PERMISSION_TICKET_REASSIGN,
     PERMISSION_ORDER_REASSIGN,
     PERMISSION_COMMENT_DELETE,
+    PERMISSION_AUTH_USER_CREATE_NON_ADMIN,
 ]
 
 DEFAULT_ROLE_PERMISSIONS = [
@@ -28,10 +30,12 @@ DEFAULT_ROLE_PERMISSIONS = [
     ("admin", "ticket.reassign", True),
     ("admin", "order.reassign", True),
     ("admin", "comment.delete", True),
+    ("admin", "auth_user.create_non_admin", True),
     ("deposito", "stock.manage", True),
     ("deposito", "stock.delete_product", False),
     ("ejecutivo", "ticket.reassign", True),
     ("ejecutivo", "order.reassign", True),
+    ("ejecutivo", "auth_user.create_non_admin", True),
 ]
 
 

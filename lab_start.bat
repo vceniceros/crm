@@ -102,6 +102,8 @@ if not defined LAB_VAPID_PRIVATE_KEY (
 call :upsert_env_value "%BACKEND_ENV_FILE%" "VAPID_CLAIMS_SUB" "mailto:admin@microtv.ar"
 call :upsert_env_value "%BACKEND_ENV_FILE%" "DATABASE_URL" "%CRM_DATABASE_URL%"
 call :upsert_env_value "%BACKEND_ENV_FILE%" "AUTH_BASE_URL" "http://localhost:8001"
+call :upsert_env_value "%BACKEND_ENV_FILE%" "AUTH_MANAGEMENT_EMAIL" "admin@ycc.local"
+call :upsert_env_value "%BACKEND_ENV_FILE%" "AUTH_MANAGEMENT_PASSWORD" "changeme-secure-password"
 call :upsert_env_value "%FRONTEND_ENV_FILE%" "CRM_API_BASE_URL" "http://localhost:8010"
 call :upsert_env_value "%FRONTEND_ENV_FILE%" "CRM_MEDIA_PUBLIC_URL" "/media"
 if defined LAB_VAPID_PUBLIC_KEY call :upsert_env_value "%FRONTEND_ENV_FILE%" "VAPID_PUBLIC_KEY" "%LAB_VAPID_PUBLIC_KEY%"

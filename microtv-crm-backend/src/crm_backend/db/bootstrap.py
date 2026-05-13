@@ -89,10 +89,12 @@ ROLE_PERMISSION_SEEDS = (
     ("admin", "ticket.reassign", True),
     ("admin", "order.reassign", True),
     ("admin", "comment.delete", True),
+    ("admin", "auth_user.create_non_admin", True),
     ("deposito", "stock.manage", True),
     ("deposito", "stock.delete_product", False),
     ("ejecutivo", "ticket.reassign", True),
     ("ejecutivo", "order.reassign", True),
+    ("ejecutivo", "auth_user.create_non_admin", True),
 )
 
 

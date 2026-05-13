@@ -65,6 +65,12 @@ class CrmIdentityService:
             )
         return result
 
+    def get_crm_user(self, *, user_id: str) -> dict[str, object]:
+        user = self._session.get(User, user_id)
+        if user is None:
+            raise ValueError("User not found.")
+        return self.render_user(user)
+
     def create_crm_user(self, *, email: str, display_name: str, password: str, is_active: bool, roles: list[str]) -> User:
         normalized_email = email.lower().strip()
         if self._session.scalar(select(User).where(User.email == normalized_email)) is not None:

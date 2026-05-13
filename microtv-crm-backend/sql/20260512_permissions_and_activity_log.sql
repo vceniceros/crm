@@ -68,6 +68,17 @@ CREATE TABLE IF NOT EXISTS activity_log_archive (
 CREATE INDEX IF NOT EXISTS idx_activity_log_archive_created_at
     ON activity_log_archive (created_at DESC);
 
+-- ─── Hardening para entornos legacy ─────────────────────────────────────────
+-- Si las tablas ya existian sin DEFAULT en PK UUID, los inserts fallan con NULL.
+ALTER TABLE IF EXISTS crm_role_permissions
+    ALTER COLUMN role_permission_id SET DEFAULT uuid_generate_v4();
+
+ALTER TABLE IF EXISTS crm_user_permissions
+    ALTER COLUMN user_permission_id SET DEFAULT uuid_generate_v4();
+
+ALTER TABLE IF EXISTS activity_log
+    ALTER COLUMN activity_log_id SET DEFAULT uuid_generate_v4();
+
 -- ─── Seeds de permisos por defecto ───────────────────────────────────────────
 INSERT INTO crm_role_permissions (role_key, permission_code, is_granted) VALUES
     ('admin',     'stock.manage',         TRUE),
@@ -75,8 +86,10 @@ INSERT INTO crm_role_permissions (role_key, permission_code, is_granted) VALUES
     ('admin',     'ticket.reassign',      TRUE),
     ('admin',     'order.reassign',       TRUE),
     ('admin',     'comment.delete',       TRUE),
+    ('admin',     'auth_user.create_non_admin', TRUE),
     ('deposito',  'stock.manage',         TRUE),
     ('deposito',  'stock.delete_product', FALSE),
     ('ejecutivo', 'ticket.reassign',      TRUE),
-    ('ejecutivo', 'order.reassign',       TRUE)
+    ('ejecutivo', 'order.reassign',       TRUE),
+    ('ejecutivo', 'auth_user.create_non_admin', TRUE)
 ON CONFLICT (role_key, permission_code) DO NOTHING;
