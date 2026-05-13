@@ -280,6 +280,12 @@ class AuthServiceAdapter:
             raise UpstreamAuthError("El servicio auth devolvió una respuesta inválida al listar usuarios.")
         return [self._build_managed_user(item) for item in payload if isinstance(item, dict)]
 
+    def get_managed_user(self, access_token: str, user_id: str) -> AuthManagedUser:
+        for user in self.list_managed_users(access_token):
+            if user.user_id == user_id:
+                return user
+        raise AuthenticationContextError("User not found.")
+
     def create_managed_user(
         self,
         *,
@@ -358,6 +364,18 @@ class AuthServiceAdapter:
         except httpx.HTTPError as exc:
             raise UpstreamAuthError() from exc
 
+        if response.status_code == 403:
+            detail = self._extract_error_detail(response).lower()
+            if "admin role required" in detail or "admin or ejecutivo role required" in detail:
+                management_access_token = self._login_management_user_access_token()
+                if management_access_token:
+                    retry_headers = {"Authorization": f"Bearer {management_access_token}"}
+                    try:
+                        with httpx.Client(base_url=self._settings.auth_base_url, timeout=self._settings.auth_timeout_seconds) as client:
+                            response = client.request(method, path, json=body, headers=retry_headers)
+                    except httpx.HTTPError as exc:
+                        raise UpstreamAuthError() from exc
+
         if response.status_code >= 500:
             raise UpstreamAuthError("El servicio auth respondió con un error interno.")
         if response.status_code >= 400:
@@ -367,6 +385,32 @@ class AuthServiceAdapter:
             raise AuthenticationContextError(detail)
 
         return response.json()
+
+    def _login_management_user_access_token(self) -> str | None:
+        management_email = self._settings.auth_management_email.strip()
+        management_password = self._settings.auth_management_password.strip()
+        if not management_email or not management_password:
+            return None
+
+        try:
+            with httpx.Client(base_url=self._settings.auth_base_url, timeout=self._settings.auth_timeout_seconds) as client:
+                response = client.post(
+                    self._settings.auth_login_path,
+                    json={"email": management_email, "password": management_password},
+                )
+        except httpx.HTTPError as exc:
+            raise UpstreamAuthError() from exc
+
+        if response.status_code >= 500:
+            raise UpstreamAuthError("El servicio auth respondió con un error interno.")
+        if response.status_code >= 400:
+            return None
+
+        payload = response.json()
+        access_token = payload.get("access_token")
+        if not isinstance(access_token, str) or not access_token.strip():
+            return None
+        return access_token
 
     def _build_managed_user(self, payload: dict[str, Any]) -> AuthManagedUser:
         return AuthManagedUser(

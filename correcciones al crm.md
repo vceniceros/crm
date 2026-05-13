@@ -7,7 +7,13 @@
 9. agregar apartado para ver registro de actividad de cada usuario (login, logout, acciones realizadas)
 11. poder acotar quien puede manejar el stock dentro de configuraciones, configurar quien puede manejar stock independiente al rol
 
+12. poder agregar un importasdor a prodcutos para cargar productos masivamente desde un excel o csv
 
+13. agregar productos minimos a tickets y tareas, para que al crear un ticket o tarea puedas agregar productos relacionados al mismo
+
+14. darle permisos al ejecutivo de crear usuario no admin
+
+15. crear todos los correos para todos los usuarios
 
 2. agregar carga de documentos a los tickets y permitir descargar los documentos cargados en los tickets
 3. mismo para tareas
@@ -36,3 +42,7 @@
 7. Add an imperative and comprehensive user activity log section. This is a required feature. Use the full database context to determine which relevant actions should be recorded. The activity log should allow administrators to inspect each user’s relevant actions across the system, including at minimum login, logout, and meaningful business actions performed inside the CRM. The log should not be limited to authentication events only; it should cover the operational actions already represented in the database and workflows. Design it so it is actually useful for audit, support, and internal control, not just as a passive technical log. Prefer structured records with actor, action, target entity, timestamp, and contextual summary.
 
 8. Do not implement stock-related permission control as a separate disconnected feature. Merge it into the unified permissions system described in point 1. Stock handling permissions, product deletion permissions, reassignment permissions, and comment deletion permissions should all belong to the same centralized permission management model, with role-based defaults and optional user-specific overrides where necessary.
+
+
+
+9. 

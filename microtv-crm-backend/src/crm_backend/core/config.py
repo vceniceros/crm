@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     auth_base_url: str = Field(default="http://localhost:8001")
     auth_login_path: str = Field(default="/v1/auth/login")
     auth_timeout_seconds: float = Field(default=10.0)
+    auth_management_email: str = Field(default="")
+    auth_management_password: str = Field(default="")
     auth_jwt_secret: str = Field(default="change-me")
     auth_jwt_algorithm: str = Field(default="HS256")
     auth_jwt_issuer: str = Field(default="auth.crm.ycc.internal")

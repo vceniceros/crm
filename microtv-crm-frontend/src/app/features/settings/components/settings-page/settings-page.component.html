@@ -32,13 +32,15 @@
             <section class="settings-page__tab-content">
               <div class="settings-page__section-header">
                 <h3>Usuarios del auth interno CRM</h3>
-                @if (isAdmin()) {
+                @if (canCreateAuthUsers()) {
                   <button mat-flat-button color="primary" type="button" (click)="createAuthUser()">Nuevo usuario</button>
                 }
               </div>
 
-              @if (!isAdmin()) {
-                <p class="settings-page__readonly-note">La gestión de usuarios requiere rol administrador. Vista de solo lectura.</p>
+              @if (!isAdmin() && !canCreateAuthUsers()) {
+                <p class="settings-page__readonly-note">La gestión de usuarios requiere rol administrador o permiso explícito.</p>
+              } @else if (!isAdmin()) {
+                <p class="settings-page__readonly-note">Como ejecutivo podés crear, editar, activar/desactivar y resetear contraseña en usuarios sin rol administrador.</p>
               }
 
               <table class="settings-page__table">
@@ -59,11 +61,15 @@
                       <td>{{ item.is_active ? 'Activo' : 'Inactivo' }}</td>
                       <td>{{ prettyAuthRoles(item.roles) }}</td>
                       <td class="settings-page__actions-cell">
-                        @if (isAdmin()) {
+                        @if (canManageAuthUser(item)) {
                           <button mat-button type="button" (click)="editAuthUser(item)">Editar</button>
+                        }
+                        @if (canManageAuthUser(item)) {
                           <button mat-button type="button" (click)="toggleAuthUserStatus(item)">
                             {{ item.is_active ? 'Desactivar' : 'Activar' }}
                           </button>
+                        }
+                        @if (canManageAuthUser(item)) {
                           <button mat-button type="button" (click)="resetAuthUserPassword(item)">Reset password</button>
                         }
                       </td>

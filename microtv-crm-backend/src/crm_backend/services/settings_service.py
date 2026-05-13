@@ -30,7 +30,7 @@ from crm_backend.schemas.settings import (
 )
 from crm_backend.services.auth_service import ResolvedCrmSession
 from crm_backend.services.activity_log_service import ActivityLogService
-from crm_backend.services.permission_service import PermissionService
+from crm_backend.services.permission_service import PERMISSION_AUTH_USER_CREATE_NON_ADMIN, PermissionService
 
 
 class SettingsService:
@@ -323,6 +323,25 @@ class SettingsService:
             return
         raise ApplicationError("settings_admin_required", "La operación requiere rol administrador.", 403)
 
+    def _ensure_auth_user_management_access(self, actor: ResolvedCrmSession) -> None:
+        """Permite admin o ejecutivos para gestionar usuarios del auth (ver, editar, cambiar roles, resetear contraseña)."""
+        if "admin" in actor.role_keys:
+            return
+        if "ejecutivo" in actor.role_keys:
+            # Ejecutivos con permiso pueden gestionar usuarios
+            can_create_non_admin = self._permission_service.resolve(
+                actor.role_keys,
+                actor.crm_user.crm_user_id,
+                PERMISSION_AUTH_USER_CREATE_NON_ADMIN,
+            )
+            if can_create_non_admin:
+                return
+        raise ApplicationError(
+            "settings_auth_user_management_denied",
+            "La gestión de usuarios requiere rol administrador o ejecutivo con permisos.",
+            403,
+        )
+
     def list_role_permissions(self, actor: ResolvedCrmSession) -> list[RolePermission]:
         self._ensure_admin_or_executive(actor)
         return self._permission_service.list_role_permissions()
@@ -379,6 +398,42 @@ class SettingsService:
             raise ApplicationError("settings_user_not_found", "El usuario indicado no existe.", 404)
         role_keys = [assignment.role.role_key for assignment in user.assigned_roles if assignment.role is not None]
         return self._permission_service.get_effective_permissions(role_keys, user.crm_user_id)
+
+    def ensure_auth_user_creation_allowed(self, actor: ResolvedCrmSession, role_keys: list[str]) -> None:
+        normalized_requested_roles = {
+            role_key.strip().lower() for role_key in role_keys if isinstance(role_key, str) and role_key.strip()
+        }
+        if "admin" in actor.role_keys:
+            return
+
+        can_create_non_admin = self._permission_service.resolve(
+            actor.role_keys,
+            actor.crm_user.crm_user_id,
+            PERMISSION_AUTH_USER_CREATE_NON_ADMIN,
+        )
+        if not can_create_non_admin:
+            raise ApplicationError("settings_auth_user_create_denied", "No tiene permiso para crear usuarios.", 403)
+
+        if "admin" in normalized_requested_roles:
+            raise ApplicationError(
+                "settings_auth_user_admin_forbidden",
+                "Un ejecutivo no puede crear usuarios con rol administrador.",
+                403,
+            )
+
+    def ensure_auth_user_target_allowed(self, actor: ResolvedCrmSession, target_role_keys: list[str]) -> None:
+        if "admin" in actor.role_keys:
+            return
+
+        normalized_target_roles = {
+            role_key.strip().lower() for role_key in target_role_keys if isinstance(role_key, str) and role_key.strip()
+        }
+        if "admin" in normalized_target_roles or "platform_admin" in normalized_target_roles:
+            raise ApplicationError(
+                "settings_auth_user_admin_target_forbidden",
+                "Un ejecutivo no puede gestionar usuarios administradores.",
+                403,
+            )
 
     def seed_default_permissions(self, actor: ResolvedCrmSession) -> int:
         """Carga los permisos por defecto para cada rol (idempotente).

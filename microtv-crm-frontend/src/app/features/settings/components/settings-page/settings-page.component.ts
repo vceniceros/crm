@@ -30,6 +30,7 @@ import {
 } from '../../../../core/models/settings-management.model';
 import { UI_HELP_TEXTS } from '../../../../core/config/ui-help-texts.config';
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
+import { PermissionService } from '../../../../core/services/permission.service';
 import { SettingsManagementService } from '../../../../core/services/settings-management.service';
 import { ContextHelpCardComponent } from '../../../../shared/ui/context-help-card/context-help-card.component';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
@@ -62,6 +63,7 @@ import { ActivityLogTabComponent } from '../activity-log-tab/activity-log-tab.co
 export class SettingsPageComponent {
   private readonly settingsService = inject(SettingsManagementService);
   private readonly authSessionService = inject(AuthSessionService);
+  private readonly permissionService = inject(PermissionService);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
   readonly helpText = UI_HELP_TEXTS.settings;
@@ -94,8 +96,8 @@ export class SettingsPageComponent {
     this.loading.set(true);
     this.errorMessage.set(null);
 
-    if (!this.isAdmin()) {
-      // Ejecutivos no tienen acceso a la gestión de usuarios del auth
+    if (!this.isAdminOrExecutive() || !this.canCreateAuthUsers()) {
+      // Solo admins y ejecutivos con permiso pueden gestionar usuarios
       this.authUsers.set([]);
       this.loading.set(false);
       return;
@@ -363,6 +365,24 @@ export class SettingsPageComponent {
     return roleKeys.includes('admin') || roleKeys.includes('ejecutivo');
   }
 
+  canCreateAuthUsers(): boolean {
+    if (this.isAdmin()) {
+      return true;
+    }
+    return this.permissionService.canCreateNonAdminAuthUser();
+  }
+
+  canManageAuthUser(user: SettingsAuthUser): boolean {
+    if (this.isAdmin()) {
+      return true;
+    }
+    return this.canCreateAuthUsers() && !this.hasAdminRole(user.roles);
+  }
+
+  hasAdminRole(roleKeys: string[]): boolean {
+    return roleKeys.some((roleKey) => roleKey === 'admin' || roleKey === 'platform_admin');
+  }
+
   prettyAuthRoles(roleKeys: string[]): string {
     const byKey = new Map(this.crmOperationalRoles.map((role) => [role.code, role.label]));
     if (!roleKeys.length) {
@@ -372,6 +392,7 @@ export class SettingsPageComponent {
   }
 
   createAuthUser(): void {
+    const roleOptions = this.availableAuthRoleOptions();
     this.dialog
       .open(SettingsEditDialogComponent, {
         width: '34rem',
@@ -384,9 +405,9 @@ export class SettingsPageComponent {
             email: '',
             display_name: '',
             password: '',
-            roles: ['operador_deposito']
+            roles: [roleOptions[0]?.code ?? 'operador_deposito']
           },
-          roleOptions: this.crmOperationalRoles.map((role) => ({ code: role.code, label: role.label }))
+          roleOptions
         }
       })
       .afterClosed()
@@ -401,7 +422,7 @@ export class SettingsPageComponent {
           display_name: value.display_name,
           password: value.password,
           is_active: true,
-          roles: value.roles ?? []
+          roles: this.filterAssignableRoles(value.roles ?? [])
         };
 
         this.settingsService
@@ -414,7 +435,26 @@ export class SettingsPageComponent {
       });
   }
 
+  private availableAuthRoleOptions(): Array<{ code: string; label: string }> {
+    if (this.isAdmin()) {
+      return this.crmOperationalRoles.map((role) => ({ code: role.code, label: role.label }));
+    }
+    return this.crmOperationalRoles
+      .filter((role) => role.code !== 'admin')
+      .map((role) => ({ code: role.code, label: role.label }));
+  }
+
+  private filterAssignableRoles(roleKeys: string[]): string[] {
+    const allowedRoleKeys = new Set(this.availableAuthRoleOptions().map((role) => role.code));
+    return roleKeys.filter((roleKey) => allowedRoleKeys.has(roleKey));
+  }
+
   editAuthUser(user: SettingsAuthUser): void {
+    if (!this.canManageAuthUser(user)) {
+      this.errorMessage.set('Un ejecutivo no puede editar usuarios con rol administrador.');
+      return;
+    }
+
     this.dialog
       .open(SettingsEditDialogComponent, {
         width: '34rem',
@@ -428,7 +468,7 @@ export class SettingsPageComponent {
             display_name: user.display_name,
             roles: user.roles
           },
-          roleOptions: this.crmOperationalRoles.map((role) => ({ code: role.code, label: role.label }))
+          roleOptions: this.availableAuthRoleOptions()
         }
       })
       .afterClosed()
@@ -444,7 +484,7 @@ export class SettingsPageComponent {
             display_name: value.display_name
           }),
           roles: this.settingsService.setAuthUserRoles(user.user_id, {
-            roles: value.roles ?? []
+            roles: this.filterAssignableRoles(value.roles ?? [])
           })
         })
           .pipe(takeUntilDestroyed(this.destroyRef))
@@ -466,6 +506,11 @@ export class SettingsPageComponent {
   }
 
   resetAuthUserPassword(user: SettingsAuthUser): void {
+    if (!this.canManageAuthUser(user)) {
+      this.errorMessage.set('Un ejecutivo no puede resetear contraseñas de usuarios administradores.');
+      return;
+    }
+
     const newPassword = window.prompt(`Nueva contraseña para ${user.display_name} (${user.email}):`, '') ?? '';
     if (newPassword.length < 8) {
       this.errorMessage.set('La nueva contraseña debe tener al menos 8 caracteres.');

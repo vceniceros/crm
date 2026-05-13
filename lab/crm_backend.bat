@@ -54,6 +54,8 @@ if not exist ".env" (
 set "AUTH_BASE_URL=http://localhost:8001"
 set "AUTH_LOGIN_PATH=/v1/auth/login"
 set "AUTH_TIMEOUT_SECONDS=10"
+set "AUTH_MANAGEMENT_EMAIL=admin@ycc.local"
+set "AUTH_MANAGEMENT_PASSWORD=changeme-secure-password"
 set "AUTH_JWT_SECRET=change-me"
 set "AUTH_JWT_ALGORITHM=HS256"
 set "AUTH_JWT_ISSUER=auth.crm.ycc.internal"
@@ -65,6 +67,7 @@ set "DEFAULT_TECH_AUTH_ROLES=tecnico_campo"
 
 echo   [*] Auth lab interno forzado por entorno:
 echo       AUTH_BASE_URL=%AUTH_BASE_URL%
+echo       AUTH_MANAGEMENT_EMAIL=%AUTH_MANAGEMENT_EMAIL%
 echo       AUTH_JWT_ISSUER=%AUTH_JWT_ISSUER%
 echo       DEFAULT_ADMIN_AUTH_ROLES=%DEFAULT_ADMIN_AUTH_ROLES%
 

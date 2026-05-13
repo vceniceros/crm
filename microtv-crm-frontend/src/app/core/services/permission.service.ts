@@ -11,6 +11,7 @@ export class PermissionService {
   readonly canReassignTickets = signal(false);
   readonly canReassignOrders = signal(false);
   readonly canDeleteComment = signal(false);
+  readonly canCreateNonAdminAuthUser = signal(false);
 
   refresh(): void {
     this.settingsManagementService.getMyEffectivePermissions().subscribe({
@@ -20,6 +21,7 @@ export class PermissionService {
         this.canReassignTickets.set(Boolean(permissions['ticket.reassign']));
         this.canReassignOrders.set(Boolean(permissions['order.reassign']));
         this.canDeleteComment.set(Boolean(permissions['comment.delete']));
+        this.canCreateNonAdminAuthUser.set(Boolean(permissions['auth_user.create_non_admin']));
       },
       error: () => this.clear()
     });
@@ -31,5 +33,6 @@ export class PermissionService {
     this.canReassignTickets.set(false);
     this.canReassignOrders.set(false);
     this.canDeleteComment.set(false);
+    this.canCreateNonAdminAuthUser.set(false);
   }
 }

@@ -389,8 +389,9 @@ def update_notification_rule(
 def list_auth_users(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     auth_adapter: AuthServiceAdapter = Depends(get_auth_service_adapter),
+    settings_service: SettingsService = Depends(get_settings_service),
 ) -> list[SettingsAuthUserResponse]:
-    _require_admin(actor)
+    settings_service._ensure_auth_user_management_access(actor)
     users = auth_adapter.list_managed_users(actor.auth_result.access_token)
     return [_map_auth_managed_user(user) for user in users]
 
@@ -399,9 +400,10 @@ def list_auth_users(
 def create_auth_user(
     payload: SettingsAuthUserCreateRequest,
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    settings_service: SettingsService = Depends(get_settings_service),
     auth_adapter: AuthServiceAdapter = Depends(get_auth_service_adapter),
 ) -> SettingsAuthUserResponse:
-    _require_admin(actor)
+    settings_service.ensure_auth_user_creation_allowed(actor, payload.roles)
     created = auth_adapter.create_managed_user(
         access_token=actor.auth_result.access_token,
         email=payload.email,
@@ -419,8 +421,11 @@ def update_auth_user(
     payload: SettingsAuthUserUpdateRequest,
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     auth_adapter: AuthServiceAdapter = Depends(get_auth_service_adapter),
+    settings_service: SettingsService = Depends(get_settings_service),
 ) -> SettingsAuthUserResponse:
-    _require_admin(actor)
+    settings_service._ensure_auth_user_management_access(actor)
+    target_user = auth_adapter.get_managed_user(actor.auth_result.access_token, user_id)
+    settings_service.ensure_auth_user_target_allowed(actor, target_user.roles)
     updated = auth_adapter.update_managed_user(
         access_token=actor.auth_result.access_token,
         user_id=user_id,
@@ -436,8 +441,11 @@ def update_auth_user_status(
     payload: SettingsAuthUserStatusRequest,
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     auth_adapter: AuthServiceAdapter = Depends(get_auth_service_adapter),
+    settings_service: SettingsService = Depends(get_settings_service),
 ) -> SettingsAuthUserResponse:
-    _require_admin(actor)
+    settings_service._ensure_auth_user_management_access(actor)
+    target_user = auth_adapter.get_managed_user(actor.auth_result.access_token, user_id)
+    settings_service.ensure_auth_user_target_allowed(actor, target_user.roles)
     updated = auth_adapter.set_managed_user_status(
         access_token=actor.auth_result.access_token,
         user_id=user_id,
@@ -452,8 +460,13 @@ def update_auth_user_roles(
     payload: SettingsAuthUserRolesRequest,
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     auth_adapter: AuthServiceAdapter = Depends(get_auth_service_adapter),
+    settings_service: SettingsService = Depends(get_settings_service),
 ) -> SettingsAuthUserResponse:
-    _require_admin(actor)
+    settings_service._ensure_auth_user_management_access(actor)
+    target_user = auth_adapter.get_managed_user(actor.auth_result.access_token, user_id)
+    settings_service.ensure_auth_user_target_allowed(actor, target_user.roles)
+    # Ejecutivos no pueden asignar el rol admin
+    settings_service.ensure_auth_user_creation_allowed(actor, payload.roles)
     updated = auth_adapter.set_managed_user_roles(
         access_token=actor.auth_result.access_token,
         user_id=user_id,
@@ -468,8 +481,11 @@ def reset_auth_user_password(
     payload: SettingsAuthUserResetPasswordRequest,
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     auth_adapter: AuthServiceAdapter = Depends(get_auth_service_adapter),
+    settings_service: SettingsService = Depends(get_settings_service),
 ) -> SettingsAuthUserResponse:
-    _require_admin(actor)
+    settings_service._ensure_auth_user_management_access(actor)
+    target_user = auth_adapter.get_managed_user(actor.auth_result.access_token, user_id)
+    settings_service.ensure_auth_user_target_allowed(actor, target_user.roles)
     updated = auth_adapter.reset_managed_user_password(
         access_token=actor.auth_result.access_token,
         user_id=user_id,
