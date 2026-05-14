@@ -24,6 +24,7 @@ class NotificationType(StrEnum):
     TICKET_REJECTED = "ticket_rejected"
     TICKET_RETURNED_TO_TECHNICIAN = "ticket_returned_to_technician"
     TICKET_COMMENT_ADDED = "ticket_comment_added"
+    TICKET_COMMENT_MENTIONED = "ticket_comment_mentioned"
 
     # Task / subtask events
     TASK_ASSIGNED = "task_assigned"
@@ -35,6 +36,7 @@ class NotificationType(StrEnum):
     TASK_PENDING_APPROVAL = "task_pending_approval"
     TASK_APPROVED = "task_approved"
     TASK_REJECTED = "task_rejected"
+    TASK_COMMENT_MENTIONED = "task_comment_mentioned"
 
     # Ticket feedback and assignment state events
     TICKET_SATISFACTION_SUBMITTED = "ticket_satisfaction_submitted"

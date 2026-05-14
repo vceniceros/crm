@@ -224,6 +224,7 @@ def add_task_comment(
             body=payload.body,
             location_id=payload.location_id,
             attachment_ids=payload.attachment_ids,
+            mentioned_user_ids=payload.mentioned_user_ids,
         )
     )
 

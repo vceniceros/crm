@@ -27,6 +27,7 @@ from crm_backend.models import (
     Task,
     TaskAuditEvent,
     TaskComment,
+    TaskCommentMention,
     TaskCommentType,
     Location,
     StockProduct,
@@ -53,6 +54,7 @@ from crm_backend.schemas.tasks import (
     UpdateSubtaskProgressRequest,
 )
 from crm_backend.services.auth_service import ResolvedCrmSession
+from crm_backend.services.activity_log_service import ActivityLogService
 from crm_backend.services.notification_service import NotificationService
 from crm_backend.models.notification import NotificationEntityType, NotificationType
 from crm_backend.services.tasks.action_execution import (
@@ -160,6 +162,7 @@ class TaskApplicationService:
         task_material_flow: TaskMaterialFlowFacade,
         notification_service: NotificationService | None = None,
         permission_service: PermissionService | None = None,
+        activity_log_service: ActivityLogService | None = None,
     ) -> None:
         self._template_repository = template_repository
         self._task_repository = task_repository
@@ -168,6 +171,7 @@ class TaskApplicationService:
         self._task_material_flow = task_material_flow
         self._notification_service = notification_service
         self._permission_service = permission_service
+        self._activity_log_service = activity_log_service
         self._task_builder = TaskBuilder()
         self._item_strategy_registry = SubtaskItemValueStrategyRegistry()
         self._assignment_strategy_registry = NextAssignmentStrategyRegistry()
@@ -406,6 +410,7 @@ class TaskApplicationService:
         body: str,
         location_id: str | None,
         attachment_ids: list[str],
+        mentioned_user_ids: list[str] | None = None,
         comment_type: str = TaskCommentType.GENERAL.value,
     ) -> Task:
         task = self.get_task_detail(actor, task_id)
@@ -432,6 +437,14 @@ class TaskApplicationService:
         )
         task.comments.append(comment)
         self._attach_files_to_comment(task, comment, attachment_ids, actor)
+        mentioned_users = self._resolve_mentioned_users(mentioned_user_ids or [])
+        for mentioned_user in mentioned_users:
+            comment.mentions.append(
+                TaskCommentMention(
+                    mentioned_crm_user_id=mentioned_user.crm_user_id,
+                    created_by_crm_user_id=actor.crm_user.crm_user_id,
+                )
+            )
         self._try_register_arrival_from_comment(
             actor=actor,
             task=task,
@@ -449,7 +462,30 @@ class TaskApplicationService:
                 },
             )
         )
-        return self._task_repository.save(task)
+        for mentioned_user in mentioned_users:
+            self._log_comment_mention(actor, task, comment, mentioned_user)
+        saved_task = self._task_repository.save(task)
+        try:
+            if self._notification_service is not None:
+                actor_name = actor.crm_user.display_name or actor.crm_user.email or actor.crm_user.crm_user_id
+                task_label = saved_task.task_title
+                for mentioned_user in mentioned_users:
+                    self._notification_service.notify(
+                        recipient_crm_user_id=mentioned_user.crm_user_id,
+                        notification_type=NotificationType.TASK_COMMENT_MENTIONED,
+                        title=f"Te mencionaron en tarea '{task_label}'",
+                        body=f"{actor_name} te mencionó en un comentario de la tarea '{task_label}'.",
+                        entity_type=NotificationEntityType.TASK,
+                        entity_id=saved_task.task_id,
+                        metadata={
+                            "comment_id": comment.task_comment_id,
+                            "mentioned_by_crm_user_id": actor.crm_user.crm_user_id,
+                            "subtask_id": comment.subtask_id,
+                        },
+                    )
+        except Exception:
+            _logger.exception("Error sending task comment mention notification for task %s", saved_task.task_id)
+        return saved_task
 
     def claim_unassigned_subtask(self, actor: ResolvedCrmSession, subtask_id: str) -> Task:
         self._ensure_read_access(actor)
@@ -1097,6 +1133,50 @@ class TaskApplicationService:
             return
 
         raise TaskAccessDeniedError("Solo el operador activo o perfiles ejecutivo/admin pueden comentar en este pedido.")
+
+    def _resolve_mentioned_users(self, mentioned_user_ids: list[str]) -> list[object]:
+        normalized_ids: list[str] = []
+        seen: set[str] = set()
+        for raw_user_id in mentioned_user_ids:
+            normalized = raw_user_id.strip() if isinstance(raw_user_id, str) else ""
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            normalized_ids.append(normalized)
+        if not normalized_ids:
+            return []
+
+        users = self._user_repository.list_active_by_ids(normalized_ids)
+        users_by_id = {user.crm_user_id: user for user in users}
+        missing_ids = [user_id for user_id in normalized_ids if user_id not in users_by_id]
+        if missing_ids:
+            raise TaskValidationError("Uno de los usuarios mencionados no existe o no está activo.")
+        return [users_by_id[user_id] for user_id in normalized_ids]
+
+    def _log_comment_mention(self, actor: ResolvedCrmSession, task: Task, comment: TaskComment, mentioned_user: object) -> None:
+        if self._activity_log_service is None:
+            return
+        actor_label = actor.crm_user.display_name or actor.crm_user.email or actor.crm_user.crm_user_id
+        mentioned_label = (
+            getattr(mentioned_user, "display_name", None)
+            or getattr(mentioned_user, "email", None)
+            or getattr(mentioned_user, "crm_user_id")
+        )
+        self._activity_log_service.log(
+            "task.comment_mention.created",
+            actor,
+            entity_type="task",
+            entity_id=task.task_id,
+            entity_label=task.task_title,
+            summary=f"{actor_label} mencionó a {mentioned_label} en la tarea {task.task_title}.",
+            extra={
+                "comment_id": comment.task_comment_id,
+                "mentioned_user_id": getattr(mentioned_user, "crm_user_id"),
+                "mentioned_user_display_name": mentioned_label,
+                "task_id": task.task_id,
+                "subtask_id": comment.subtask_id,
+            },
+        )
 
     def _validate_default_user(self, crm_user_id: str | None, role_key: str) -> None:
         if crm_user_id is None:

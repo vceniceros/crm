@@ -241,6 +241,7 @@ def add_ticket_comment(
         body=payload.body,
         location_id=payload.location_id,
         attachment_ids=payload.attachment_ids,
+        mentioned_user_ids=payload.mentioned_user_ids,
     )
     return _to_ticket_detail_response(actor=actor, ticket_service=ticket_service, ticket=ticket)
 

@@ -665,15 +665,14 @@
               </div>
 
               <div class="task-execution-page__comment-box">
-                <mat-form-field appearance="outline" class="task-execution-page__comment-field">
-                  <mat-label>{{ commentFieldLabel() }}</mat-label>
-                  <textarea
-                    matInput
-                    rows="4"
-                    formControlName="comment"
-                    [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()"
-                    [placeholder]="commentFieldPlaceholder()"></textarea>
-                </mat-form-field>
+                <app-comment-mention-textarea
+                  class="task-execution-page__comment-field"
+                  formControlName="comment"
+                  [label]="commentFieldLabel()"
+                  [rows]="4"
+                  [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()"
+                  [placeholder]="commentFieldPlaceholder()"
+                  (mentionedUserIdsChange)="commentMentionedUserIds.set($event)" />
 
                 <div class="task-execution-page__location-composer">
                   <p class="task-execution-page__summary-label">Ubicación del comentario</p>
@@ -820,7 +819,7 @@
 
                 @if (!isSectionCollapsed('subtask_comments')) {
                   @for (comment of selectedSubtaskComments(); track comment.task_comment_id) {
-                    <article>
+                    <article [id]="'task-comment-' + comment.task_comment_id">
                       <strong>{{ comment.author_display_name || 'Usuario CRM' }} · {{ comment.comment_type }} · {{ comment.created_at | date: 'dd/MM/yyyy HH:mm' }}</strong>
                       <span>{{ comment.body }}</span>
                     </article>

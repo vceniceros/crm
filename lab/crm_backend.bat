@@ -51,7 +51,7 @@ if not exist ".env" (
 )
 
 :: -- Forzar variables de auth internas para el lab
-set "AUTH_BASE_URL=http://localhost:8001"
+if not defined AUTH_BASE_URL set "AUTH_BASE_URL=http://localhost:8001"
 set "AUTH_LOGIN_PATH=/v1/auth/login"
 set "AUTH_TIMEOUT_SECONDS=10"
 set "AUTH_MANAGEMENT_EMAIL=admin@ycc.local"

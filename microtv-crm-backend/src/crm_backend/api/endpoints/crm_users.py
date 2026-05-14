@@ -12,6 +12,20 @@ router = APIRouter(prefix="/crm-users", tags=["crm-users"])
 
 
 @router.get(
+    "/mentions",
+    response_model=list[CrmUserOptionResponse],
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
+)
+def search_mentionable_crm_users(
+    q: str = Query(..., min_length=1),
+    limit: int = Query(10, ge=1, le=25),
+    _: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    repository: CrmUserRepository = Depends(get_crm_user_repository),
+) -> list[CrmUserOptionResponse]:
+    return [CrmUserOptionResponse.model_validate(item) for item in repository.search_active_mentions(q, limit)]
+
+
+@router.get(
     "",
     response_model=list[CrmUserOptionResponse],
     responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},

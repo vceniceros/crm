@@ -44,6 +44,7 @@ class CreateTicketCommentRequest(BaseModel):
     body: str = Field(..., min_length=1)
     location_id: str | None = None
     attachment_ids: list[str] = Field(default_factory=list)
+    mentioned_user_ids: list[str] = Field(default_factory=list)
 
 
 class UpdateTicketStatusRequest(BaseModel):
@@ -83,6 +84,17 @@ class TicketAttachmentResponse(BaseModel):
     size: int | None
 
 
+class TicketCommentMentionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    ticket_comment_mention_id: str
+    mentioned_crm_user_id: str
+    mentioned_display_name: str | None = None
+    mentioned_email: str | None = None
+    created_by_crm_user_id: str
+    created_at: datetime
+
+
 class TicketCommentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -94,6 +106,7 @@ class TicketCommentResponse(BaseModel):
     created_at: datetime
     location: LocationResponse | None = None
     attachments: list[TicketAttachmentResponse] = Field(default_factory=list)
+    mentions: list[TicketCommentMentionResponse] = Field(default_factory=list)
 
 
 class TicketRequiredMaterialResponse(BaseModel):

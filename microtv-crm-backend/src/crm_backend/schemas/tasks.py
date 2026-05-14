@@ -121,6 +121,7 @@ class CreateTaskCommentRequest(BaseModel):
     body: str = Field(..., min_length=1, max_length=4000)
     location_id: str | None = None
     attachment_ids: list[str] = Field(default_factory=list)
+    mentioned_user_ids: list[str] = Field(default_factory=list)
 
 
 class TaskAttachmentResponse(BaseModel):
@@ -135,6 +136,17 @@ class TaskAttachmentResponse(BaseModel):
     publicUrl: str
     storagePath: str
     size: int | None
+
+
+class TaskCommentMentionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    task_comment_mention_id: str
+    mentioned_crm_user_id: str
+    mentioned_display_name: str | None = None
+    mentioned_email: str | None = None
+    created_by_crm_user_id: str
+    created_at: datetime
 
 
 class TaskTemplateItemResponse(BaseModel):
@@ -288,6 +300,7 @@ class TaskCommentResponse(BaseModel):
     location: LocationResponse | None = None
     created_at: datetime
     attachments: list[TaskAttachmentResponse] = Field(default_factory=list)
+    mentions: list[TaskCommentMentionResponse] = Field(default_factory=list)
 
 
 class TaskAuditEventResponse(BaseModel):

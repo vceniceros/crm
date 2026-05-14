@@ -392,6 +392,7 @@ def get_task_application_service(
     task_material_flow: TaskMaterialFlowFacade = Depends(get_task_material_flow_facade),
     notification_service: NotificationService = Depends(get_notification_service),
     permission_service: PermissionService = Depends(get_permission_service),
+    activity_log_service: ActivityLogService = Depends(get_activity_log_service),
 ) -> TaskApplicationService:
     """Provide the task application service."""
 
@@ -403,6 +404,7 @@ def get_task_application_service(
         task_material_flow=task_material_flow,
         notification_service=notification_service,
         permission_service=permission_service,
+        activity_log_service=activity_log_service,
     )
 
 

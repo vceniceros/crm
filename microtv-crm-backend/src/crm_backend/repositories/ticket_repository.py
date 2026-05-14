@@ -13,6 +13,7 @@ from crm_backend.models import (
     TicketAttachment,
     TicketAuditEvent,
     TicketComment,
+    TicketCommentMention,
     TicketSatisfactionForm,
     TicketSatisfactionResponse,
     TicketStatus,
@@ -47,6 +48,7 @@ class TicketRepository:
     def _detail_options(self):
         return (
             selectinload(Ticket.comments).selectinload(TicketComment.attachments),
+            selectinload(Ticket.comments).selectinload(TicketComment.mentions).selectinload(TicketCommentMention.mentioned_user),
             selectinload(Ticket.attachments),
             selectinload(Ticket.status_history),
             selectinload(Ticket.assignment_history),

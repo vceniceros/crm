@@ -51,6 +51,16 @@ export interface TicketComment {
   created_at: string;
   location: TicketLocation | null;
   attachments: TicketAttachment[];
+  mentions?: TicketCommentMention[];
+}
+
+export interface TicketCommentMention {
+  ticket_comment_mention_id: string;
+  mentioned_crm_user_id: string;
+  mentioned_display_name: string | null;
+  mentioned_email: string | null;
+  created_by_crm_user_id: string;
+  created_at: string;
 }
 
 export interface TicketStatusTransition {
@@ -183,6 +193,7 @@ export interface CreateTicketCommentRequest {
   body: string;
   location_id?: string | null;
   attachment_ids?: string[];
+  mentioned_user_ids?: string[];
 }
 
 export interface UpdateTicketStatusRequest {

@@ -79,6 +79,62 @@ CREATE TABLE IF NOT EXISTS ticket_audit_events (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- schema-propuesto-v4.sql already creates legacy ticket tables. When this
+-- migration runs on top of that baseline, CREATE TABLE IF NOT EXISTS does not
+-- add the operational columns used by the current backend, so add them here.
+ALTER TABLE IF EXISTS tickets
+    ADD COLUMN IF NOT EXISTS ticket_number VARCHAR(30),
+    ADD COLUMN IF NOT EXISTS title VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS description TEXT,
+    ADD COLUMN IF NOT EXISTS status VARCHAR(30) NOT NULL DEFAULT 'OPEN',
+    ADD COLUMN IF NOT EXISTS priority VARCHAR(30) NOT NULL DEFAULT 'MEDIUM',
+    ADD COLUMN IF NOT EXISTS assigned_role_id UUID NULL REFERENCES crm_roles(crm_role_id),
+    ADD COLUMN IF NOT EXISTS assigned_user_id UUID NULL REFERENCES crm_users(crm_user_id),
+    ADD COLUMN IF NOT EXISTS resolved_by_crm_user_id UUID NULL REFERENCES crm_users(crm_user_id),
+    ADD COLUMN IF NOT EXISTS closed_by_crm_user_id UUID NULL REFERENCES crm_users(crm_user_id),
+    ADD COLUMN IF NOT EXISTS requires_arrival_comment BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS arrival_registered_at TIMESTAMPTZ NULL,
+    ADD COLUMN IF NOT EXISTS arrival_comment_id UUID NULL;
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'tickets'
+          AND column_name = 'ticket_title'
+    ) THEN
+        EXECUTE $sql$
+            UPDATE tickets
+            SET
+                title = COALESCE(title, ticket_title),
+                description = COALESCE(description, ticket_description),
+                status = COALESCE(status, 'OPEN'),
+                priority = COALESCE(priority, 'MEDIUM')
+            WHERE title IS NULL
+               OR description IS NULL
+               OR status IS NULL
+               OR priority IS NULL
+        $sql$;
+    ELSE
+        UPDATE tickets
+        SET
+            title = COALESCE(title, ''),
+            description = COALESCE(description, ''),
+            status = COALESCE(status, 'OPEN'),
+            priority = COALESCE(priority, 'MEDIUM')
+        WHERE title IS NULL
+           OR description IS NULL
+           OR status IS NULL
+           OR priority IS NULL;
+    END IF;
+END;
+$$;
+
+ALTER TABLE IF EXISTS ticket_attachments
+    ADD COLUMN IF NOT EXISTS ticket_comment_id UUID NULL REFERENCES ticket_comments(ticket_comment_id) ON DELETE SET NULL;
+
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -103,6 +159,7 @@ CREATE INDEX IF NOT EXISTS idx_tickets_assigned_user ON tickets(assigned_user_id
 CREATE INDEX IF NOT EXISTS idx_tickets_created_by ON tickets(created_by_crm_user_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_requires_arrival_comment ON tickets(requires_arrival_comment);
 CREATE INDEX IF NOT EXISTS idx_tickets_arrival_comment_id ON tickets(arrival_comment_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tickets_ticket_number ON tickets(ticket_number);
 CREATE INDEX IF NOT EXISTS idx_ticket_comments_ticket ON ticket_comments(ticket_id);
 CREATE INDEX IF NOT EXISTS idx_ticket_attachments_ticket ON ticket_attachments(ticket_id);
 CREATE INDEX IF NOT EXISTS idx_ticket_attachments_comment ON ticket_attachments(ticket_comment_id);

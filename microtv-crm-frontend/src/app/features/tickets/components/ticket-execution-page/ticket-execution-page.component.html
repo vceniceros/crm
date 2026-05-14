@@ -217,10 +217,13 @@
           }
 
           <form [formGroup]="commentForm" class="ticket-execution-page__comment-form">
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>{{ commentFieldLabel() }}</mat-label>
-              <textarea matInput rows="4" formControlName="body" [placeholder]="commentFieldPlaceholder()" [disabled]="!canOperateTicket()"></textarea>
-            </mat-form-field>
+            <app-comment-mention-textarea
+              formControlName="body"
+              [label]="commentFieldLabel()"
+              [rows]="4"
+              [placeholder]="commentFieldPlaceholder()"
+              [disabled]="!canOperateTicket()"
+              (mentionedUserIdsChange)="commentMentionedUserIds.set($event)" />
           </form>
 
           <div class="ticket-execution-page__composer-actions">

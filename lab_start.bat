@@ -5,21 +5,28 @@ setlocal enabledelayedexpansion
 ::  MicroTV CRM - Laboratorio Local
 ::  Levanta el stack completo de pruebas:
 ::    1. PostgreSQL de auth interno (Docker)
-::    2. auth interno CRM          (Docker, puerto 8001)
+::    2. auth interno CRM          (Docker, puerto 8001 o alternativo)
 ::    3. CRM Backend         (Python/uvicorn, puerto 8010)
 ::    4. CRM Frontend        (Angular ng serve, puerto 4200)
 :: =========================================================
 
 set "ROOT=%~dp0"
 set "COMPOSE_DIR=%ROOT%microtv-crm-backend"
-set "CRM_DB_CONTAINER=crm-backend-db"
+if not defined LAB_STACK_NAME set "LAB_STACK_NAME=microtv-crm-ycc"
+set "COMPOSE_PROJECT_NAME=%LAB_STACK_NAME%"
+set "LAB_AUTH_DB_CONTAINER=%LAB_STACK_NAME%-auth-db"
+set "LAB_AUTH_LOCAL_CONTAINER=%LAB_STACK_NAME%-auth-local"
+set "LAB_CRM_DB_CONTAINER=%LAB_STACK_NAME%-crm-db"
+set "CRM_DB_CONTAINER=%LAB_CRM_DB_CONTAINER%"
+set "AUTH_PORT_DEFAULT=8001"
+set "AUTH_PORT=%AUTH_PORT_DEFAULT%"
 set "CRM_DB_NAME=crm_microtv"
 set "CRM_DB_USER=crmmicrotv"
 set "CRM_DB_PASSWORD=crmmicrotv"
-set "CRM_DB_PORT=5433"
+set "CRM_DB_DEFAULT_PORT=5433"
+set "CRM_DB_PORT=%CRM_DB_DEFAULT_PORT%"
 set "CRM_SCHEMA_FILE=%ROOT%docs\diagrams\schema-propuesto-v4.sql"
 set "CRM_SQL_DIR=%ROOT%microtv-crm-backend\sql"
-set "CRM_DATABASE_URL=postgresql+psycopg://%CRM_DB_USER%:%CRM_DB_PASSWORD%@localhost:%CRM_DB_PORT%/%CRM_DB_NAME%"
 set "BACKEND_ENV_FILE=%ROOT%microtv-crm-backend\.env"
 set "BACKEND_ENV_EXAMPLE_FILE=%ROOT%microtv-crm-backend\.env.example"
 set "FRONTEND_ENV_FILE=%ROOT%microtv-crm-frontend\.env"
@@ -34,7 +41,7 @@ echo =========================================================
 echo.
 
 :: ---- 1. Verificar Docker ----------------------------------------
-echo [1/5] Verificando que Docker este activo...
+echo [1/6] Verificando que Docker este activo...
 docker info > nul 2>&1
 if errorlevel 1 (
     echo.
@@ -45,6 +52,124 @@ if errorlevel 1 (
     exit /b 1
 )
 echo   OK - Docker activo.
+echo.
+
+:: ---- 1a. Elegir puertos externos de laboratorio ----------------
+echo [1a/6] Verificando puertos locales de laboratorio...
+if defined LAB_AUTH_PORT (
+    set "AUTH_PORT=%LAB_AUTH_PORT%"
+    set "AUTH_PORT_SOURCE=LAB_AUTH_PORT"
+) else (
+    set "AUTH_PORT=%AUTH_PORT_DEFAULT%"
+    set "AUTH_PORT_SOURCE=default"
+    set "AUTH_EXISTING_PORT="
+    set "AUTH_CONTAINER_RUNNING="
+    for /f "usebackq delims=" %%s in (`docker inspect -f "{{.State.Running}}" %LAB_AUTH_LOCAL_CONTAINER% 2^>nul`) do set "AUTH_CONTAINER_RUNNING=%%s"
+    if /I "!AUTH_CONTAINER_RUNNING!"=="true" for /f "tokens=2 delims=:" %%p in ('docker port %LAB_AUTH_LOCAL_CONTAINER% 8001/tcp 2^>nul') do if not defined AUTH_EXISTING_PORT set "AUTH_EXISTING_PORT=%%p"
+    if /I "!AUTH_CONTAINER_RUNNING!"=="true" if defined AUTH_EXISTING_PORT (
+        set "AUTH_PORT=!AUTH_EXISTING_PORT!"
+        set "AUTH_PORT_SOURCE=existing-container"
+    )
+)
+
+if /I "%AUTH_PORT_SOURCE%"=="existing-container" goto :auth_port_selected
+
+call :port_is_free "%AUTH_PORT%" AUTH_PORT_FREE
+if "!AUTH_PORT_FREE!"=="0" (
+    if defined LAB_AUTH_PORT (
+        echo.
+        echo   ERROR: LAB_AUTH_PORT=%AUTH_PORT% ya esta ocupado.
+        echo   Cierra el proceso que usa ese puerto o, en PowerShell, ejecuta:
+        echo     $env:LAB_AUTH_PORT="58001"
+        echo     lab_start.bat
+        echo.
+        pause
+        exit /b 1
+    )
+
+    echo   [*] Puerto auth %AUTH_PORT% ocupado. Buscando alternativa para este laboratorio...
+    set "AUTH_PORT_FOUND="
+    for %%p in (58001 58002 58003 58004 58005 58006 58007 58008 58009) do (
+        if not defined AUTH_PORT_FOUND (
+            call :port_is_free "%%p" AUTH_PORT_FREE
+            if "!AUTH_PORT_FREE!"=="1" set "AUTH_PORT_FOUND=%%p"
+        )
+    )
+
+    if not defined AUTH_PORT_FOUND (
+        echo.
+        echo   ERROR: No se encontro puerto libre para auth.
+        echo   Puertos probados: %AUTH_PORT_DEFAULT%, 58001-58009
+        echo.
+        pause
+        exit /b 1
+    )
+
+    set "AUTH_PORT=!AUTH_PORT_FOUND!"
+    set "AUTH_PORT_SOURCE=auto"
+)
+
+:auth_port_selected
+set "AUTH_BASE_URL=http://localhost:%AUTH_PORT%"
+echo   OK - Auth interno CRM usara %AUTH_BASE_URL% ^(%AUTH_PORT_SOURCE%^).
+
+if defined LAB_CRM_DB_PORT (
+    set "CRM_DB_PORT=%LAB_CRM_DB_PORT%"
+    set "CRM_DB_PORT_SOURCE=LAB_CRM_DB_PORT"
+) else (
+    set "CRM_DB_PORT=%CRM_DB_DEFAULT_PORT%"
+    set "CRM_DB_PORT_SOURCE=default"
+    set "CRM_DB_EXISTING_PORT="
+    set "CRM_DB_CONTAINER_RUNNING="
+    for /f "usebackq delims=" %%s in (`docker inspect -f "{{.State.Running}}" %CRM_DB_CONTAINER% 2^>nul`) do set "CRM_DB_CONTAINER_RUNNING=%%s"
+    if /I "!CRM_DB_CONTAINER_RUNNING!"=="true" for /f "tokens=2 delims=:" %%p in ('docker port %CRM_DB_CONTAINER% 5432/tcp 2^>nul') do if not defined CRM_DB_EXISTING_PORT set "CRM_DB_EXISTING_PORT=%%p"
+    if /I "!CRM_DB_CONTAINER_RUNNING!"=="true" if defined CRM_DB_EXISTING_PORT (
+        set "CRM_DB_PORT=!CRM_DB_EXISTING_PORT!"
+        set "CRM_DB_PORT_SOURCE=existing-container"
+    )
+)
+
+if /I "%CRM_DB_PORT_SOURCE%"=="existing-container" goto :crm_db_port_selected
+
+call :port_is_free "%CRM_DB_PORT%" CRM_DB_PORT_FREE
+if "!CRM_DB_PORT_FREE!"=="0" (
+    if defined LAB_CRM_DB_PORT (
+        echo.
+        echo   ERROR: LAB_CRM_DB_PORT=%CRM_DB_PORT% ya esta ocupado.
+        echo   Cierra el proceso que usa ese puerto o, en PowerShell, ejecuta:
+        echo     $env:LAB_CRM_DB_PORT="55433"
+        echo     lab_start.bat
+        echo.
+        pause
+        exit /b 1
+    )
+
+    echo   [*] Puerto %CRM_DB_PORT% ocupado. Buscando alternativa para este laboratorio...
+    set "CRM_DB_PORT_FOUND="
+    for %%p in (55433 55434 55435 55436 55437 55438 55439) do (
+        if not defined CRM_DB_PORT_FOUND (
+            call :port_is_free "%%p" CRM_DB_PORT_FREE
+            if "!CRM_DB_PORT_FREE!"=="1" set "CRM_DB_PORT_FOUND=%%p"
+        )
+    )
+
+    if not defined CRM_DB_PORT_FOUND (
+        echo.
+        echo   ERROR: No se encontro puerto libre para PostgreSQL CRM.
+        echo   Puertos probados: %CRM_DB_DEFAULT_PORT%, 55433-55439
+        echo.
+        pause
+        exit /b 1
+    )
+
+    set "CRM_DB_PORT=!CRM_DB_PORT_FOUND!"
+    set "CRM_DB_PORT_SOURCE=auto"
+)
+
+:crm_db_port_selected
+set "CRM_DATABASE_URL=postgresql+psycopg://%CRM_DB_USER%:%CRM_DB_PASSWORD%@localhost:%CRM_DB_PORT%/%CRM_DB_NAME%"
+set "CRM_DB_PORT=%CRM_DB_PORT%"
+echo   OK - PostgreSQL CRM usara localhost:%CRM_DB_PORT% ^(%CRM_DB_PORT_SOURCE%^).
 echo.
 
 :: ---- 1b. Preparar .env y push para laboratorio ------------------
@@ -101,7 +226,7 @@ if not defined LAB_VAPID_PRIVATE_KEY (
 
 call :upsert_env_value "%BACKEND_ENV_FILE%" "VAPID_CLAIMS_SUB" "mailto:admin@microtv.ar"
 call :upsert_env_value "%BACKEND_ENV_FILE%" "DATABASE_URL" "%CRM_DATABASE_URL%"
-call :upsert_env_value "%BACKEND_ENV_FILE%" "AUTH_BASE_URL" "http://localhost:8001"
+call :upsert_env_value "%BACKEND_ENV_FILE%" "AUTH_BASE_URL" "%AUTH_BASE_URL%"
 call :upsert_env_value "%BACKEND_ENV_FILE%" "AUTH_MANAGEMENT_EMAIL" "admin@ycc.local"
 call :upsert_env_value "%BACKEND_ENV_FILE%" "AUTH_MANAGEMENT_PASSWORD" "changeme-secure-password"
 call :upsert_env_value "%FRONTEND_ENV_FILE%" "CRM_API_BASE_URL" "http://localhost:8010"
@@ -119,7 +244,7 @@ echo.
 echo [2/6] Levantando auth interno CRM + PostgreSQL de laboratorio (Docker Compose)...
 echo   Compose: %COMPOSE_DIR%\docker-compose.auth-local.yml
 echo.
-docker compose -f "%COMPOSE_DIR%\docker-compose.auth-local.yml" up --build -d
+docker compose -p "%COMPOSE_PROJECT_NAME%" -f "%COMPOSE_DIR%\docker-compose.auth-local.yml" up --build -d
 if errorlevel 1 (
     echo.
     echo   ERROR: docker compose fallo. Revisa el output arriba.
@@ -203,34 +328,33 @@ if not exist "%CRM_SQL_DIR%\*.sql" (
     )
 
     set /a CRM_MIGRATIONS_APPLIED=0
+
+    call :apply_crm_migration "%CRM_SQL_DIR%\20260414_task_schema_v4_delta.sql"
+    if errorlevel 1 (
+        pause
+        exit /b 1
+    )
+    call :apply_crm_migration "%CRM_SQL_DIR%\20260414_task_media_comment_link.sql"
+    if errorlevel 1 (
+        pause
+        exit /b 1
+    )
+    call :apply_crm_migration "%CRM_SQL_DIR%\20260414_task_schema_v4_1_hardening.sql"
+    if errorlevel 1 (
+        pause
+        exit /b 1
+    )
+    call :apply_crm_migration "%CRM_SQL_DIR%\20260414_task_schema_v4_1_post_validation.sql"
+    if errorlevel 1 (
+        pause
+        exit /b 1
+    )
+
     for %%f in ("%CRM_SQL_DIR%\*.sql") do (
-        set "CRM_MIGRATION_NAME=%%~nxf"
-        set "CRM_MIGRATION_EXISTS="
-        for /f "usebackq delims=" %%r in (`docker exec %CRM_DB_CONTAINER% psql -U %CRM_DB_USER% -d %CRM_DB_NAME% -qtAX -c "SELECT CASE WHEN EXISTS (SELECT 1 FROM crm_schema_migrations WHERE migration_name='%%~nxf') THEN '1' ELSE '0' END;" 2^>nul`) do set "CRM_MIGRATION_EXISTS=%%r"
-
-        if "!CRM_MIGRATION_EXISTS!"=="1" (
-            echo   - Saltando %%~nxf ^(ya aplicada^)
-        ) else (
-            echo   - Aplicando %%~nxf ...
-            docker exec -i %CRM_DB_CONTAINER% psql -v ON_ERROR_STOP=1 -U %CRM_DB_USER% -d %CRM_DB_NAME% < "%%f"
-            if errorlevel 1 (
-                echo.
-                echo   ERROR: Fallo la migracion %%~nxf
-                echo.
-                pause
-                exit /b 1
-            )
-
-            docker exec %CRM_DB_CONTAINER% psql -v ON_ERROR_STOP=1 -U %CRM_DB_USER% -d %CRM_DB_NAME% -c "INSERT INTO crm_schema_migrations (migration_name) VALUES ('%%~nxf') ON CONFLICT (migration_name) DO NOTHING;" > nul
-            if errorlevel 1 (
-                echo.
-                echo   ERROR: No se pudo registrar la migracion %%~nxf en crm_schema_migrations.
-                echo.
-                pause
-                exit /b 1
-            )
-            set /a CRM_MIGRATIONS_APPLIED+=1
-            echo   - OK %%~nxf
+        call :apply_crm_migration "%%f"
+        if errorlevel 1 (
+            pause
+            exit /b 1
         )
     )
     echo   OK - migraciones incrementales revisadas. Nuevas aplicadas: !CRM_MIGRATIONS_APPLIED!.
@@ -239,12 +363,12 @@ echo.
 
 :: ---- 5. Abrir terminal de logs de auth --------------------------
 echo [5/6] Abriendo logs de auth interno CRM en ventana separada...
-start "Auth interno CRM logs [8001]" /d "%COMPOSE_DIR%" cmd /k docker compose -f docker-compose.auth-local.yml logs -f auth-local
-echo   Ventana: "Auth interno CRM logs [8001]"
+start "Auth interno CRM logs [%AUTH_PORT%]" /d "%COMPOSE_DIR%" cmd /k docker compose -p "%COMPOSE_PROJECT_NAME%" -f docker-compose.auth-local.yml logs -f auth-local
+echo   Ventana: "Auth interno CRM logs [%AUTH_PORT%]"
 echo.
 
 :: ---- 5a. Esperar que auth responda (healthcheck) ----------------
-echo   Esperando http://localhost:8001/health ...
+echo   Esperando %AUTH_BASE_URL%/health ...
 set /a RETRIES=0
 set HTTP_CODE=000
 
@@ -253,22 +377,22 @@ set /a RETRIES=RETRIES+1
 if %RETRIES% GTR 40 (
     echo.
     echo   ERROR: auth interno CRM no respondio en ~120 segundos.
-    echo   Revisa la ventana "Auth interno CRM logs [8001]"
+    echo   Revisa la ventana "Auth interno CRM logs [%AUTH_PORT%]"
     echo   o ejecuta:
-    echo     docker compose -f microtv-crm-backend\docker-compose.auth-local.yml logs
+    echo     docker compose -p %COMPOSE_PROJECT_NAME% -f microtv-crm-backend\docker-compose.auth-local.yml logs
     echo.
     pause
     exit /b 1
 )
 set HTTP_CODE=000
-for /f %%r in ('curl -s -o nul -w "%%{http_code}" http://localhost:8001/health 2^>nul') do set HTTP_CODE=%%r
+for /f %%r in ('curl -s -o nul -w "%%{http_code}" %AUTH_BASE_URL%/health 2^>nul') do set HTTP_CODE=%%r
 if "%HTTP_CODE%"=="200" goto :auth_ready
 if %RETRIES% equ 1 echo   (esperando arranque inicial, puede tardar hasta 60s en la primera vez...)
 timeout /t 3 /nobreak > nul
 goto wait_auth
 
 :auth_ready
-echo   OK - auth interno CRM responde en http://localhost:8001
+echo   OK - auth interno CRM responde en %AUTH_BASE_URL%
 echo.
 
 :: ---- 6. Abrir CRM Backend ---------------------------------------
@@ -289,13 +413,13 @@ echo   Stack de laboratorio iniciado
 echo =========================================================
 echo.
 echo   SERVICIOS:
-echo     Auth interno CRM   http://localhost:8001/health   (Docker)
+echo     Auth interno CRM   %AUTH_BASE_URL%/health   (Docker)
 echo     CRM PostgreSQL localhost:%CRM_DB_PORT%        (Docker)
 echo     CRM Backend    http://localhost:8010/health   (ventana "CRM Backend [8010]")
 echo     CRM Frontend   http://localhost:4200          (ventana "CRM Frontend [4200]")
 echo.
 echo   TERMINALES ABIERTAS:
-echo     "Auth interno CRM logs [8001]"   logs de auth en tiempo real
+echo     "Auth interno CRM logs [%AUTH_PORT%]"   logs de auth en tiempo real
 echo     "CRM Backend [8010]"         uvicorn CRM backend
 echo     "CRM Frontend [4200]"        ng serve Angular
 echo.
@@ -307,7 +431,7 @@ echo     ejecutivo.crm@yccbrothers.com  Passw0rd!   (rol local: ejecutivo ^| ali
 echo     tecnico.campo@yccbrothers.com  Passw0rd!   (rol local: tecnico_campo ^| alias UI: tecnico)
 echo.
 echo   Para detener auth Docker:
-echo     docker compose -f microtv-crm-backend\docker-compose.auth-local.yml down
+echo     docker compose -p %COMPOSE_PROJECT_NAME% -f microtv-crm-backend\docker-compose.auth-local.yml down
 echo.
 echo   Variables de laboratorio del CRM:
 echo     DATABASE_URL=%CRM_DATABASE_URL%
@@ -325,4 +449,54 @@ powershell -NoProfile -Command "$path = $env:UPSERT_FILE; $key = $env:UPSERT_KEY
 if errorlevel 1 (
     echo   [!] WARNING: No se pudo actualizar %UPSERT_KEY% en %UPSERT_FILE%
 )
+exit /b 0
+
+:apply_crm_migration
+set "CRM_MIGRATION_FILE=%~1"
+set "CRM_MIGRATION_NAME=%~nx1"
+
+if not exist "%CRM_MIGRATION_FILE%" (
+    echo.
+    echo   ERROR: No se encontro la migracion %CRM_MIGRATION_NAME%.
+    echo   Archivo: %CRM_MIGRATION_FILE%
+    echo.
+    exit /b 1
+)
+
+set "CRM_MIGRATION_EXISTS="
+for /f "usebackq delims=" %%r in (`docker exec %CRM_DB_CONTAINER% psql -U %CRM_DB_USER% -d %CRM_DB_NAME% -qtAX -c "SELECT CASE WHEN EXISTS (SELECT 1 FROM crm_schema_migrations WHERE migration_name='%CRM_MIGRATION_NAME%') THEN '1' ELSE '0' END;" 2^>nul`) do set "CRM_MIGRATION_EXISTS=%%r"
+
+if "%CRM_MIGRATION_EXISTS%"=="1" (
+    echo   - Saltando %CRM_MIGRATION_NAME% ^(ya aplicada^)
+    exit /b 0
+)
+
+echo   - Aplicando %CRM_MIGRATION_NAME% ...
+docker exec -i %CRM_DB_CONTAINER% psql -v ON_ERROR_STOP=1 -U %CRM_DB_USER% -d %CRM_DB_NAME% < "%CRM_MIGRATION_FILE%"
+if errorlevel 1 (
+    echo.
+    echo   ERROR: Fallo la migracion %CRM_MIGRATION_NAME%
+    echo.
+    exit /b 1
+)
+
+docker exec %CRM_DB_CONTAINER% psql -v ON_ERROR_STOP=1 -U %CRM_DB_USER% -d %CRM_DB_NAME% -c "INSERT INTO crm_schema_migrations (migration_name) VALUES ('%CRM_MIGRATION_NAME%') ON CONFLICT (migration_name) DO NOTHING;" > nul
+if errorlevel 1 (
+    echo.
+    echo   ERROR: No se pudo registrar la migracion %CRM_MIGRATION_NAME% en crm_schema_migrations.
+    echo.
+    exit /b 1
+)
+
+set /a CRM_MIGRATIONS_APPLIED+=1
+echo   - OK %CRM_MIGRATION_NAME%
+exit /b 0
+
+:port_is_free
+set "CHECK_PORT=%~1"
+set "%~2=0"
+docker ps --filter "publish=%CHECK_PORT%" --format "{{.ID}}" 2>nul | findstr /R "." >nul 2>&1
+if not errorlevel 1 exit /b 0
+powershell -NoProfile -Command "$listener = $null; try { $port = [int]$env:CHECK_PORT; $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Any, $port); $listener.Start(); exit 0 } catch { exit 1 } finally { if ($listener) { $listener.Stop() } }" > nul 2>&1
+if not errorlevel 1 set "%~2=1"
 exit /b 0

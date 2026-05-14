@@ -41,6 +41,7 @@ import { isVideoFile, optimizeImagesForUpload } from '../../../../core/utils/med
 import { LocationLinkService } from '../../../../shared/services/location-link.service';
 import { LocationPickerService } from '../../../../shared/services/location-picker.service';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
+import { CommentMentionTextareaComponent } from '../../../../shared/ui/comment-mention-textarea/comment-mention-textarea.component';
 import { StatusBadgeComponent } from '../../../../shared/ui/status-badge/status-badge.component';
 import { UserAvatarComponent } from '../../../../shared/ui/user-avatar/user-avatar.component';
 import { SurveyLinkDialogComponent } from '../survey-link-dialog/survey-link-dialog.component';
@@ -100,6 +101,7 @@ interface TicketTimelineEvent {
     MatProgressSpinnerModule,
     MatSelectModule,
     MatTooltipModule,
+    CommentMentionTextareaComponent,
     PageTitleComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -145,6 +147,7 @@ export class TicketExecutionPageComponent {
   readonly showDispatchComposer = signal(false);
   readonly dispatchDraftItems = signal<TicketDispatchDraftItem[]>([]);
   readonly selectedCommentLocation = signal<AppLocation | null>(null);
+  readonly commentMentionedUserIds = signal<string[]>([]);
   readonly isResolvingCommentLocation = signal(false);
   readonly pendingRejectRequestId = signal<string | null>(null);
   readonly exportingHistory = signal(false);
@@ -1640,13 +1643,15 @@ export class TicketExecutionPageComponent {
       .addTicketComment(ticketId, {
         body: this.primaryCommentValue(),
         location_id: locationId,
-        attachment_ids: this.pendingAttachments().map((attachment) => attachment.id)
+        attachment_ids: this.pendingAttachments().map((attachment) => attachment.id),
+        mentioned_user_ids: this.commentMentionedUserIds()
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (updatedTicket) => {
           this.updateTicket(updatedTicket, 'Comentario agregado al ticket.');
           this.commentForm.reset({ body: '' });
+          this.commentMentionedUserIds.set([]);
           this.selectedCommentLocation.set(null);
         },
         error: (error: Error) => {
