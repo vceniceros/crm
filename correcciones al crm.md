@@ -2,9 +2,7 @@
 4. menu de configuraciones habilitado para ejecutivos
 5. en configuraciones agregar un apartado para configurar el envío de mails (smtp)
 6. agregar envio de mails a las notificaciones del crm
-7. agregar un apartado para configurar el envío de sms (twilio)
-8. agregar un apartado para configurar el envío de whatsapp (twilio) 
-9. agregar apartado para ver registro de actividad de cada usuario (login, logout, acciones realizadas)
+
 11. poder acotar quien puede manejar el stock dentro de configuraciones, configurar quien puede manejar stock independiente al rol
 
 12. poder agregar un importasdor a prodcutos para cargar productos masivamente desde un excel o csv

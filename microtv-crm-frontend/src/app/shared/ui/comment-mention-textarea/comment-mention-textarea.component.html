@@ -1,0 +1,32 @@
+<mat-form-field appearance="outline" [subscriptSizing]="subscriptSizing()" class="comment-mention-textarea">
+  <mat-label>{{ label() }}</mat-label>
+  <textarea
+    #textarea
+    matInput
+    [rows]="rows()"
+    [ngModel]="value()"
+    [ngModelOptions]="{ standalone: true }"
+    [disabled]="isDisabled()"
+    [placeholder]="placeholder()"
+    [matAutocomplete]="mentionsAutocomplete"
+    (ngModelChange)="handleInput($event)"
+    (blur)="handleBlur()"
+    (click)="updateMentionSearch()"
+    (keyup)="updateMentionSearch()"></textarea>
+  @if (isSearching()) {
+    <mat-spinner matSuffix diameter="18" />
+  }
+</mat-form-field>
+
+<mat-autocomplete #mentionsAutocomplete="matAutocomplete" (optionSelected)="selectMention($event)">
+  @for (user of suggestions(); track user.crm_user_id) {
+    <mat-option [value]="user">
+      <span class="comment-mention-textarea__option">
+        <strong>{{ user.display_name || user.email || 'Usuario CRM' }}</strong>
+        @if (user.email && user.email !== user.display_name) {
+          <small>{{ user.email }}</small>
+        }
+      </span>
+    </mat-option>
+  }
+</mat-autocomplete>

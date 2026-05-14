@@ -7,7 +7,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, JSON, String, Text, Uuid, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, JSON, String, Text, UniqueConstraint, Uuid, func
 from sqlalchemy.orm import Mapped, foreign, mapped_column, relationship
 
 from crm_backend.db.base import Base
@@ -297,10 +297,44 @@ class TicketComment(Base):
         order_by="TicketAttachment.uploaded_at",
         lazy="selectin",
     )
+    mentions: Mapped[list["TicketCommentMention"]] = relationship(
+        "TicketCommentMention",
+        back_populates="comment",
+        cascade="all, delete-orphan",
+        order_by="TicketCommentMention.created_at",
+        lazy="selectin",
+    )
 
     @property
     def author_display_name(self) -> str | None:
         return _user_display_label(self.author)
+
+
+class TicketCommentMention(Base):
+    """User explicitly mentioned in a ticket comment."""
+
+    __tablename__ = "ticket_comment_mentions"
+    __table_args__ = (
+        UniqueConstraint("ticket_comment_id", "mentioned_crm_user_id", name="uq_ticket_comment_mentions_comment_user"),
+    )
+
+    ticket_comment_mention_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    ticket_comment_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("ticket_comments.ticket_comment_id", ondelete="CASCADE"), index=True)
+    mentioned_crm_user_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id", ondelete="CASCADE"), index=True)
+    created_by_crm_user_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    comment: Mapped[TicketComment] = relationship("TicketComment", back_populates="mentions")
+    mentioned_user: Mapped["CrmUser"] = relationship("CrmUser", foreign_keys=[mentioned_crm_user_id], lazy="joined")
+    created_by_user: Mapped["CrmUser"] = relationship("CrmUser", foreign_keys=[created_by_crm_user_id], lazy="joined")
+
+    @property
+    def mentioned_display_name(self) -> str | None:
+        return _user_display_label(self.mentioned_user)
+
+    @property
+    def mentioned_email(self) -> str | None:
+        return getattr(self.mentioned_user, "email", None)
 
 
 class TicketAttachment(Base):

@@ -1,0 +1,30 @@
+:host {
+  display: block;
+}
+
+.comment-mention-textarea {
+  width: 100%;
+}
+
+.comment-mention-textarea__option {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.2;
+}
+
+.comment-mention-textarea__option strong,
+.comment-mention-textarea__option small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comment-mention-textarea__option small {
+  color: rgba(0, 0, 0, 0.62);
+}
+
+:host-context(html.theme-dark) .comment-mention-textarea__option small {
+  color: rgba(255, 255, 255, 0.68);
+}

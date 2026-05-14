@@ -146,6 +146,7 @@ export interface CreateTaskCommentRequest {
   body: string;
   location_id: string | null;
   attachment_ids: string[];
+  mentioned_user_ids?: string[];
 }
 
 export interface TaskTemplateItem {
@@ -279,6 +280,16 @@ export interface TaskComment {
   location: TaskLocation | null;
   created_at: string;
   attachments: TaskAttachment[];
+  mentions?: TaskCommentMention[];
+}
+
+export interface TaskCommentMention {
+  task_comment_mention_id: string;
+  mentioned_crm_user_id: string;
+  mentioned_display_name: string | null;
+  mentioned_email: string | null;
+  created_by_crm_user_id: string;
+  created_at: string;
 }
 
 export interface TaskAuditEvent {

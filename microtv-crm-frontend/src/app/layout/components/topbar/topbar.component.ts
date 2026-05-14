@@ -100,10 +100,14 @@ export class TopbarComponent implements OnInit, OnDestroy {
       case NOTIFICATION_TYPES.TASK_PRE_FORM_COMPLETED:
       case NOTIFICATION_TYPES.TASK_SATISFACTION_SUBMITTED:
         return entityId ? `/tasks/${entityId}` : '/tasks';
+      case NOTIFICATION_TYPES.TASK_COMMENT_MENTIONED:
+        return entityId ? this.withCommentFragment(`/tasks/${entityId}`, notification, 'task-comment') : '/tasks';
       case NOTIFICATION_TYPES.TASK_UNASSIGNED_IN_ROLE:
         return '/tasks';
       case NOTIFICATION_TYPES.TICKET_SATISFACTION_SUBMITTED:
         return entityId ? `/tickets/${entityId}` : '/tickets';
+      case NOTIFICATION_TYPES.TICKET_COMMENT_MENTIONED:
+        return entityId ? this.withCommentFragment(`/tickets/${entityId}`, notification, 'ticket-comment') : '/tickets';
       case NOTIFICATION_TYPES.TICKET_UNASSIGNED_IN_ROLE:
         return '/tickets';
       case NOTIFICATION_TYPES.STOCK_LOW:
@@ -115,5 +119,10 @@ export class TopbarComponent implements OnInit, OnDestroy {
       default:
         return null;
     }
+  }
+
+  private withCommentFragment(route: string, notification: Notification, prefix: string): string {
+    const commentId = notification.metadata_json?.['comment_id'];
+    return typeof commentId === 'string' && commentId.trim() ? `${route}#${prefix}-${commentId}` : route;
   }
 }

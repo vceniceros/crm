@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from crm_backend.models import CrmRole, CrmUser, CrmUserRole, Subtask, Task, TaskTemplateSubtask
@@ -79,6 +79,44 @@ class CrmUserRepository:
             .where(CrmUser.crm_user_id == crm_user_id)
         )
         return self._session.scalar(statement)
+
+    def list_active_by_ids(self, crm_user_ids: list[str]) -> list[CrmUser]:
+        """Return active CRM users matching the given ids."""
+
+        if not crm_user_ids:
+            return []
+        statement = (
+            select(CrmUser)
+            .options(selectinload(CrmUser.assigned_roles).selectinload(CrmUserRole.role))
+            .where(CrmUser.crm_user_id.in_(crm_user_ids))
+            .where(CrmUser.deleted_at.is_(None))
+            .where(CrmUser.is_active_in_crm.is_(True))
+            .order_by(CrmUser.display_name.asc(), CrmUser.email.asc(), CrmUser.crm_user_id.asc())
+        )
+        return list(self._session.scalars(statement).unique().all())
+
+    def search_active_mentions(self, query: str, limit: int = 10) -> list[CrmUser]:
+        """Search active CRM users by display name or email prefix."""
+
+        normalized_query = query.strip().lower()
+        if not normalized_query:
+            return []
+        pattern = f"{normalized_query}%"
+        statement = (
+            select(CrmUser)
+            .options(selectinload(CrmUser.assigned_roles).selectinload(CrmUserRole.role))
+            .where(CrmUser.deleted_at.is_(None))
+            .where(CrmUser.is_active_in_crm.is_(True))
+            .where(
+                or_(
+                    func.lower(CrmUser.display_name).like(pattern),
+                    func.lower(CrmUser.email).like(pattern),
+                )
+            )
+            .order_by(CrmUser.display_name.asc(), CrmUser.email.asc(), CrmUser.crm_user_id.asc())
+            .limit(max(1, min(limit, 25)))
+        )
+        return list(self._session.scalars(statement).unique().all())
 
     def create(self, auth_user_id: str) -> CrmUser:
         """Create a new CRM user shell.

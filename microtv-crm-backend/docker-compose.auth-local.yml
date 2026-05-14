@@ -1,7 +1,7 @@
 services:
   auth-db:
     image: postgres:16-alpine
-    container_name: crm-auth-db
+    container_name: ${LAB_AUTH_DB_CONTAINER:-crm-auth-db}
     environment:
       POSTGRES_DB: auth_microtv
       POSTGRES_USER: authmicrotv
@@ -18,7 +18,7 @@ services:
     build:
       context: ..
       dockerfile: microtv-crm-backend/docker/auth-local/Dockerfile
-    container_name: crm-auth-local
+    container_name: ${LAB_AUTH_LOCAL_CONTAINER:-crm-auth-local}
     depends_on:
       auth-db:
         condition: service_healthy
@@ -51,11 +51,11 @@ services:
       timeout: 5s
       retries: 20
     ports:
-      - "8001:8001"
+      - "${AUTH_PORT:-8001}:8001"
 
   crm-db:
     image: postgres:16-alpine
-    container_name: crm-backend-db
+    container_name: ${LAB_CRM_DB_CONTAINER:-crm-backend-db}
     environment:
       POSTGRES_DB: crm_microtv
       POSTGRES_USER: crmmicrotv
@@ -66,7 +66,7 @@ services:
       timeout: 5s
       retries: 20
     ports:
-      - "5433:5432"
+      - "${CRM_DB_PORT:-5433}:5432"
     volumes:
       - crm-backend-db-data:/var/lib/postgresql/data
 

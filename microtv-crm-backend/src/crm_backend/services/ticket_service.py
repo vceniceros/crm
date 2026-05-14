@@ -30,6 +30,7 @@ from crm_backend.models import (
     TicketAttachmentType,
     TicketAuditEvent,
     TicketComment,
+    TicketCommentMention,
     TicketCommentType,
     TicketPriority,
     TicketRequiredMaterial,
@@ -239,6 +240,7 @@ class TicketApplicationService:
         body: str,
         location_id: str | None,
         attachment_ids: list[str],
+        mentioned_user_ids: list[str] | None = None,
         comment_type: str = TicketCommentType.GENERAL.value,
     ) -> Ticket:
         ticket = self.get_ticket_detail(actor, ticket_id)
@@ -264,6 +266,14 @@ class TicketApplicationService:
         )
         ticket.comments.append(comment)
         self._attach_files_to_comment(ticket, comment, attachment_ids)
+        mentioned_users = self._resolve_mentioned_users(mentioned_user_ids or [])
+        for mentioned_user in mentioned_users:
+            comment.mentions.append(
+                TicketCommentMention(
+                    mentioned_crm_user_id=mentioned_user.crm_user_id,
+                    created_by_crm_user_id=actor.crm_user.crm_user_id,
+                )
+            )
         self._try_register_arrival_from_comment(
             actor=actor,
             ticket=ticket,
@@ -281,6 +291,8 @@ class TicketApplicationService:
                 },
             )
         )
+        for mentioned_user in mentioned_users:
+            self._log_comment_mention(actor, ticket, comment, mentioned_user)
         saved_ticket = self._ticket_repository.save(ticket)
 
         try:
@@ -299,6 +311,19 @@ class TicketApplicationService:
                         body=f"{actor_name} agregó un comentario en {saved_ticket.ticket_number}.",
                         entity_type=NotificationEntityType.TICKET,
                         entity_id=saved_ticket.ticket_id,
+                    )
+                for mentioned_user in mentioned_users:
+                    self._notification_service.notify(
+                        recipient_crm_user_id=mentioned_user.crm_user_id,
+                        notification_type=NotificationType.TICKET_COMMENT_MENTIONED,
+                        title=f"Te mencionaron en ticket {saved_ticket.ticket_number}",
+                        body=f"{actor_name} te mencionó en un comentario de {saved_ticket.ticket_number}.",
+                        entity_type=NotificationEntityType.TICKET,
+                        entity_id=saved_ticket.ticket_id,
+                        metadata={
+                            "comment_id": comment.ticket_comment_id,
+                            "mentioned_by_crm_user_id": actor.crm_user.crm_user_id,
+                        },
                     )
         except Exception:
             _logger.exception("Error sending add_comment notification for ticket %s", saved_ticket.ticket_id)
@@ -1332,6 +1357,51 @@ class TicketApplicationService:
 
         actor_role_ids = self._actor_role_ids(actor)
         return ticket.assigned_role_id in actor_role_ids if ticket.assigned_role_id is not None else False
+
+    def _resolve_mentioned_users(self, mentioned_user_ids: list[str]) -> list[object]:
+        normalized_ids: list[str] = []
+        seen: set[str] = set()
+        for raw_user_id in mentioned_user_ids:
+            normalized = raw_user_id.strip() if isinstance(raw_user_id, str) else ""
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            normalized_ids.append(normalized)
+        if not normalized_ids:
+            return []
+
+        users = self._user_repository.list_active_by_ids(normalized_ids)
+        users_by_id = {user.crm_user_id: user for user in users}
+        missing_ids = [user_id for user_id in normalized_ids if user_id not in users_by_id]
+        if missing_ids:
+            raise TicketValidationError("Uno de los usuarios mencionados no existe o no está activo.")
+        return [users_by_id[user_id] for user_id in normalized_ids]
+
+    def _log_comment_mention(self, actor: ResolvedCrmSession, ticket: Ticket, comment: TicketComment, mentioned_user: object) -> None:
+        if self._activity_log_service is None:
+            return
+        actor_label = actor.crm_user.display_name or actor.crm_user.email or actor.crm_user.crm_user_id
+        mentioned_label = (
+            getattr(mentioned_user, "display_name", None)
+            or getattr(mentioned_user, "email", None)
+            or getattr(mentioned_user, "crm_user_id")
+        )
+        ticket_label = ticket.ticket_number or ticket.ticket_id
+        self._activity_log_service.log(
+            "ticket.comment_mention.created",
+            actor,
+            entity_type="ticket",
+            entity_id=ticket.ticket_id,
+            entity_label=ticket_label,
+            summary=f"{actor_label} mencionó a {mentioned_label} en el ticket {ticket_label}.",
+            extra={
+                "comment_id": comment.ticket_comment_id,
+                "mentioned_user_id": getattr(mentioned_user, "crm_user_id"),
+                "mentioned_user_display_name": mentioned_label,
+                "ticket_id": ticket.ticket_id,
+                "ticket_number": ticket.ticket_number,
+            },
+        )
 
     def _actor_role_ids(self, actor: ResolvedCrmSession) -> set[str]:
         role_ids: set[str] = set()

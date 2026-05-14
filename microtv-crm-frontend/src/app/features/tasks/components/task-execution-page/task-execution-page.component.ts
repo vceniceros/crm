@@ -49,6 +49,7 @@ import { AppLocation } from '../../../../core/models/location.model';
 import { LocationLinkService } from '../../../../shared/services/location-link.service';
 import { LocationPickerService } from '../../../../shared/services/location-picker.service';
 import { LocationMapComponent } from '../../../../shared/ui/location-map/location-map.component';
+import { CommentMentionTextareaComponent } from '../../../../shared/ui/comment-mention-textarea/comment-mention-textarea.component';
 import { TaskAttachmentsSectionComponent } from '../task-attachments-section/task-attachments-section.component';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 import { StatusBadgeComponent } from '../../../../shared/ui/status-badge/status-badge.component';
@@ -90,6 +91,7 @@ type DispatchDraftItem = InventoryDispatchItemWriteRequest & {
     MatProgressSpinnerModule,
     MatSnackBarModule,
     MatSelectModule,
+    CommentMentionTextareaComponent,
     LocationMapComponent,
     PageTitleComponent,
     ReactiveFormsModule,
@@ -144,6 +146,7 @@ export class TaskExecutionPageComponent {
   });
   readonly selectedPrimaryCommentAction = signal<TaskCommentPrimaryAction>('comment');
   readonly selectedCommentLocation = signal<AppLocation | null>(null);
+  readonly commentMentionedUserIds = signal<string[]>([]);
   readonly actionOptions = TASK_ACTION_OPTIONS;
   readonly operationForm = this.formBuilder.group({
     items: this.formBuilder.array([]),
@@ -1447,12 +1450,14 @@ export class TaskExecutionPageComponent {
       .addTaskComment(taskId, {
         body,
         location_id: locationId,
-        attachment_ids: this.pendingAttachments().map((attachment) => attachment.id)
+        attachment_ids: this.pendingAttachments().map((attachment) => attachment.id),
+        mentioned_user_ids: this.commentMentionedUserIds()
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (task) => {
           this.operationForm.controls.comment.setValue('');
+          this.commentMentionedUserIds.set([]);
           const infoSuffix = this.requiresArrivalRegistration()
             ? ' Si este pedido requería llegada, quedó registrada automáticamente.'
             : '';
