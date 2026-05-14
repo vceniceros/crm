@@ -102,7 +102,11 @@ export class CommentMentionTextareaComponent implements ControlValueAccessor {
     this.isControlDisabled.set(isDisabled);
   }
 
-  handleInput(nextValue: string): void {
+  handleInput(nextValue: unknown): void {
+    if (typeof nextValue !== 'string') {
+      return;
+    }
+
     this.value.set(nextValue);
     this.onChange(nextValue);
     this.syncSelectedMentions();
@@ -146,6 +150,8 @@ export class CommentMentionTextareaComponent implements ControlValueAccessor {
   userLabel(user: CrmUserOption): string {
     return user.display_name?.trim() || user.email?.trim() || user.crm_user_id;
   }
+
+  displayMentionOption = (): string => this.value();
 
   isDisabled(): boolean {
     return this.disabled() || this.isControlDisabled();
