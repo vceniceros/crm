@@ -18,7 +18,7 @@
   }
 </mat-form-field>
 
-<mat-autocomplete #mentionsAutocomplete="matAutocomplete" (optionSelected)="selectMention($event)">
+<mat-autocomplete #mentionsAutocomplete="matAutocomplete" [displayWith]="displayMentionOption" (optionSelected)="selectMention($event)">
   @for (user of suggestions(); track user.crm_user_id) {
     <mat-option [value]="user">
       <span class="comment-mention-textarea__option">
