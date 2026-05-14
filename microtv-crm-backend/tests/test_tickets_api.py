@@ -509,7 +509,7 @@ def test_ticket_inventory_request_blocks_technician_until_dispatch_returns_ticke
             "source_type": "TICKET",
             "external_ticket_id": ticket_id,
             "request_reason": "Falta equipamiento para continuar",
-            "items": [{"product_id": dispatchable_product.product_id, "quantity_requested": 1, "notes": "Urgente"}],
+            "items": [{"product_id": dispatchable_product.product_id, "quantity_requested": 3, "notes": "Urgente"}],
         },
     )
     assert request_response.status_code == 200, request_response.text
@@ -544,11 +544,13 @@ def test_ticket_inventory_request_blocks_technician_until_dispatch_returns_ticke
         json={
             "request_id": request_id,
             "dispatch_notes": "Despacho confirmado para ticket",
-            "items": [{"product_id": dispatchable_product.product_id, "quantity_dispatched": 1}],
+            "items": [{"product_id": dispatchable_product.product_id, "quantity_dispatched": 3}],
         },
     )
     assert dispatch_response.status_code == 200, dispatch_response.text
-    dispatch_item_id = dispatch_response.json()["items"][0]["inventory_dispatch_item_id"]
+    dispatch_body = dispatch_response.json()
+    assert dispatch_body["items"][0]["quantity_dispatched"] == 3
+    dispatch_item_id = dispatch_body["items"][0]["inventory_dispatch_item_id"]
 
     detail_returned = client.get(f"/tickets/{ticket_id}", headers=_auth_header("tech-token"))
     assert detail_returned.status_code == 200, detail_returned.text
