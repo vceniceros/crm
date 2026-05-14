@@ -173,6 +173,7 @@ export class TicketExecutionPageComponent {
   readonly dispatchComposerForm = this.formBuilder.group({
     request_id: this.formBuilder.control<string | null>(null),
     product_id: this.formBuilder.control('', { validators: [Validators.required], nonNullable: true }),
+    quantity_dispatched: this.formBuilder.control(1, { validators: [Validators.required, Validators.min(1)], nonNullable: true }),
     identifier_type: this.formBuilder.control<DispatchIdentifierType>('none', { nonNullable: true }),
     identifier_value: this.formBuilder.control<string | null>(null),
     notes: this.formBuilder.control<string | null>(null),
@@ -1170,7 +1171,7 @@ export class TicketExecutionPageComponent {
   }
 
   addDispatchDraftItem(): void {
-    if (this.dispatchComposerForm.controls.product_id.invalid) {
+    if (this.dispatchComposerForm.controls.product_id.invalid || this.dispatchComposerForm.controls.quantity_dispatched.invalid) {
       this.dispatchComposerForm.markAllAsTouched();
       return;
     }
@@ -1180,9 +1181,14 @@ export class TicketExecutionPageComponent {
       return;
     }
 
+    const quantityDispatched = this.dispatchComposerForm.controls.quantity_dispatched.getRawValue();
     const identifierType = this.dispatchComposerForm.controls.identifier_type.getRawValue();
     const identifierValue = this.dispatchComposerForm.controls.identifier_value.getRawValue()?.trim() || null;
     if (product.requiresTracking) {
+      if (quantityDispatched !== 1) {
+        this.errorMessage.set('Los productos con tracking unitario deben despacharse de a una unidad por registro.');
+        return;
+      }
       if (identifierType === 'none' || !identifierValue) {
         this.errorMessage.set('Para productos con tracking unitario debés elegir Serial o Código de barras y cargar su valor.');
         return;
@@ -1212,7 +1218,7 @@ export class TicketExecutionPageComponent {
       {
         draft_id: this.createDraftItemId(),
         product_id: product.productId,
-        quantity_dispatched: 1,
+        quantity_dispatched: product.requiresTracking ? 1 : quantityDispatched,
         serial_number: serialNumber,
         barcode_value: barcodeValue,
         identifier_type: identifierType,
@@ -1223,7 +1229,7 @@ export class TicketExecutionPageComponent {
       }
     ]);
     this.errorMessage.set(null);
-    this.dispatchComposerForm.patchValue({ product_id: '', identifier_type: 'none', identifier_value: null, notes: null });
+    this.dispatchComposerForm.patchValue({ product_id: '', quantity_dispatched: 1, identifier_type: 'none', identifier_value: null, notes: null });
   }
 
   removeDispatchDraftItem(draftId: string): void {
@@ -1252,6 +1258,7 @@ export class TicketExecutionPageComponent {
           this.dispatchComposerForm.reset({
             request_id: null,
             product_id: '',
+            quantity_dispatched: 1,
             identifier_type: 'none',
             identifier_value: null,
             notes: null,
@@ -1421,6 +1428,7 @@ export class TicketExecutionPageComponent {
     this.dispatchComposerForm.reset({
       request_id: null,
       product_id: '',
+      quantity_dispatched: 1,
       identifier_type: 'none',
       identifier_value: null,
       notes: null,
@@ -1557,6 +1565,7 @@ export class TicketExecutionPageComponent {
     }
 
     this.dispatchComposerForm.controls.identifier_type.setValue(product.requiresTracking ? 'serial' : 'none');
+    this.dispatchComposerForm.controls.quantity_dispatched.setValue(1);
     this.dispatchComposerForm.controls.identifier_value.setValue(null);
   }
 

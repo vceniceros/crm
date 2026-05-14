@@ -1,8 +1,3 @@
-1. agregar apartado de configurar roles y permisos de roles
-4. menu de configuraciones habilitado para ejecutivos
-5. en configuraciones agregar un apartado para configurar el envío de mails (smtp)
-6. agregar envio de mails a las notificaciones del crm
-
 11. poder acotar quien puede manejar el stock dentro de configuraciones, configurar quien puede manejar stock independiente al rol
 
 12. poder agregar un importasdor a prodcutos para cargar productos masivamente desde un excel o csv
@@ -41,6 +36,14 @@
 
 8. Do not implement stock-related permission control as a separate disconnected feature. Merge it into the unified permissions system described in point 1. Stock handling permissions, product deletion permissions, reassignment permissions, and comment deletion permissions should all belong to the same centralized permission management model, with role-based defaults and optional user-specific overrides where necessary.
 
+apartado config:
 
+- agregar reglas de visibilidad para los tickets segun quien deberia poder ver cada cosa
+- autoomatizar las asignaciones de tickets segun criterios definidos 
+- templates de pedidos que vaya para config
+- sla: - agregar un apartado para configurar los sla de cada tipo de ticket, con tiempos de respuesta y cierre, y que el sistema pueda mostrar alertas o marcar tickets que estén por vencer o vencidos
+- agregar la base de conocimientos a config para que se pueda administrar desde ahí, con categorias, subcategorias, articulos, etc
+- asociar activos: buses por ejemplo, dvr's, etc
+- configurar aprovaciones: poder definir categorias de tickets o solicitudes que requieran de una cierta aprobacion de alguna persona o rol, y configurar quien es esa persona o rol que debe aprobar, y que el sistema pueda manejar ese flujo de aprobaciones
 
-9. 
+- reportes: poder compartir reportes con otros usuarios ahi entrar el armar reportes personalizados, y poder compartirlos con otros usuarios o roles, o dejarlos privados para el usuario que los creó

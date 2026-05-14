@@ -583,6 +583,15 @@
                   </mat-form-field>
                 }
 
+                @if (selectedDispatchProduct(); as selectedDispatchProduct) {
+                  @if (!selectedDispatchProduct.requiresTracking) {
+                    <mat-form-field appearance="outline">
+                      <mat-label>Cantidad</mat-label>
+                      <input matInput type="number" min="1" formControlName="quantity_dispatched" />
+                    </mat-form-field>
+                  }
+                }
+
                 <mat-form-field appearance="outline" class="ticket-execution-page__operation-grid--wide">
                   <mat-label>Observación del item</mat-label>
                   <input matInput formControlName="notes" />
@@ -606,7 +615,7 @@
                     <article class="ticket-execution-page__request-item ticket-execution-page__request-item--draft">
                       <div>
                         <strong>{{ item.product_name }}</strong>
-                        <span>x1{{ item.requires_tracking ? ' · tracking unitario' : '' }}</span>
+                        <span>x{{ item.quantity_dispatched }}{{ item.requires_tracking ? ' · tracking unitario' : '' }}</span>
                         <span>{{ dispatchDraftTrackingLabel(item) }}</span>
                       </div>
                       <button mat-icon-button type="button" (click)="removeDispatchDraftItem(item.draft_id)">

@@ -585,7 +585,7 @@ def test_cannot_close_subtask_until_request_is_approved_dispatched_and_received(
             "source_type": "TASK",
             "task_id": task["task_id"],
             "request_reason": "Falta material critico",
-            "items": [{"product_id": dispatchable_product.product_id, "quantity_requested": 1, "notes": "Urgente"}],
+            "items": [{"product_id": dispatchable_product.product_id, "quantity_requested": 3, "notes": "Urgente"}],
         },
     )
     assert request_response.status_code == 200, request_response.text
@@ -620,11 +620,12 @@ def test_cannot_close_subtask_until_request_is_approved_dispatched_and_received(
         json={
             "request_id": request_id,
             "dispatch_notes": "Despacho parcial",
-            "items": [{"product_id": dispatchable_product.product_id, "quantity_dispatched": 1}],
+            "items": [{"product_id": dispatchable_product.product_id, "quantity_dispatched": 3}],
         },
     )
     assert dispatch_response.status_code == 200, dispatch_response.text
     dispatch_body = dispatch_response.json()
+    assert dispatch_body["dispatches"][0]["items"][0]["quantity_dispatched"] == 3
     linked_request = next(item for item in dispatch_body["inventory_requests"] if item["inventory_request_id"] == request_id)
     assert linked_request["request_status"] == "PENDING_RECEIPT"
 
@@ -642,6 +643,11 @@ def test_cannot_close_subtask_until_request_is_approved_dispatched_and_received(
         json={"confirmation_type": "received"},
     )
     assert confirm_received_response.status_code == 200, confirm_received_response.text
+    confirm_received_body = confirm_received_response.json()
+    linked_request_after_receipt = next(
+        item for item in confirm_received_body["inventory_requests"] if item["inventory_request_id"] == request_id
+    )
+    assert linked_request_after_receipt["request_status"] == "COMPLETED"
 
     close_response = client.post(
         f"/tasks/subtasks/{first_subtask['subtask_id']}/actions",
