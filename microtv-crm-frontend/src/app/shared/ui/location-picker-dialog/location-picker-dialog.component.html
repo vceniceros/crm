@@ -1,4 +1,4 @@
-<h2 mat-dialog-title>{{ data.title || 'Seleccionar ubicación' }}</h2>
+<h2 mat-dialog-title>{{ data.title || 'Seleccionar ubicacion' }}</h2>
 
 <mat-dialog-content class="location-picker-dialog">
   <section class="location-picker-dialog__intro">
@@ -7,9 +7,9 @@
     </div>
 
     <div>
-      <p class="location-picker-dialog__intro-title">Marcá el punto exacto en el mapa</p>
+      <p class="location-picker-dialog__intro-title">Marca el punto exacto en el mapa</p>
       <p class="location-picker-dialog__intro-copy">
-        Hacé click sobre el mapa para ubicar el cliente. Esa selección se guarda como coordenadas y desde ahí se genera el enlace externo a Maps.
+        Busca por direccion o hace click sobre el mapa para ubicar el cliente. La seleccion se guarda como coordenadas.
       </p>
     </div>
   </section>
@@ -18,6 +18,9 @@
     <div>
       <p class="location-picker-dialog__summary-label">Coordenadas seleccionadas</p>
       <p class="location-picker-dialog__summary-value">{{ coordinatesLabel() }}</p>
+      @if (selectedAddressLabel()) {
+        <p class="location-picker-dialog__summary-address">{{ selectedAddressLabel() }}</p>
+      }
     </div>
 
     @if (googleMapsUrl(); as googleMapsUrl) {
@@ -28,9 +31,55 @@
     }
   </section>
 
+  <section class="location-picker-dialog__search">
+    <form class="location-picker-dialog__search-form" (submit)="searchAddress($event)">
+      <mat-form-field appearance="outline" class="location-picker-dialog__search-field">
+        <mat-label>Buscar por direccion</mat-label>
+        <input
+          matInput
+          type="search"
+          [ngModel]="addressQuery()"
+          (ngModelChange)="addressQuery.set($event)"
+          name="addressQuery"
+          autocomplete="street-address"
+        />
+      </mat-form-field>
+
+      <button
+        mat-flat-button
+        color="primary"
+        type="submit"
+        [disabled]="addressSearchState() === 'loading'"
+      >
+        <mat-icon>search</mat-icon>
+        <span>{{ addressSearchState() === 'loading' ? 'Buscando...' : 'Buscar' }}</span>
+      </button>
+    </form>
+
+    @if (addressSearchMessage()) {
+      <p
+        class="location-picker-dialog__search-message"
+        [class.location-picker-dialog__search-message--error]="addressSearchState() === 'error'"
+      >
+        {{ addressSearchMessage() }}
+      </p>
+    }
+
+    @if (addressSearchResults().length) {
+      <div class="location-picker-dialog__results" aria-label="Resultados de direccion">
+        @for (result of addressSearchResults(); track result.label + result.latitude + result.longitude) {
+          <button type="button" class="location-picker-dialog__result" (click)="selectAddressResult(result)">
+            <mat-icon>place</mat-icon>
+            <span>{{ result.label }}</span>
+          </button>
+        }
+      </div>
+    }
+  </section>
+
   <section class="location-picker-dialog__map-shell">
     <app-location-picker-map
-      [title]="data.title || 'Ubicación seleccionada'"
+      [title]="data.title || 'Ubicacion seleccionada'"
       [readOnly]="false"
       [initialCoordinates]="initialCoordinates()"
       [showGoogleMapsLink]="false"
@@ -42,6 +91,6 @@
 <mat-dialog-actions align="end">
   <button mat-button type="button" (click)="close()">Cancelar</button>
   <button mat-flat-button color="primary" type="button" [disabled]="!googleMapsUrl()" (click)="confirmSelection()">
-    Usar esta ubicación
+    Usar esta ubicacion
   </button>
 </mat-dialog-actions>

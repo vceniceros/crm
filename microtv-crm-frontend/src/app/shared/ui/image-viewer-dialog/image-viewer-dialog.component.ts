@@ -4,8 +4,11 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 
 export interface ImageViewerDialogData {
-  imageUrl: string;
+  mediaUrl?: string;
+  imageUrl?: string;
   altText: string;
+  mediaType?: 'image' | 'video';
+  mimeType?: string | null;
 }
 
 @Component({
@@ -19,6 +22,9 @@ export interface ImageViewerDialogData {
 export class ImageViewerDialogComponent {
   readonly data = inject<ImageViewerDialogData>(MAT_DIALOG_DATA);
   private readonly dialogRef = inject(MatDialogRef<ImageViewerDialogComponent>);
+
+  readonly mediaUrl = this.data.mediaUrl ?? this.data.imageUrl ?? '';
+  readonly mediaType = this.data.mediaType ?? 'image';
 
   close(): void {
     this.dialogRef.close();

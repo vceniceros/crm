@@ -1,18 +1,22 @@
-import { Component, input, output } from '@angular/core';
+import { Component, inject, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 
 import { TicketAttachment } from '../../../../core/models/ticket-attachment.model';
+import { ImageViewerDialogComponent } from '../../../../shared/ui/image-viewer-dialog/image-viewer-dialog.component';
 
 @Component({
   selector: 'app-ticket-attachments-section',
   standalone: true,
-  imports: [MatButtonModule, MatCardModule, MatIconModule],
+  imports: [MatButtonModule, MatCardModule, MatDialogModule, MatIconModule],
   templateUrl: './ticket-attachments-section.component.html',
   styleUrl: './ticket-attachments-section.component.scss'
 })
 export class TicketAttachmentsSectionComponent {
+  private readonly dialog = inject(MatDialog);
+
   readonly attachments = input.required<readonly TicketAttachment[]>();
   readonly canEdit = input(false);
   readonly sectionTitle = input('Adjuntos del ticket');
@@ -104,5 +108,23 @@ export class TicketAttachmentsSectionComponent {
 
   canPreview(attachment: TicketAttachment): boolean {
     return Boolean(attachment.previewUrl && (attachment.kind === 'image' || attachment.kind === 'video'));
+  }
+
+  openPreview(attachment: TicketAttachment): void {
+    if (!this.canPreview(attachment) || !attachment.previewUrl) {
+      return;
+    }
+
+    this.dialog.open(ImageViewerDialogComponent, {
+      data: {
+        mediaUrl: attachment.previewUrl,
+        altText: attachment.fileName,
+        mediaType: attachment.kind === 'video' ? 'video' : 'image',
+        mimeType: attachment.fileType
+      },
+      maxWidth: '95vw',
+      maxHeight: '95vh',
+      panelClass: 'image-viewer-panel'
+    });
   }
 }
