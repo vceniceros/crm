@@ -50,7 +50,7 @@ export class InventoryTableComponent {
     }
 
     this.dialog.open(ImageViewerDialogComponent, {
-      data: { imageUrl: product.imageUrl, altText: product.name },
+      data: { mediaUrl: product.imageUrl, altText: product.name, mediaType: 'image' },
       maxWidth: '95vw',
       maxHeight: '95vh',
       panelClass: 'image-viewer-panel'

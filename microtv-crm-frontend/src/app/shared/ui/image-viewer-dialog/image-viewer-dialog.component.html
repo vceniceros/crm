@@ -8,9 +8,20 @@
   >
     <mat-icon>close</mat-icon>
   </button>
-  <img
-    class="image-viewer-dialog__image"
-    [src]="data.imageUrl"
-    [alt]="data.altText"
-  />
+  @if (mediaType === 'video') {
+    <video
+      class="image-viewer-dialog__media"
+      controls
+      autoplay
+      playsinline
+    >
+      <source [src]="mediaUrl" [type]="data.mimeType || 'video/mp4'" />
+    </video>
+  } @else {
+    <img
+      class="image-viewer-dialog__media"
+      [src]="mediaUrl"
+      [alt]="data.altText"
+    />
+  }
 </div>

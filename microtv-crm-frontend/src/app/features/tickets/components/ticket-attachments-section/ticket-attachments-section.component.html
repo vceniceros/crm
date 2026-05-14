@@ -49,17 +49,28 @@
       <div class="ticket-attachments-section__list">
         @for (attachment of attachments(); track trackByAttachmentId($index, attachment)) {
           <article class="ticket-attachments-section__item">
-            <div class="ticket-attachments-section__preview" [class.ticket-attachments-section__preview--placeholder]="!canPreview(attachment)">
+            <button
+              type="button"
+              class="ticket-attachments-section__preview"
+              [class.ticket-attachments-section__preview--placeholder]="!canPreview(attachment)"
+              [class.ticket-attachments-section__preview--action]="canPreview(attachment)"
+              [disabled]="!canPreview(attachment)"
+              [attr.aria-label]="'Abrir adjunto ' + attachment.fileName"
+              (click)="openPreview(attachment)"
+            >
               @if (attachment.kind === 'image' && attachment.previewUrl) {
                 <img [src]="attachment.previewUrl" [alt]="attachment.fileName" />
               } @else if (attachment.kind === 'video' && attachment.previewUrl) {
-                <video controls preload="metadata">
+                <video preload="metadata">
                   <source [src]="attachment.previewUrl" [type]="attachment.fileType" />
                 </video>
+                <span class="ticket-attachments-section__play" aria-hidden="true">
+                  <mat-icon>play_arrow</mat-icon>
+                </span>
               } @else {
                 <mat-icon>{{ iconFor(attachment) }}</mat-icon>
               }
-            </div>
+            </button>
 
             <div class="ticket-attachments-section__meta">
               <div>

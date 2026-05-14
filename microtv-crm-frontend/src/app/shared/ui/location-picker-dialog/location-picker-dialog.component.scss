@@ -34,8 +34,10 @@
 .location-picker-dialog__intro-copy,
 .location-picker-dialog__summary-label,
 .location-picker-dialog__summary-value,
+.location-picker-dialog__summary-address,
 .location-picker-dialog__message-title,
-.location-picker-dialog__message-copy {
+.location-picker-dialog__message-copy,
+.location-picker-dialog__search-message {
   margin: 0;
 }
 
@@ -47,7 +49,9 @@
 
 .location-picker-dialog__intro-copy,
 .location-picker-dialog__summary-label,
-.location-picker-dialog__message-copy {
+.location-picker-dialog__message-copy,
+.location-picker-dialog__summary-address,
+.location-picker-dialog__search-message {
   color: var(--text-secondary);
 }
 
@@ -67,12 +71,90 @@
   margin-top: 0.28rem;
 }
 
+.location-picker-dialog__summary-address {
+  margin-top: 0.28rem;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.location-picker-dialog__search {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 1.25rem;
+  background: var(--surface-panel);
+}
+
+.location-picker-dialog__search-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.location-picker-dialog__search-field {
+  width: 100%;
+}
+
+.location-picker-dialog__search-field ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+
+.location-picker-dialog__search-form button {
+  min-height: 3.5rem;
+}
+
+.location-picker-dialog__search-form mat-icon {
+  margin-right: 0.35rem;
+}
+
+.location-picker-dialog__search-message {
+  font-size: 0.86rem;
+}
+
+.location-picker-dialog__search-message--error {
+  color: var(--brand-red);
+}
+
+.location-picker-dialog__results {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.location-picker-dialog__result {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.6rem;
+  align-items: start;
+  width: 100%;
+  padding: 0.72rem 0.8rem;
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--surface-panel) 78%, var(--surface-soft) 22%);
+  color: var(--text-primary);
+  font: inherit;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+
+.location-picker-dialog__result:hover {
+  border-color: rgba(183, 28, 28, 0.28);
+  background: color-mix(in srgb, var(--surface-panel) 68%, rgba(183, 28, 28, 0.1) 32%);
+}
+
+.location-picker-dialog__result mat-icon {
+  color: var(--brand-red);
+}
+
 .location-picker-dialog__map-shell {
   min-height: 0;
 }
 
 :host-context(html.theme-dark) .location-picker-dialog__intro,
-:host-context(html.theme-dark) .location-picker-dialog__summary {
+:host-context(html.theme-dark) .location-picker-dialog__summary,
+:host-context(html.theme-dark) .location-picker-dialog__search {
   background:
     radial-gradient(circle at right top, rgba(183, 28, 28, 0.16), transparent 36%),
     linear-gradient(180deg, rgba(21, 27, 38, 0.98), rgba(17, 23, 36, 0.95));
@@ -87,5 +169,9 @@
   .location-picker-dialog__summary {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .location-picker-dialog__search-form {
+    grid-template-columns: 1fr;
   }
 }
