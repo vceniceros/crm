@@ -7,7 +7,7 @@ from decimal import Decimal
 from enum import StrEnum
 from uuid import uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, Uuid, func
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from crm_backend.db.base import Base
@@ -36,6 +36,7 @@ class TemplateMaterial(Base):
     """Minimum required material attached to a task template."""
 
     __tablename__ = "template_materials"
+    __table_args__ = (UniqueConstraint("template_id", "product_id", name="template_materials_template_id_product_id_key"),)
 
     template_material_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
     template_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("task_templates.template_id", ondelete="CASCADE"), index=True)

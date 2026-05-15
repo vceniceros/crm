@@ -12,6 +12,10 @@ class TaskTemplateRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
+    @property
+    def session(self) -> Session:
+        return self._session
+
     def list(self, *, include_inactive: bool = False) -> list[TaskTemplate]:
         statement = select(TaskTemplate).options(
             selectinload(TaskTemplate.subtasks).selectinload(TaskTemplateSubtask.items),

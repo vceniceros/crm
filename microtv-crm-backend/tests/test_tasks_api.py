@@ -775,8 +775,8 @@ def test_upload_task_media_and_associate_it_with_close_comment(client, db_sessio
     assert upload_response.status_code == 200, upload_response.text
     uploaded = upload_response.json()
     assert len(uploaded) == 1
-    assert uploaded[0]["publicUrl"].startswith("/images/task/")
-    assert uploaded[0]["storagePath"].startswith("public/images/task/")
+    assert uploaded[0]["publicUrl"].startswith("/media/tasks/images/")
+    assert uploaded[0]["storagePath"].startswith("media/tasks/images/")
 
     close_response = client.post(
         f"/tasks/subtasks/{first_subtask['subtask_id']}/actions",
