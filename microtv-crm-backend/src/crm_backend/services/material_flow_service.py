@@ -123,20 +123,32 @@ class TaskMaterialFlowFacade:
         template,
         payload: CreateTaskTemplateRequest | UpdateTaskTemplateRequest,
     ) -> None:
-        template.required_materials.clear()
+        existing_by_product_id = {
+            str(required_material.product_id): required_material
+            for required_material in template.required_materials
+        }
         seen_product_ids: set[str] = set()
+        requested_product_ids: set[str] = set()
+
         for material_payload in payload.required_materials:
             if material_payload.product_id in seen_product_ids:
                 raise InventoryFlowValidationError("No se puede repetir el mismo producto en los materiales requeridos del template.")
             product = self._get_active_product(material_payload.product_id)
-            seen_product_ids.add(product.product_id)
-            template.required_materials.append(
-                TemplateMaterial(
-                    product_id=product.product_id,
-                    quantity_required=material_payload.quantity_required,
-                    notes=(material_payload.notes or "").strip() or None,
-                )
-            )
+            product_id = str(product.product_id)
+            seen_product_ids.add(product_id)
+            requested_product_ids.add(product_id)
+
+            template_material = existing_by_product_id.get(product_id)
+            if template_material is None:
+                template_material = TemplateMaterial(product_id=product_id)
+                template.required_materials.append(template_material)
+
+            template_material.quantity_required = material_payload.quantity_required
+            template_material.notes = (material_payload.notes or "").strip() or None
+
+        for required_material in list(template.required_materials):
+            if str(required_material.product_id) not in requested_product_ids:
+                template.required_materials.remove(required_material)
 
     def materialize_task_requirements(self, task: Task, template) -> None:
         task.required_materials.clear()
