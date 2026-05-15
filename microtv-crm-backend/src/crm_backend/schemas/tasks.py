@@ -31,6 +31,8 @@ class TaskTemplateSubtaskWriteRequest(BaseModel):
     responsible_role_key: str = Field(..., min_length=1, max_length=50)
     default_responsible_crm_user_id: str | None = None
     close_comment_required: bool = True
+    requires_arrival_comment: bool = False
+    requires_video_evidence: bool = False
     next_assignment_policy: Literal["role_queue_auto", "default_user_auto", "manual_required"] = Field(
         default="role_queue_auto"
     )
@@ -169,6 +171,8 @@ class TaskTemplateSubtaskResponse(BaseModel):
     responsible_role_key: str
     default_responsible_crm_user_id: str | None
     close_comment_required: bool
+    requires_arrival_comment: bool = False
+    requires_video_evidence: bool = False
     next_assignment_policy: str
     subtask_type: str
     items: list[TaskTemplateItemResponse]
@@ -339,6 +343,8 @@ class SubtaskResponse(BaseModel):
     default_responsible_crm_user_id: str | None
     default_assigned_user_display_name: str | None = None
     close_comment_required: bool
+    requires_arrival_comment: bool = False
+    requires_video_evidence: bool = False
     next_assignment_policy: str
     subtask_type: str
     status: str

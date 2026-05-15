@@ -44,13 +44,17 @@
 
 .ticket-attachments-section__list {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
   gap: 0.9rem;
   margin-top: 1rem;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .ticket-attachments-section__item {
   display: grid;
   gap: 0.8rem;
+  min-width: 0;
   padding: 0.9rem;
   border: 1px solid rgba(23, 24, 26, 0.08);
   border-radius: 1rem;
@@ -62,6 +66,8 @@
   display: grid;
   place-items: center;
   width: 100%;
+  max-width: 100%;
+  aspect-ratio: 4 / 3;
   min-height: 10rem;
   padding: 0;
   overflow: hidden;
@@ -87,6 +93,8 @@
 .ticket-attachments-section__preview video {
   display: block;
   width: 100%;
+  max-width: 100%;
+  height: 100%;
   max-height: 15rem;
   object-fit: cover;
   transition: transform 160ms ease;
@@ -113,11 +121,13 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
+  min-width: 0;
 }
 
 .ticket-attachments-section__name {
   font-size: 0.95rem;
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .ticket-attachments-section__empty {

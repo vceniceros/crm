@@ -1,6 +1,6 @@
 """Endpoints HTTP del flujo real inicial de depósito."""
 
-from fastapi import APIRouter, Depends, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Request, Response, UploadFile, status
 
 from crm_backend.api.dependencies import get_authenticated_crm_session, get_product_image_storage, get_stock_application_service
 from crm_backend.infrastructure.product_image_storage import ProductImageStorage
@@ -9,8 +9,12 @@ from crm_backend.schemas import (
     ErrorResponse,
     SetStockRequest,
     StockAdjustmentRequest,
+    StockBackupStatusResponse,
     StockCategoryResponse,
+    StockImportConfirmResponse,
+    StockImportPreviewResponse,
     StockProductResponse,
+    StockRollbackResponse,
     UpdateProductLocationRequest,
 )
 from crm_backend.services.auth_service import ResolvedCrmSession
@@ -110,6 +114,58 @@ def list_products(
     """
 
     return [_build_product_response(product) for product in stock_service.list_products(actor)]
+
+
+@router.post(
+    "/imports/preview",
+    response_model=StockImportPreviewResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+)
+async def preview_stock_import(
+    file: UploadFile = File(...),
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    stock_service: StockApplicationService = Depends(get_stock_application_service),
+) -> StockImportPreviewResponse:
+    content = await file.read()
+    return stock_service.preview_import(actor, filename=file.filename or "stock-import", content=content)
+
+
+@router.post(
+    "/imports/{import_id}/confirm",
+    response_model=StockImportConfirmResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+)
+def confirm_stock_import(
+    import_id: str,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    stock_service: StockApplicationService = Depends(get_stock_application_service),
+) -> StockImportConfirmResponse:
+    return stock_service.confirm_import(actor, import_id)
+
+
+@router.get(
+    "/imports/latest-backup",
+    response_model=StockBackupStatusResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
+)
+def latest_stock_import_backup(
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    stock_service: StockApplicationService = Depends(get_stock_application_service),
+) -> StockBackupStatusResponse:
+    return stock_service.latest_backup_status(actor)
+
+
+@router.post(
+    "/imports/{import_id}/rollback",
+    response_model=StockRollbackResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+)
+def rollback_stock_import(
+    import_id: str,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    stock_service: StockApplicationService = Depends(get_stock_application_service),
+) -> StockRollbackResponse:
+    return stock_service.rollback_import(actor, import_id)
 
 
 @router.post(

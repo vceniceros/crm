@@ -98,10 +98,23 @@
 
       <mat-card-content class="ticket-execution-page__unified-content">
         <section class="ticket-execution-page__timeline-panel">
-          <h3>Timeline</h3>
-          @if (timelineEvents().length) {
+          <div class="ticket-execution-page__section-head">
+            <h3>Timeline</h3>
+            @if (timelineEvents().length > 1) {
+              <button
+                mat-stroked-button
+                type="button"
+                (click)="toggleTimelineSortDirection()"
+                [matTooltip]="timelineSortDirection() === 'newest' ? 'Ver comentarios más antiguos primero' : 'Ver comentarios más recientes primero'"
+              >
+                <mat-icon>{{ timelineSortDirection() === 'newest' ? 'south' : 'north' }}</mat-icon>
+                <span>{{ timelineSortDirection() === 'newest' ? 'Más recientes primero' : 'Más antiguos primero' }}</span>
+              </button>
+            }
+          </div>
+          @if (displayedTimelineEvents().length) {
             <div class="ticket-execution-page__timeline-list">
-              @for (event of timelineEvents(); track timelineTrackBy($index, event)) {
+              @for (event of displayedTimelineEvents(); track timelineTrackBy($index, event)) {
                 <article class="ticket-execution-page__timeline-item" [attr.id]="event.anchorId || null">
                   <div class="ticket-execution-page__timeline-head">
                     <div>

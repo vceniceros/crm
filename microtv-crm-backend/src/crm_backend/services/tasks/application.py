@@ -126,6 +126,8 @@ class TaskBuilder:
                 assigned_crm_user_id=assigned_crm_user_id,
                 default_responsible_crm_user_id=template_subtask.default_responsible_crm_user_id,
                 close_comment_required=template_subtask.close_comment_required,
+                requires_arrival_comment=template_subtask.requires_arrival_comment,
+                requires_video_evidence=template_subtask.requires_video_evidence,
                 next_assignment_policy=template_subtask.next_assignment_policy,
                 subtask_type=subtask_type,
                 status=status,
@@ -182,8 +184,8 @@ class TaskApplicationService:
             is_active=True,
             template_name=payload.template_name.strip(),
             description=payload.description,
-            requires_arrival_comment=bool(payload.requires_arrival_comment),
-            requires_video_evidence=bool(payload.requires_video_evidence),
+            requires_arrival_comment=self._template_requires_arrival(payload),
+            requires_video_evidence=self._template_requires_video(payload),
             requires_pre_form=bool(payload.requires_pre_form),
             created_by_crm_user_id=actor.crm_user.crm_user_id,
         )
@@ -206,8 +208,8 @@ class TaskApplicationService:
 
         template.template_name = payload.template_name.strip()
         template.description = payload.description
-        template.requires_arrival_comment = bool(payload.requires_arrival_comment)
-        template.requires_video_evidence = bool(payload.requires_video_evidence)
+        template.requires_arrival_comment = self._template_requires_arrival(payload)
+        template.requires_video_evidence = self._template_requires_video(payload)
         template.requires_pre_form = bool(payload.requires_pre_form)
         template.subtasks.clear()
         self._apply_template_payload(template, payload)
@@ -276,13 +278,17 @@ class TaskApplicationService:
                     responsible_role_key="ejecutivo",
                     default_responsible_crm_user_id=None,
                     close_comment_required=False,
+                    requires_arrival_comment=False,
+                    requires_video_evidence=False,
                     next_assignment_policy=NextAssignmentPolicy.MANUAL_REQUIRED.value,
                     subtask_type=SubtaskType.PRE_FORM.value,
                 )
             )
 
+        ordered_payload_subtasks = sorted(payload.subtasks, key=lambda item: item.order_index)
+        self._apply_legacy_template_rules(payload, ordered_payload_subtasks)
         order_offset = 1 if template.requires_pre_form else 0
-        for user_subtask_index, subtask_payload in enumerate(sorted(payload.subtasks, key=lambda item: item.order_index)):
+        for user_subtask_index, subtask_payload in enumerate(ordered_payload_subtasks):
             self._validate_default_user(subtask_payload.default_responsible_crm_user_id, subtask_payload.responsible_role_key)
             template_subtask = TaskTemplateSubtask(
                 subtask_title=subtask_payload.subtask_title.strip(),
@@ -291,6 +297,8 @@ class TaskApplicationService:
                 responsible_role_key=subtask_payload.responsible_role_key,
                 default_responsible_crm_user_id=subtask_payload.default_responsible_crm_user_id,
                 close_comment_required=subtask_payload.close_comment_required,
+                requires_arrival_comment=bool(subtask_payload.requires_arrival_comment),
+                requires_video_evidence=bool(subtask_payload.requires_video_evidence),
                 next_assignment_policy=subtask_payload.next_assignment_policy,
                 subtask_type=(
                     SubtaskType.STANDARD.value
@@ -308,6 +316,42 @@ class TaskApplicationService:
                     )
                 )
             template.subtasks.append(template_subtask)
+
+        template.requires_arrival_comment = any(item.requires_arrival_comment for item in template.subtasks)
+        template.requires_video_evidence = any(item.requires_video_evidence for item in template.subtasks)
+
+    def _template_requires_arrival(self, payload: CreateTaskTemplateRequest | UpdateTaskTemplateRequest) -> bool:
+        if self._payload_has_explicit_subtask_rules(payload):
+            return any(subtask.requires_arrival_comment for subtask in payload.subtasks)
+        return bool(payload.requires_arrival_comment)
+
+    def _template_requires_video(self, payload: CreateTaskTemplateRequest | UpdateTaskTemplateRequest) -> bool:
+        if self._payload_has_explicit_subtask_rules(payload):
+            return any(subtask.requires_video_evidence for subtask in payload.subtasks)
+        return bool(payload.requires_video_evidence)
+
+    def _payload_has_explicit_subtask_rules(self, payload: CreateTaskTemplateRequest | UpdateTaskTemplateRequest) -> bool:
+        return any(
+            "requires_arrival_comment" in subtask.model_fields_set
+            or "requires_video_evidence" in subtask.model_fields_set
+            for subtask in payload.subtasks
+        )
+
+    def _apply_legacy_template_rules(
+        self,
+        payload: CreateTaskTemplateRequest | UpdateTaskTemplateRequest,
+        ordered_subtasks: list,
+    ) -> None:
+        if self._payload_has_explicit_subtask_rules(payload):
+            return
+        if not ordered_subtasks:
+            return
+
+        final_subtask = ordered_subtasks[-1]
+        if payload.requires_arrival_comment:
+            final_subtask.requires_arrival_comment = True
+        if payload.requires_video_evidence:
+            final_subtask.requires_video_evidence = True
 
     def create_task_from_template(self, actor: ResolvedCrmSession, payload: CreateTaskFromTemplateRequest) -> Task:
         self._ensure_admin_or_executive(actor)
@@ -638,9 +682,9 @@ class TaskApplicationService:
             raise TaskNotFoundError()
         if not self._is_task_pending_executive_approval(task):
             raise TaskConflictError("La tarea no está pendiente de aprobación ejecutiva.")
-        if task.requires_arrival_comment and task.arrival_registered_at is None:
+        if self._task_has_pending_required_arrival(task):
             raise TaskConflictError("Este pedido requiere llegada registrada antes de aprobar el cierre final.")
-        if task.requires_video_evidence and not self._task_has_closure_media_evidence(task):
+        if self._task_has_pending_required_closure_media(task):
             raise TaskConflictError("Este pedido requiere evidencia multimedia (foto o video) para aprobar el cierre final.")
 
         previous_assigned_crm_user_id = task.current_assigned_crm_user_id
@@ -975,7 +1019,10 @@ class TaskApplicationService:
             return
         if not comment.location_id:
             return
-        if not task.requires_arrival_comment:
+        subtask = self._subtask_for_comment(task, comment)
+        if subtask is not None and not subtask.requires_arrival_comment:
+            return
+        if subtask is None and not task.requires_arrival_comment:
             return
         if task.arrival_registered_at is not None or task.arrival_comment_id is not None:
             return
@@ -997,7 +1044,7 @@ class TaskApplicationService:
             )
         )
 
-    def _attachment_ids_have_media(self, task: Task, attachment_ids: list[str]) -> bool:
+    def _attachment_ids_have_media(self, task: Task, attachment_ids: list[str], subtask_id: str | None = None) -> bool:
         if not attachment_ids:
             return False
 
@@ -1012,15 +1059,18 @@ class TaskApplicationService:
         for attachment in attachments:
             if attachment.task_id != task.task_id:
                 raise TaskValidationError("Los adjuntos de cierre deben pertenecer a la misma tarea.")
+            if subtask_id is not None and attachment.subtask_id != subtask_id:
+                raise TaskValidationError("Los adjuntos de cierre deben pertenecer a la misma subtarea.")
 
         allowed_media_types = {TaskAttachmentType.PHOTO.value, TaskAttachmentType.VIDEO.value}
         return any(attachment.attachment_type in allowed_media_types for attachment in attachments)
 
-    def _task_has_closure_media_evidence(self, task: Task) -> bool:
+    def _task_has_closure_media_evidence(self, task: Task, subtask_id: str | None = None) -> bool:
         closure_comment_ids = {
             comment.task_comment_id
             for comment in task.comments
             if comment.comment_type == TaskCommentType.CLOSURE_EVIDENCE.value
+            and (subtask_id is None or comment.subtask_id == subtask_id)
         }
         if not closure_comment_ids:
             return False
@@ -1036,16 +1086,39 @@ class TaskApplicationService:
 
     def _validate_task_close_requirements(self, task: Task, subtask: Subtask, attachment_ids: list[str]) -> None:
         next_subtask = next((item for item in task.subtasks if item.order_index == subtask.order_index + 1), None)
-        if next_subtask is not None:
-            return
+        has_subtask_arrival_rules = any(item.requires_arrival_comment for item in task.subtasks)
+        has_subtask_media_rules = any(item.requires_video_evidence for item in task.subtasks)
+        requires_arrival = subtask.requires_arrival_comment or (
+            next_subtask is None and task.requires_arrival_comment and not has_subtask_arrival_rules
+        )
+        requires_media = subtask.requires_video_evidence or (
+            next_subtask is None and task.requires_video_evidence and not has_subtask_media_rules
+        )
 
-        if task.requires_arrival_comment and task.arrival_registered_at is None:
+        if requires_arrival and task.arrival_registered_at is None:
             raise TaskValidationError(
                 "Este pedido requiere registrar llegada antes del cierre final. Agregá un comentario con ubicación y multimedia."
             )
 
-        if task.requires_video_evidence and not self._attachment_ids_have_media(task, attachment_ids):
-            raise TaskValidationError("El cierre final requiere al menos un adjunto multimedia (foto o video) como evidencia.")
+        if requires_media and not self._attachment_ids_have_media(task, attachment_ids, subtask.subtask_id):
+            raise TaskValidationError("El cierre de esta subtarea requiere al menos un adjunto multimedia (foto o video) como evidencia.")
+
+    def _subtask_for_comment(self, task: Task, comment: TaskComment) -> Subtask | None:
+        if comment.subtask_id is None:
+            return None
+        return next((subtask for subtask in task.subtasks if subtask.subtask_id == comment.subtask_id), None)
+
+    def _task_has_pending_required_arrival(self, task: Task) -> bool:
+        return (task.requires_arrival_comment or any(subtask.requires_arrival_comment for subtask in task.subtasks)) and task.arrival_registered_at is None
+
+    def _task_has_pending_required_closure_media(self, task: Task) -> bool:
+        required_subtasks = [subtask for subtask in task.subtasks if subtask.requires_video_evidence]
+        if not required_subtasks and task.requires_video_evidence:
+            return not self._task_has_closure_media_evidence(task)
+        return any(
+            not self._task_has_closure_media_evidence(task, subtask.subtask_id)
+            for subtask in required_subtasks
+        )
 
     @staticmethod
     def _hash_token(raw_token: str) -> str:

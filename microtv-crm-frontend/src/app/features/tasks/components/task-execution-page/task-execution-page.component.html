@@ -117,11 +117,11 @@
       </div>
     </div>
 
-    @if (task.requires_arrival_comment && !task.arrival_registered_at) {
+    @if (requiresArrivalRegistration()) {
       <mat-card class="task-execution-page__flash task-execution-page__flash--error">
         <mat-card-content>
           <mat-icon>location_on</mat-icon>
-          <p>Falta registrar llegada. El cierre final del pedido se bloquea hasta que exista comentario de llegada.</p>
+          <p>Falta registrar llegada. Esta subtarea se bloquea hasta que exista comentario de llegada.</p>
         </mat-card-content>
       </mat-card>
     }

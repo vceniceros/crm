@@ -73,8 +73,6 @@ export class TaskTemplateFormPageComponent {
     template_name: this.formBuilder.control('', { validators: [Validators.required], nonNullable: true }),
     description: this.formBuilder.control<string | null>(null),
     is_active: this.formBuilder.control(true, { nonNullable: true }),
-    requires_arrival_comment: this.formBuilder.control(false, { nonNullable: true }),
-    requires_video_evidence: this.formBuilder.control(false, { nonNullable: true }),
     requires_pre_form: this.formBuilder.control(false, { nonNullable: true }),
     pre_form_title: this.formBuilder.control<string | null>(null),
     pre_form_instructions: this.formBuilder.control<string | null>(null),
@@ -162,7 +160,10 @@ export class TaskTemplateFormPageComponent {
   }
 
   duplicateSubtask(index: number): void {
-    const snapshot = this.subtasks.at(index).getRawValue() as TaskTemplateSubtaskWriteRequest;
+    const snapshot = this.subtasks.at(index).getRawValue() as TaskTemplateSubtaskWriteRequest & {
+      requires_arrival_comment: boolean;
+      requires_video_evidence: boolean;
+    };
     this.subtasks.insert(index + 1, this.createSubtaskGroup(snapshot));
     this.resequenceSubtasks();
     this.loadUsersForSubtask(index + 1);
@@ -325,8 +326,6 @@ export class TaskTemplateFormPageComponent {
       template_name: template.template_name,
       description: template.description,
       is_active: template.is_active,
-      requires_arrival_comment: template.requires_arrival_comment,
-      requires_video_evidence: template.requires_video_evidence,
       requires_pre_form: template.requires_pre_form,
       pre_form_title: template.pre_form?.title ?? null,
       pre_form_instructions: template.pre_form?.instructions ?? null,
@@ -358,7 +357,7 @@ export class TaskTemplateFormPageComponent {
     this.subtasks.clear();
     template.subtasks
       .sort((left, right) => left.order_index - right.order_index)
-      .forEach((subtask) => {
+      .forEach((subtask, subtaskIndex) => {
         this.subtasks.push(
           this.createSubtaskGroup({
             subtask_title: subtask.subtask_title,
@@ -367,6 +366,8 @@ export class TaskTemplateFormPageComponent {
             responsible_role_key: subtask.responsible_role_key,
             default_responsible_crm_user_id: subtask.default_responsible_crm_user_id,
             close_comment_required: subtask.close_comment_required,
+            requires_arrival_comment: subtask.requires_arrival_comment,
+            requires_video_evidence: subtask.requires_video_evidence,
             next_assignment_policy: subtask.next_assignment_policy,
             subtask_type: subtask.subtask_type,
             items: subtask.items.map((item) => ({
@@ -382,7 +383,7 @@ export class TaskTemplateFormPageComponent {
     this.subtasks.controls.forEach((_, index) => this.loadUsersForSubtask(index));
   }
 
-  private createSubtaskGroup(subtask?: Partial<TaskTemplateSubtaskWriteRequest>) {
+  private createSubtaskGroup(subtask?: Partial<TaskTemplateSubtaskWriteRequest & { requires_arrival_comment: boolean; requires_video_evidence: boolean }>) {
     const items = (subtask?.items?.length ? subtask.items : [undefined]).map((item, itemIndex) =>
       this.createItemGroup(item ? item : { item_order: itemIndex })
     );
@@ -394,6 +395,8 @@ export class TaskTemplateFormPageComponent {
       responsible_role_key: this.formBuilder.control(subtask?.responsible_role_key ?? 'tecnico', { validators: [Validators.required], nonNullable: true }),
       default_responsible_crm_user_id: this.formBuilder.control<string | null>(subtask?.default_responsible_crm_user_id ?? null),
       close_comment_required: this.formBuilder.control(subtask?.close_comment_required ?? true, { nonNullable: true }),
+      requires_arrival_comment: this.formBuilder.control(subtask?.requires_arrival_comment ?? false, { nonNullable: true }),
+      requires_video_evidence: this.formBuilder.control(subtask?.requires_video_evidence ?? false, { nonNullable: true }),
       next_assignment_policy: this.formBuilder.control<TaskAssignmentPolicy>(subtask?.next_assignment_policy ?? 'role_queue_auto', { nonNullable: true }),
       subtask_type: this.formBuilder.control<TaskSubtaskType>(subtask?.subtask_type ?? 'standard', { nonNullable: true }),
       items: this.formBuilder.array(items)
@@ -476,11 +479,30 @@ export class TaskTemplateFormPageComponent {
 
   private serializeForm(): CreateTaskTemplateRequest {
     const requiresPreForm = this.form.controls.requires_pre_form.getRawValue();
+    const subtasks = this.subtasks.controls.map((subtaskControl, subtaskIndex) => ({
+      subtask_title: String(subtaskControl.get('subtask_title')?.value ?? '').trim(),
+      subtask_description: String(subtaskControl.get('subtask_description')?.value ?? '').trim() || null,
+      order_index: subtaskIndex,
+      responsible_role_key: String(subtaskControl.get('responsible_role_key')?.value ?? ''),
+      default_responsible_crm_user_id: String(subtaskControl.get('default_responsible_crm_user_id')?.value ?? '').trim() || null,
+      close_comment_required: Boolean(subtaskControl.get('close_comment_required')?.value),
+      requires_arrival_comment: Boolean(subtaskControl.get('requires_arrival_comment')?.value),
+      requires_video_evidence: Boolean(subtaskControl.get('requires_video_evidence')?.value),
+      next_assignment_policy: subtaskControl.get('next_assignment_policy')?.value as TaskAssignmentPolicy,
+      subtask_type: (subtaskControl.get('subtask_type')?.value as TaskSubtaskType) || 'standard',
+      items: (subtaskControl.get('items') as FormArray).controls.map((itemControl, itemIndex) => ({
+        item_label: String(itemControl.get('item_label')?.value ?? '').trim(),
+        item_order: itemIndex,
+        item_type: itemControl.get('item_type')?.value as TaskItemType,
+        is_required: Boolean(itemControl.get('is_required')?.value)
+      }))
+    }));
+
     return {
       template_name: this.form.controls.template_name.getRawValue().trim(),
       description: this.form.controls.description.getRawValue()?.trim() || null,
-      requires_arrival_comment: this.form.controls.requires_arrival_comment.getRawValue(),
-      requires_video_evidence: this.form.controls.requires_video_evidence.getRawValue(),
+      requires_arrival_comment: this.subtasks.controls.some((subtaskControl) => Boolean(subtaskControl.get('requires_arrival_comment')?.value)),
+      requires_video_evidence: this.subtasks.controls.some((subtaskControl) => Boolean(subtaskControl.get('requires_video_evidence')?.value)),
       requires_pre_form: requiresPreForm,
       pre_form: requiresPreForm
         ? {
@@ -502,22 +524,7 @@ export class TaskTemplateFormPageComponent {
           notes: String(control.get('notes')?.value ?? '').trim() || null
         }))
         .filter((material) => material.product_id),
-      subtasks: this.subtasks.controls.map((subtaskControl, subtaskIndex) => ({
-        subtask_title: String(subtaskControl.get('subtask_title')?.value ?? '').trim(),
-        subtask_description: String(subtaskControl.get('subtask_description')?.value ?? '').trim() || null,
-        order_index: subtaskIndex,
-        responsible_role_key: String(subtaskControl.get('responsible_role_key')?.value ?? ''),
-        default_responsible_crm_user_id: String(subtaskControl.get('default_responsible_crm_user_id')?.value ?? '').trim() || null,
-        close_comment_required: Boolean(subtaskControl.get('close_comment_required')?.value),
-        next_assignment_policy: subtaskControl.get('next_assignment_policy')?.value as TaskAssignmentPolicy,
-        subtask_type: (subtaskControl.get('subtask_type')?.value as TaskSubtaskType) || 'standard',
-        items: (subtaskControl.get('items') as FormArray).controls.map((itemControl, itemIndex) => ({
-          item_label: String(itemControl.get('item_label')?.value ?? '').trim(),
-          item_order: itemIndex,
-          item_type: itemControl.get('item_type')?.value as TaskItemType,
-          is_required: Boolean(itemControl.get('is_required')?.value)
-        }))
-      }))
+      subtasks
     };
   }
 }

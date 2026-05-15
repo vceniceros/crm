@@ -39,6 +39,20 @@ class StockProductRepository:
         )
         return list(self._session.scalars(statement).unique().all())
 
+    def list_all(self) -> list[StockProduct]:
+        """Lista todos los productos, activos e inactivos."""
+
+        statement = (
+            select(StockProduct)
+            .options(
+                joinedload(StockProduct.category),
+                selectinload(StockProduct.movements),
+                selectinload(StockProduct.stock_entries),
+            )
+            .order_by(StockProduct.created_at.asc())
+        )
+        return list(self._session.scalars(statement).unique().all())
+
     def get_by_id(self, product_id: str) -> StockProduct | None:
         """Obtiene un producto por identificador.
 
@@ -69,6 +83,12 @@ class StockProductRepository:
             .where(StockProduct.product_code == product_code)
         )
         return self._session.scalar(statement)
+
+    @property
+    def session(self) -> Session:
+        """Expone la sesion para operaciones transaccionales de inventario."""
+
+        return self._session
 
     def get_default_warehouse_id(self) -> str:
         """Devuelve el depósito por defecto del módulo de inventario."""

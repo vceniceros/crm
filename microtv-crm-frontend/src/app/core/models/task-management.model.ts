@@ -41,6 +41,8 @@ export interface TaskTemplateSubtaskWriteRequest {
   responsible_role_key: string;
   default_responsible_crm_user_id: string | null;
   close_comment_required: boolean;
+  requires_arrival_comment: boolean;
+  requires_video_evidence: boolean;
   next_assignment_policy: TaskAssignmentPolicy;
   subtask_type: TaskSubtaskType;
   items: TaskTemplateItemWriteRequest[];
@@ -165,6 +167,8 @@ export interface TaskTemplateSubtask {
   responsible_role_key: string;
   default_responsible_crm_user_id: string | null;
   close_comment_required: boolean;
+  requires_arrival_comment: boolean;
+  requires_video_evidence: boolean;
   next_assignment_policy: TaskAssignmentPolicy;
   subtask_type: TaskSubtaskType;
   items: TaskTemplateItem[];
@@ -313,6 +317,8 @@ export interface Subtask {
   default_responsible_crm_user_id: string | null;
   default_assigned_user_display_name: string | null;
   close_comment_required: boolean;
+  requires_arrival_comment: boolean;
+  requires_video_evidence: boolean;
   next_assignment_policy: TaskAssignmentPolicy;
   subtask_type: TaskSubtaskType;
   status: SubtaskStatus;

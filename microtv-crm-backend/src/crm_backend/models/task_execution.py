@@ -275,6 +275,8 @@ class Subtask(Base):
     responsible_role_key: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     default_responsible_crm_user_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id"), nullable=True)
     close_comment_required: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    requires_arrival_comment: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    requires_video_evidence: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     next_assignment_policy: Mapped[str] = mapped_column(String(50), default="role_queue_auto", server_default="role_queue_auto")
     subtask_type: Mapped[str] = mapped_column(String(50), default=SubtaskType.STANDARD.value, server_default=SubtaskType.STANDARD.value)
     status: Mapped[str] = mapped_column(String(50), default=SubtaskStatus.LOCKED.value, index=True)

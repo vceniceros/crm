@@ -28,6 +28,7 @@
 .inventory-requests-page__eyebrow,
 .inventory-requests-page__meta,
 .inventory-requests-page__reason,
+.inventory-requests-page__context,
 .inventory-requests-page__item span,
 .inventory-requests-page__message p,
 .inventory-requests-page__top h2 {
@@ -37,6 +38,34 @@
 .inventory-requests-page__eyebrow,
 .inventory-requests-page__meta {
   color: var(--text-secondary);
+}
+
+.inventory-requests-page__top h2 {
+  margin-top: 0.25rem;
+  font-size: 1.15rem;
+  line-height: 1.25;
+}
+
+.inventory-requests-page__context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.inventory-requests-page__context span {
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(23, 24, 26, 0.05);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.inventory-requests-page__reason {
+  margin-top: 0.85rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
 }
 
 .inventory-requests-page__items {
@@ -49,6 +78,11 @@
   padding: 0.85rem 1rem;
   border-radius: 1rem;
   background: rgba(23, 24, 26, 0.03);
+}
+
+.inventory-requests-page__item div {
+  display: grid;
+  gap: 0.2rem;
 }
 
 .inventory-requests-page__actions {

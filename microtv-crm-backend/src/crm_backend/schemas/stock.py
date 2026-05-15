@@ -143,3 +143,62 @@ class UpdateProductLocationRequest(BaseModel):
 class SetStockRequest(BaseModel):
     quantity: int = Field(..., ge=0)
     reason: str | None = Field(default=None, max_length=255)
+
+
+class StockImportRowPreview(BaseModel):
+    row_number: int
+    image_url: str
+    product_code: str
+    product_name: str
+    category_name: str
+    imported_stock: int
+    old_stock: int
+    new_stock: int
+    ubication: str | None
+    shelf_id: str | None
+    shelf_height: int | None
+    is_new_product: bool
+    is_valid: bool
+    errors: list[str] = Field(default_factory=list)
+
+
+class StockImportPreviewResponse(BaseModel):
+    import_id: str
+    status: str
+    filename: str
+    total_rows: int
+    valid_rows: int
+    invalid_rows: int
+    created_count: int
+    updated_count: int
+    total_import_stock: int
+    can_confirm: bool
+    rows: list[StockImportRowPreview]
+
+
+class StockImportConfirmResponse(BaseModel):
+    import_id: str
+    backup_id: str
+    status: str
+    created_count: int
+    updated_count: int
+    total_import_stock: int
+    products: list[StockProductResponse]
+
+
+class StockBackupStatusResponse(BaseModel):
+    has_backup: bool
+    import_id: str | None = None
+    backup_id: str | None = None
+    filename: str | None = None
+    created_at: datetime | None = None
+    total_rows: int = 0
+    total_import_stock: int = 0
+
+
+class StockRollbackResponse(BaseModel):
+    import_id: str
+    backup_id: str
+    restored_products: int
+    deactivated_created_products: int
+    products: list[StockProductResponse]

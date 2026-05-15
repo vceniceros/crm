@@ -153,6 +153,7 @@ export class TicketExecutionPageComponent {
   readonly exportingHistory = signal(false);
   readonly generatingSurvey = signal(false);
   readonly loadingSurveyStatus = signal(false);
+  readonly timelineSortDirection = signal<'newest' | 'oldest'>('newest');
 
   readonly commentForm = this.formBuilder.group({
     body: this.formBuilder.control('', { validators: [Validators.required], nonNullable: true })
@@ -481,6 +482,10 @@ export class TicketExecutionPageComponent {
     return [...commentEvents, ...statusEvents, ...assignmentEvents, ...requestEvents, ...dispatchEvents, ...receiptEvents].sort((left, right) =>
       right.occurredAt.localeCompare(left.occurredAt)
     );
+  });
+  readonly displayedTimelineEvents = computed<readonly TicketTimelineEvent[]>(() => {
+    const events = this.timelineEvents();
+    return this.timelineSortDirection() === 'newest' ? events : [...events].reverse();
   });
 
   constructor() {
@@ -1567,6 +1572,10 @@ export class TicketExecutionPageComponent {
     this.dispatchComposerForm.controls.identifier_type.setValue(product.requiresTracking ? 'serial' : 'none');
     this.dispatchComposerForm.controls.quantity_dispatched.setValue(1);
     this.dispatchComposerForm.controls.identifier_value.setValue(null);
+  }
+
+  toggleTimelineSortDirection(): void {
+    this.timelineSortDirection.update((direction) => (direction === 'newest' ? 'oldest' : 'newest'));
   }
 
   timelineTone(event: TicketTimelineEvent): 'neutral' | 'progress' | 'warning' | 'success' {
