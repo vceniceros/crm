@@ -300,6 +300,7 @@ def _ensure_extension_tables(session: Session) -> None:
 
     _ensure_inventory_product_columns(session, inspector)
     _ensure_inventory_dispatch_columns(session, inspector)
+    _ensure_task_rule_columns(session, inspector)
     _ensure_task_attachment_columns(session, inspector)
     _ensure_ticket_attachment_columns(session, inspector)
     _ensure_ticket_columns(session, inspector)
@@ -331,6 +332,93 @@ def _ensure_inventory_product_columns(session: Session, inspector=None) -> None:
     # Lab environments may already have the inventory table without this newer column.
     session.execute(text("ALTER TABLE inventory_products ADD COLUMN requires_tracking BOOLEAN NOT NULL DEFAULT FALSE"))
     session.commit()
+
+
+def _ensure_task_rule_columns(session: Session, inspector=None) -> None:
+    bind = session.get_bind()
+    active_inspector = inspector or inspect(bind)
+    table_names = set(active_inspector.get_table_names())
+
+    for table_name in ("template_subtasks", "subtasks"):
+        if table_name not in table_names:
+            continue
+
+        columns = {column["name"] for column in active_inspector.get_columns(table_name)}
+        schema_changed = False
+        for column_name in ("requires_arrival_comment", "requires_video_evidence"):
+            if column_name in columns:
+                continue
+            session.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} BOOLEAN NOT NULL DEFAULT FALSE"))
+            schema_changed = True
+
+        if schema_changed:
+            session.commit()
+
+    active_inspector = inspect(bind)
+    table_names = set(active_inspector.get_table_names())
+    if {"task_templates", "template_subtasks"}.issubset(table_names):
+        template_columns = {column["name"] for column in active_inspector.get_columns("task_templates")}
+        subtask_columns = {column["name"] for column in active_inspector.get_columns("template_subtasks")}
+        if {
+            "requires_arrival_comment",
+            "requires_video_evidence",
+        }.issubset(template_columns | subtask_columns) and {
+            "requires_arrival_comment",
+            "requires_video_evidence",
+        }.issubset(subtask_columns):
+            session.execute(
+                text(
+                    "UPDATE template_subtasks "
+                    "SET requires_arrival_comment = TRUE "
+                    "WHERE template_id IN (SELECT template_id FROM task_templates WHERE requires_arrival_comment = TRUE) "
+                    "  AND order_index = ("
+                    "    SELECT MAX(ts2.order_index) FROM template_subtasks ts2 WHERE ts2.template_id = template_subtasks.template_id"
+                    "  )"
+                )
+            )
+            session.execute(
+                text(
+                    "UPDATE template_subtasks "
+                    "SET requires_video_evidence = TRUE "
+                    "WHERE template_id IN (SELECT template_id FROM task_templates WHERE requires_video_evidence = TRUE) "
+                    "  AND order_index = ("
+                    "    SELECT MAX(ts2.order_index) FROM template_subtasks ts2 WHERE ts2.template_id = template_subtasks.template_id"
+                    "  )"
+                )
+            )
+            session.commit()
+
+    if {"tasks", "subtasks"}.issubset(table_names):
+        task_columns = {column["name"] for column in active_inspector.get_columns("tasks")}
+        subtask_columns = {column["name"] for column in active_inspector.get_columns("subtasks")}
+        if {
+            "requires_arrival_comment",
+            "requires_video_evidence",
+        }.issubset(task_columns | subtask_columns) and {
+            "requires_arrival_comment",
+            "requires_video_evidence",
+        }.issubset(subtask_columns):
+            session.execute(
+                text(
+                    "UPDATE subtasks "
+                    "SET requires_arrival_comment = TRUE "
+                    "WHERE task_id IN (SELECT task_id FROM tasks WHERE requires_arrival_comment = TRUE) "
+                    "  AND order_index = ("
+                    "    SELECT MAX(s2.order_index) FROM subtasks s2 WHERE s2.task_id = subtasks.task_id"
+                    "  )"
+                )
+            )
+            session.execute(
+                text(
+                    "UPDATE subtasks "
+                    "SET requires_video_evidence = TRUE "
+                    "WHERE task_id IN (SELECT task_id FROM tasks WHERE requires_video_evidence = TRUE) "
+                    "  AND order_index = ("
+                    "    SELECT MAX(s2.order_index) FROM subtasks s2 WHERE s2.task_id = subtasks.task_id"
+                    "  )"
+                )
+            )
+            session.commit()
 
 
 def _ensure_task_attachment_columns(session: Session, inspector=None) -> None:

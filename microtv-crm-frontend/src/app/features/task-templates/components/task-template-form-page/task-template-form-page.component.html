@@ -46,8 +46,6 @@
             <mat-slide-toggle formControlName="is_active">Template activo</mat-slide-toggle>
           }
 
-          <mat-slide-toggle formControlName="requires_arrival_comment">Requiere registro de llegada</mat-slide-toggle>
-          <mat-slide-toggle formControlName="requires_video_evidence">Requiere video para cierre final</mat-slide-toggle>
           <mat-slide-toggle formControlName="requires_pre_form">Requiere formulario previo</mat-slide-toggle>
         </mat-card-content>
       </mat-card>
@@ -276,7 +274,11 @@
                   </mat-select>
                 </mat-form-field>
 
-                <mat-checkbox formControlName="close_comment_required">Comentario obligatorio al cerrar</mat-checkbox>
+                <div class="task-template-form-page__subtask-rules task-template-form-page__full-width">
+                  <mat-checkbox formControlName="requires_arrival_comment">Cargar llegada en esta subtarea</mat-checkbox>
+                  <mat-checkbox formControlName="requires_video_evidence">Cerrar con multimedia en esta subtarea</mat-checkbox>
+                  <mat-checkbox formControlName="close_comment_required">Comentario obligatorio al cerrar</mat-checkbox>
+                </div>
               </div>
 
               <div class="task-template-form-page__items-header">

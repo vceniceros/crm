@@ -94,6 +94,8 @@ class TaskTemplateSubtask(Base):
         nullable=True,
     )
     close_comment_required: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    requires_arrival_comment: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    requires_video_evidence: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     next_assignment_policy: Mapped[str] = mapped_column(String(50), default=NextAssignmentPolicy.ROLE_QUEUE_AUTO.value)
     subtask_type: Mapped[str] = mapped_column(String(50), default=SubtaskType.STANDARD.value, server_default=SubtaskType.STANDARD.value)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

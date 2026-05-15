@@ -252,11 +252,10 @@ export class TaskExecutionPageComponent {
   });
   readonly requiresArrivalRegistration = computed(() => {
     const currentTask = this.task();
-    return Boolean(currentTask?.requires_arrival_comment && !currentTask.arrival_registered_at);
+    return Boolean(this.selectedSubtask()?.requires_arrival_comment && !currentTask?.arrival_registered_at);
   });
   readonly requiresVideoEvidenceForCurrentClose = computed(() => {
-    const currentTask = this.task();
-    return Boolean(currentTask?.requires_video_evidence && this.isSelectedSubtaskFinal());
+    return Boolean(this.selectedSubtask()?.requires_video_evidence);
   });
   readonly isCloseBlockedByVideoRequirement = computed(() => {
     return this.requiresVideoEvidenceForCurrentClose() && this.pendingAttachments().length === 0;

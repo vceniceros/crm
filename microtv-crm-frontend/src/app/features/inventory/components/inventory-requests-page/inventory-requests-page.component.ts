@@ -43,5 +43,32 @@ export class InventoryRequestsPageComponent {
     return sourceType === 'TASK' ? ['/tasks', sourceReferenceId] : ['/tickets', sourceReferenceId];
   }
 
+  sourceLabel(sourceType: string): string {
+    return sourceType === 'TASK' ? 'Pedido' : 'Ticket';
+  }
+
+  sourceActionLabel(sourceType: string): string {
+    return sourceType === 'TASK' ? 'Abrir pedido' : 'Abrir ticket';
+  }
+
+  requestTitle(request: { request_reason: string | null; items: Array<{ product_name: string; quantity_requested: number }> }): string {
+    const reason = request.request_reason?.trim();
+    if (reason) {
+      return reason;
+    }
+
+    const firstItem = request.items[0];
+    if (!firstItem) {
+      return 'Solicitud de materiales';
+    }
+
+    const suffix = request.items.length > 1 ? ` y ${request.items.length - 1} item(s) más` : '';
+    return `${firstItem.product_name} x${firstItem.quantity_requested}${suffix}`;
+  }
+
+  shortId(value: string | null | undefined): string {
+    return value ? value.slice(0, 8) : 'sin ID';
+  }
+
   readonly formatInventoryRequestStatus = formatInventoryRequestStatus;
 }
