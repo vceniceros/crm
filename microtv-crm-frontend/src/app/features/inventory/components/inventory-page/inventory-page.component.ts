@@ -4,7 +4,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { BehaviorSubject, combineLatest, map } from 'rxjs';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { BehaviorSubject, combineLatest, firstValueFrom, map } from 'rxjs';
 
 import { InventoryProduct } from '../../../../core/models/inventory-product.model';
 import { UI_HELP_TEXTS } from '../../../../core/config/ui-help-texts.config';
@@ -23,6 +24,7 @@ import { InventoryTableComponent } from '../inventory-table/inventory-table.comp
     MatButtonModule,
     MatDialogModule,
     MatIconModule,
+    MatSnackBarModule,
     ContextHelpCardComponent,
     PageTitleComponent,
     InventoryTableComponent
@@ -32,6 +34,7 @@ import { InventoryTableComponent } from '../inventory-table/inventory-table.comp
 })
 export class InventoryPageComponent {
   private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
   private readonly destroyRef = inject(DestroyRef);
   private readonly permissionService = inject(PermissionService);
   private readonly inventoryService = inject(InventoryService);
@@ -93,6 +96,60 @@ export class InventoryPageComponent {
     });
   }
 
+  async previewStockImport(event: Event): Promise<void> {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement)) {
+      return;
+    }
+
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file || !this.canCreateProducts()) {
+      return;
+    }
+
+    try {
+      const preview = await firstValueFrom(this.inventoryService.previewStockImport(file));
+      const { StockImportPreviewDialogComponent } = await import('../stock-import-preview-dialog/stock-import-preview-dialog.component');
+      this.dialog.open(StockImportPreviewDialogComponent, {
+        data: preview,
+        autoFocus: false,
+        maxWidth: 'calc(100vw - 1.5rem)',
+        width: '72rem'
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo previsualizar la importacion.';
+      this.snackBar.open(message, 'Cerrar', { duration: 5000 });
+    }
+  }
+
+  async rollbackLatestStock(): Promise<void> {
+    if (!this.canRollbackStock()) {
+      return;
+    }
+
+    try {
+      const backup = await firstValueFrom(this.inventoryService.getLatestStockBackup());
+      if (!backup.hasBackup || !backup.importId) {
+        this.snackBar.open('No hay un backup de stock disponible.', 'Cerrar', { duration: 3000 });
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `Se va a volver al stock anterior a la importacion "${backup.filename ?? backup.importId}". Esta accion solo debe usarse si la importacion salio mal. Continuar?`
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      const result = await firstValueFrom(this.inventoryService.rollbackStockImport(backup.importId));
+      this.snackBar.open(`Stock anterior restaurado. Productos restaurados: ${result.restoredProducts}.`, 'Cerrar', { duration: 4000 });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo volver al stock anterior.';
+      this.snackBar.open(message, 'Cerrar', { duration: 5000 });
+    }
+  }
+
   clearFilters(): void {
     this.querySubject.next('');
     this.categoryIdSubject.next('all');
@@ -114,6 +171,10 @@ export class InventoryPageComponent {
 
   canCreateProducts(): boolean {
     return this.permissionService.canManageStock();
+  }
+
+  canRollbackStock(): boolean {
+    return this.permissionService.canDeleteProduct();
   }
 
   private matchesCategory(product: InventoryProduct, categoryId: string): boolean {

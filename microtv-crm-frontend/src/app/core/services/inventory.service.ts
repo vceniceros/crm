@@ -5,7 +5,17 @@ import { BehaviorSubject, Observable, forkJoin, map, shareReplay, tap, catchErro
 import { crmApiConfig } from '../config/crm-api.config';
 import { CreateInventoryProductFormValue } from '../models/create-product.model';
 import { InventoryCategory } from '../models/inventory-category.model';
-import { InventoryPageData, InventoryProduct, InventoryTableColumn, InventoryTableData } from '../models/inventory-product.model';
+import {
+  InventoryPageData,
+  InventoryProduct,
+  InventoryTableColumn,
+  InventoryTableData,
+  StockBackupStatus,
+  StockImportConfirmResult,
+  StockImportPreview,
+  StockImportRowPreview,
+  StockRollbackResult
+} from '../models/inventory-product.model';
 import { resolveBackendAssetUrl } from '../utils/backend-asset-url.util';
 import { AuthSessionService } from './auth-session.service';
 
@@ -40,6 +50,63 @@ interface StockProductResponseDto {
   created_at: string;
   updated_at: string | null;
   is_active: boolean;
+}
+
+interface StockImportRowPreviewDto {
+  row_number: number;
+  image_url: string;
+  product_code: string;
+  product_name: string;
+  category_name: string;
+  imported_stock: number;
+  old_stock: number;
+  new_stock: number;
+  ubication: string | null;
+  is_new_product: boolean;
+  is_valid: boolean;
+  errors: string[];
+}
+
+interface StockImportPreviewResponseDto {
+  import_id: string;
+  status: string;
+  filename: string;
+  total_rows: number;
+  valid_rows: number;
+  invalid_rows: number;
+  created_count: number;
+  updated_count: number;
+  total_import_stock: number;
+  can_confirm: boolean;
+  rows: StockImportRowPreviewDto[];
+}
+
+interface StockImportConfirmResponseDto {
+  import_id: string;
+  backup_id: string;
+  status: string;
+  created_count: number;
+  updated_count: number;
+  total_import_stock: number;
+  products: StockProductResponseDto[];
+}
+
+interface StockBackupStatusResponseDto {
+  has_backup: boolean;
+  import_id: string | null;
+  backup_id: string | null;
+  filename: string | null;
+  created_at: string | null;
+  total_rows: number;
+  total_import_stock: number;
+}
+
+interface StockRollbackResponseDto {
+  import_id: string;
+  backup_id: string;
+  restored_products: number;
+  deactivated_created_products: number;
+  products: StockProductResponseDto[];
 }
 
 const tableColumns: InventoryTableColumn[] = [
@@ -206,6 +273,65 @@ export class InventoryService {
     );
   }
 
+  previewStockImport(file: File): Observable<StockImportPreview> {
+    const headers = this.buildAuthHeaders();
+    if (!headers) {
+      return this.failRequest('No hay una sesion autenticada valida para importar stock.');
+    }
+
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+
+    return this.http.post<StockImportPreviewResponseDto>(this.buildUrl('/stock/imports/preview'), formData, { headers }).pipe(
+      map((preview) => this.mapImportPreview(preview)),
+      catchError((error) => this.handleRequestError(error, 'No se pudo previsualizar la importacion.'))
+    );
+  }
+
+  confirmStockImport(importId: string): Observable<StockImportConfirmResult> {
+    const headers = this.buildAuthHeaders();
+    if (!headers) {
+      return this.failRequest('No hay una sesion autenticada valida para confirmar la importacion.');
+    }
+
+    return this.http.post<StockImportConfirmResponseDto>(this.buildUrl(`/stock/imports/${importId}/confirm`), {}, { headers }).pipe(
+      map((result) => this.mapImportConfirm(result)),
+      tap(() => {
+        this.errorMessageSubject.next(null);
+        this.refresh().subscribe({ error: () => undefined });
+      }),
+      catchError((error) => this.handleRequestError(error, 'No se pudo confirmar la importacion.'))
+    );
+  }
+
+  getLatestStockBackup(): Observable<StockBackupStatus> {
+    const headers = this.buildAuthHeaders();
+    if (!headers) {
+      return this.failRequest('No hay una sesion autenticada valida para consultar backups.');
+    }
+
+    return this.http.get<StockBackupStatusResponseDto>(this.buildUrl('/stock/imports/latest-backup'), { headers }).pipe(
+      map((backup) => this.mapBackupStatus(backup)),
+      catchError((error) => this.handleRequestError(error, 'No se pudo consultar el backup de stock.'))
+    );
+  }
+
+  rollbackStockImport(importId: string): Observable<StockRollbackResult> {
+    const headers = this.buildAuthHeaders();
+    if (!headers) {
+      return this.failRequest('No hay una sesion autenticada valida para restaurar stock.');
+    }
+
+    return this.http.post<StockRollbackResponseDto>(this.buildUrl(`/stock/imports/${importId}/rollback`), {}, { headers }).pipe(
+      map((result) => this.mapRollback(result)),
+      tap((result) => {
+        this.errorMessageSubject.next(null);
+        this.productsSubject.next(result.products);
+      }),
+      catchError((error) => this.handleRequestError(error, 'No se pudo volver al stock anterior.'))
+    );
+  }
+
   private adjustStock(
     productId: string,
     quantity: number,
@@ -259,6 +385,73 @@ export class InventoryService {
       isActive: product.is_active,
       createdAt: product.created_at,
       updatedAt: product.updated_at
+    };
+  }
+
+  private mapImportPreview(preview: StockImportPreviewResponseDto): StockImportPreview {
+    return {
+      importId: preview.import_id,
+      status: preview.status,
+      filename: preview.filename,
+      totalRows: preview.total_rows,
+      validRows: preview.valid_rows,
+      invalidRows: preview.invalid_rows,
+      createdCount: preview.created_count,
+      updatedCount: preview.updated_count,
+      totalImportStock: preview.total_import_stock,
+      canConfirm: preview.can_confirm,
+      rows: preview.rows.map((row) => this.mapImportRow(row))
+    };
+  }
+
+  private mapImportRow(row: StockImportRowPreviewDto): StockImportRowPreview {
+    return {
+      rowNumber: row.row_number,
+      imageUrl: row.image_url,
+      productCode: row.product_code,
+      productName: row.product_name,
+      categoryName: row.category_name,
+      importedStock: row.imported_stock,
+      oldStock: row.old_stock,
+      newStock: row.new_stock,
+      ubication: row.ubication,
+      isNewProduct: row.is_new_product,
+      isValid: row.is_valid,
+      errors: row.errors ?? []
+    };
+  }
+
+  private mapImportConfirm(result: StockImportConfirmResponseDto): StockImportConfirmResult {
+    return {
+      importId: result.import_id,
+      backupId: result.backup_id,
+      status: result.status,
+      createdCount: result.created_count,
+      updatedCount: result.updated_count,
+      totalImportStock: result.total_import_stock,
+      products: result.products.map((product) => this.mapProduct(product))
+    };
+  }
+
+  private mapBackupStatus(backup: StockBackupStatusResponseDto): StockBackupStatus {
+    return {
+      hasBackup: backup.has_backup,
+      importId: backup.import_id,
+      backupId: backup.backup_id,
+      filename: backup.filename,
+      createdAt: backup.created_at,
+      totalRows: backup.total_rows,
+      totalImportStock: backup.total_import_stock
+    };
+  }
+
+  private mapRollback(result: StockRollbackResponseDto): StockRollbackResult {
+    return {
+      importId: result.import_id,
+      backupId: result.backup_id,
+      restoredProducts: result.restored_products,
+      deactivatedCreatedProducts: result.deactivated_created_products,
+      products: result.products.map((product) => this.mapProduct(product))
     };
   }
 

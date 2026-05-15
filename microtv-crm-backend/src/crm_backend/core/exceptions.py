@@ -220,6 +220,34 @@ class InvalidStockProductImageError(ApplicationError):
         )
 
 
+class StockImportValidationError(ApplicationError):
+    """Senala que una importacion de stock no paso validaciones."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(code="stock_import_validation_error", message=message, status_code=422)
+
+
+class StockImportNotFoundError(ApplicationError):
+    """Senala que una importacion de stock no existe."""
+
+    def __init__(self) -> None:
+        super().__init__(code="stock_import_not_found", message="La importacion indicada no existe.", status_code=404)
+
+
+class StockImportConflictError(ApplicationError):
+    """Senala un conflicto de estado en una importacion de stock."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(code="stock_import_conflict", message=message, status_code=409)
+
+
+class StockBackupNotFoundError(ApplicationError):
+    """Senala que no hay backup disponible para rollback."""
+
+    def __init__(self) -> None:
+        super().__init__(code="stock_backup_not_found", message="No hay un backup de stock disponible para restaurar.", status_code=404)
+
+
 class TaskAccessDeniedError(ApplicationError):
     """Señala que el usuario no puede operar el módulo de tareas."""
 

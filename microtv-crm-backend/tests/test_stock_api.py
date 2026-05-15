@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from io import BytesIO
 from pathlib import Path
 from uuid import UUID
 
@@ -424,3 +425,188 @@ def test_ycc_operator_with_existing_tech_role_gains_deposito_access(client, db_s
 
     assert response.status_code == 200
     assert "encargado_deposito" in persisted_roles
+
+
+def test_stock_import_csv_preview_updates_existing_and_creates_new(client) -> None:
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeStockAuthAdapter()
+
+    products_response = client.get("/stock/products", headers={"Authorization": "Bearer access-token"})
+    existing = next(product for product in products_response.json() if product["name"] == "Splitter HDMI 1x4")
+    csv_content = (
+        "imagen,codigo,producto,categoria,stock,ubication\n"
+        f"https://example.test/splitter.png,{existing['product_code']},Splitter HDMI 1x4,Audio y video,4,A-3\n"
+        "https://example.test/new.png,PRD-IMPORT-NEW-001,Producto importado,Varios,7,\n"
+    )
+
+    response = client.post(
+        "/stock/imports/preview",
+        headers={"Authorization": "Bearer access-token"},
+        files={"file": ("stock.csv", csv_content.encode("utf-8"), "text/csv")},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["can_confirm"] is True
+    assert body["updated_count"] == 1
+    assert body["created_count"] == 1
+    assert body["total_import_stock"] == 11
+    existing_row = next(row for row in body["rows"] if row["product_code"] == existing["product_code"])
+    assert existing_row["old_stock"] == existing["current_stock"]
+    assert existing_row["new_stock"] == existing["current_stock"] + 4
+
+
+def test_stock_import_xlsx_preview_accepts_valid_file(client) -> None:
+    from openpyxl import Workbook
+
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeStockAuthAdapter()
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["imagen", "codigo", "producto", "categoria", "stock", "ubication"])
+    sheet.append(["https://example.test/xlsx.png", "PRD-XLSX-001", "Importado XLSX", "Varios", 3, "B/2"])
+    buffer = BytesIO()
+    workbook.save(buffer)
+    buffer.seek(0)
+
+    response = client.post(
+        "/stock/imports/preview",
+        headers={"Authorization": "Bearer access-token"},
+        files={"file": ("stock.xlsx", buffer.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["can_confirm"] is True
+    assert body["rows"][0]["ubication"] == "B-2"
+
+
+def test_stock_import_preview_reports_validation_errors(client) -> None:
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeStockAuthAdapter()
+
+    csv_content = (
+        "imagen,codigo,producto,categoria,stock,ubication\n"
+        "https://example.test/a.png,PRD-DUP-001,Dup,Varios,2,A-1\n"
+        "https://example.test/b.png,PRD-DUP-001,Dup again,Varios,2,A-2\n"
+        "https://example.test/c.png,PRD-BAD-CAT,Bad,No existe,2,A-3\n"
+        "https://example.test/d.png,PRD-BAD-LOC,Bad loc,Varios,2,pasillo\n"
+    )
+
+    response = client.post(
+        "/stock/imports/preview",
+        headers={"Authorization": "Bearer access-token"},
+        files={"file": ("stock.csv", csv_content.encode("utf-8"), "text/csv")},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["can_confirm"] is False
+    assert body["invalid_rows"] == 3
+    errors = " ".join(error for row in body["rows"] for error in row["errors"])
+    assert "duplicado" in errors
+    assert "categoria" in errors
+    assert "ubication" in errors
+
+
+def test_stock_import_confirm_creates_backup_and_applies_transaction(client, db_session) -> None:
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeStockAuthAdapter()
+
+    products_response = client.get("/stock/products", headers={"Authorization": "Bearer access-token"})
+    existing = next(product for product in products_response.json() if product["name"] == "Splitter HDMI 1x4")
+    csv_content = (
+        "imagen,codigo,producto,categoria,stock,ubication\n"
+        f"https://example.test/splitter.png,{existing['product_code']},Splitter HDMI 1x4,Audio y video,5,A-4\n"
+    )
+    preview_response = client.post(
+        "/stock/imports/preview",
+        headers={"Authorization": "Bearer access-token"},
+        files={"file": ("stock.csv", csv_content.encode("utf-8"), "text/csv")},
+    )
+
+    confirm_response = client.post(
+        f"/stock/imports/{preview_response.json()['import_id']}/confirm",
+        headers={"Authorization": "Bearer access-token"},
+    )
+
+    assert confirm_response.status_code == 200
+    body = confirm_response.json()
+    assert body["backup_id"]
+    assert body["products"][0]["current_stock"] == existing["current_stock"] + 5
+
+    db_session.expire_all()
+    product = db_session.scalar(select(StockProduct).where(StockProduct.product_code == existing["product_code"]))
+    assert product is not None
+    assert product.current_stock == existing["current_stock"] + 5
+
+
+def test_stock_import_confirm_rejects_stale_preview(client) -> None:
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeStockAuthAdapter()
+
+    products_response = client.get("/stock/products", headers={"Authorization": "Bearer access-token"})
+    existing = next(product for product in products_response.json() if product["name"] == "Splitter HDMI 1x4")
+    csv_content = (
+        "imagen,codigo,producto,categoria,stock,ubication\n"
+        f"https://example.test/splitter.png,{existing['product_code']},Splitter HDMI 1x4,Audio y video,5,A-4\n"
+    )
+    preview_response = client.post(
+        "/stock/imports/preview",
+        headers={"Authorization": "Bearer access-token"},
+        files={"file": ("stock.csv", csv_content.encode("utf-8"), "text/csv")},
+    )
+    client.post(
+        f"/stock/products/{existing['product_id']}/increase-stock",
+        headers={"Authorization": "Bearer access-token"},
+        json={"quantity": 1},
+    )
+
+    confirm_response = client.post(
+        f"/stock/imports/{preview_response.json()['import_id']}/confirm",
+        headers={"Authorization": "Bearer access-token"},
+    )
+
+    assert confirm_response.status_code == 409
+    assert confirm_response.json()["error"]["code"] == "stock_import_conflict"
+
+
+def test_admin_can_rollback_latest_stock_import(client) -> None:
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeStockAuthAdapter()
+
+    products_response = client.get("/stock/products", headers={"Authorization": "Bearer access-token"})
+    existing = next(product for product in products_response.json() if product["name"] == "Splitter HDMI 1x4")
+    csv_content = (
+        "imagen,codigo,producto,categoria,stock,ubication\n"
+        f"https://example.test/splitter.png,{existing['product_code']},Splitter HDMI 1x4,Audio y video,5,A-4\n"
+        "https://example.test/new.png,PRD-ROLLBACK-NEW-001,Producto rollback,Varios,2,\n"
+    )
+    preview_response = client.post(
+        "/stock/imports/preview",
+        headers={"Authorization": "Bearer access-token"},
+        files={"file": ("stock.csv", csv_content.encode("utf-8"), "text/csv")},
+    )
+    confirm_response = client.post(
+        f"/stock/imports/{preview_response.json()['import_id']}/confirm",
+        headers={"Authorization": "Bearer access-token"},
+    )
+
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeStockAuthAdapter(
+        tenant_id="MICROTV",
+        roles=["platform_admin"],
+    )
+    rollback_response = client.post(
+        f"/stock/imports/{confirm_response.json()['import_id']}/rollback",
+        headers={"Authorization": "Bearer access-token"},
+    )
+
+    assert rollback_response.status_code == 200
+    products_after = client.get("/stock/products", headers={"Authorization": "Bearer access-token"}).json()
+    restored = next(product for product in products_after if product["product_code"] == existing["product_code"])
+    assert restored["current_stock"] == existing["current_stock"]
+    assert all(product["product_code"] != "PRD-ROLLBACK-NEW-001" for product in products_after)
+
+
+def test_non_admin_cannot_rollback_stock_import(client) -> None:
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeStockAuthAdapter()
+
+    response = client.post("/stock/imports/00000000-0000-0000-0000-000000000000/rollback", headers={"Authorization": "Bearer access-token"})
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "inventory_admin_required"

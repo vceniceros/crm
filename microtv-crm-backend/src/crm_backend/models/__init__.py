@@ -9,6 +9,7 @@ from crm_backend.models.stock_category import StockCategory
 from crm_backend.models.stock_level import StockLevel
 from crm_backend.models.stock_movement import StockMovement, StockMovementType
 from crm_backend.models.stock_product import StockProduct
+from crm_backend.models.stock_import import StockBackup, StockBackupRow, StockImportBatch, StockImportRow
 from crm_backend.models.material_flow import (
 	InventoryDispatch,
 	InventoryDispatchItem,
@@ -84,6 +85,10 @@ __all__ = [
 	"StockMovement",
 	"StockMovementType",
 	"StockProduct",
+	"StockBackup",
+	"StockBackupRow",
+	"StockImportBatch",
+	"StockImportRow",
 	"InventoryDispatch",
 	"InventoryDispatchItem",
 	"InventoryRequest",
