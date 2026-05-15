@@ -300,7 +300,7 @@ def _ensure_extension_tables(session: Session) -> None:
 
     _ensure_inventory_product_columns(session, inspector)
     _ensure_inventory_dispatch_columns(session, inspector)
-    _ensure_task_rule_columns(session, inspector)
+    ensure_task_rule_columns(session, inspector)
     _ensure_task_attachment_columns(session, inspector)
     _ensure_ticket_attachment_columns(session, inspector)
     _ensure_ticket_columns(session, inspector)
@@ -334,7 +334,7 @@ def _ensure_inventory_product_columns(session: Session, inspector=None) -> None:
     session.commit()
 
 
-def _ensure_task_rule_columns(session: Session, inspector=None) -> None:
+def ensure_task_rule_columns(session: Session, inspector=None) -> None:
     bind = session.get_bind()
     active_inspector = inspector or inspect(bind)
     table_names = set(active_inspector.get_table_names())
@@ -343,16 +343,18 @@ def _ensure_task_rule_columns(session: Session, inspector=None) -> None:
         if table_name not in table_names:
             continue
 
-        columns = {column["name"] for column in active_inspector.get_columns(table_name)}
-        schema_changed = False
-        for column_name in ("requires_arrival_comment", "requires_video_evidence"):
-            if column_name in columns:
-                continue
-            session.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} BOOLEAN NOT NULL DEFAULT FALSE"))
-            schema_changed = True
-
-        if schema_changed:
+        if bind.dialect.name == "postgresql":
+            session.execute(text(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS requires_arrival_comment BOOLEAN NOT NULL DEFAULT FALSE"))
+            session.execute(text(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS requires_video_evidence BOOLEAN NOT NULL DEFAULT FALSE"))
             session.commit()
+            continue
+
+        columns = {column["name"] for column in active_inspector.get_columns(table_name)}
+        if "requires_arrival_comment" not in columns:
+            session.execute(text(f"ALTER TABLE {table_name} ADD COLUMN requires_arrival_comment BOOLEAN NOT NULL DEFAULT FALSE"))
+        if "requires_video_evidence" not in columns:
+            session.execute(text(f"ALTER TABLE {table_name} ADD COLUMN requires_video_evidence BOOLEAN NOT NULL DEFAULT FALSE"))
+        session.commit()
 
     active_inspector = inspect(bind)
     table_names = set(active_inspector.get_table_names())
