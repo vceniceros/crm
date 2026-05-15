@@ -315,6 +315,84 @@ def test_update_template_with_pre_form_keeps_single_pre_form_record(client, db_s
     assert len(pre_forms) == 1
 
 
+def test_update_template_materials_updates_existing_rows_without_duplicate_insert(client, db_session) -> None:
+    """Updating required materials must reuse existing template-material rows."""
+
+    products = list(
+        db_session.scalars(
+            select(StockProduct).where(StockProduct.is_active.is_(True), StockProduct.requires_tracking.is_(False))
+        ).all()
+    )
+    assert len(products) >= 2
+    first_product, second_product = products[:2]
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeTaskAuthAdapter()
+
+    create_response = client.post(
+        "/tasks/templates",
+        headers=_auth_header("admin-token"),
+        json={
+            "template_name": "Template con materiales",
+            "description": "Primera version",
+            "requires_arrival_comment": False,
+            "requires_video_evidence": False,
+            "requires_pre_form": False,
+            "required_materials": [
+                {"product_id": first_product.product_id, "quantity_required": 1, "notes": "Inicial"},
+            ],
+            "subtasks": [
+                {
+                    "subtask_title": "Visita tecnica",
+                    "subtask_description": "Diagnostico",
+                    "order_index": 0,
+                    "responsible_role_key": "tecnico",
+                    "default_responsible_crm_user_id": None,
+                    "close_comment_required": True,
+                    "next_assignment_policy": "role_queue_auto",
+                    "subtask_type": "standard",
+                    "items": [],
+                }
+            ],
+        },
+    )
+    assert create_response.status_code == 200, create_response.text
+    template_id = create_response.json()["template_id"]
+
+    update_response = client.put(
+        f"/tasks/templates/{template_id}",
+        headers=_auth_header("admin-token"),
+        json={
+            "template_name": "Template con materiales actualizado",
+            "description": "Segunda version",
+            "requires_arrival_comment": False,
+            "requires_video_evidence": False,
+            "requires_pre_form": False,
+            "required_materials": [
+                {"product_id": first_product.product_id, "quantity_required": 2, "notes": "Actualizado"},
+                {"product_id": second_product.product_id, "quantity_required": 1, "notes": None},
+            ],
+            "subtasks": [
+                {
+                    "subtask_title": "Visita tecnica",
+                    "subtask_description": "Diagnostico",
+                    "order_index": 0,
+                    "responsible_role_key": "tecnico",
+                    "default_responsible_crm_user_id": None,
+                    "close_comment_required": True,
+                    "next_assignment_policy": "role_queue_auto",
+                    "subtask_type": "standard",
+                    "items": [],
+                }
+            ],
+        },
+    )
+
+    assert update_response.status_code == 200, update_response.text
+    updated_materials = update_response.json()["required_materials"]
+    assert len(updated_materials) == 2
+    assert any(material["product_id"] == first_product.product_id and material["quantity_required"] == 2 for material in updated_materials)
+    assert any(material["product_id"] == second_product.product_id for material in updated_materials)
+
+
 def test_can_regenerate_pre_form_link_after_customer_submission(client, db_session) -> None:
     """After a customer submits pre-form once, executive/admin should be able to resend a new link."""
 
