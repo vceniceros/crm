@@ -214,6 +214,7 @@ class TaskApplicationService:
         template.requires_video_evidence = self._template_requires_video(payload)
         template.requires_pre_form = bool(payload.requires_pre_form)
         template.subtasks.clear()
+        self._template_repository.session.flush()
         self._apply_template_payload(template, payload)
         self._task_material_flow.sync_template_materials(template, payload)
         return self._template_repository.save(template)

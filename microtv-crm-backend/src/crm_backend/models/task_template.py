@@ -7,7 +7,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, Uuid, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from crm_backend.db.base import Base
@@ -81,6 +81,7 @@ class TaskTemplateSubtask(Base):
     """Ordered subtask definition inside a task template."""
 
     __tablename__ = "template_subtasks"
+    __table_args__ = (UniqueConstraint("template_id", "order_index", name="template_subtasks_template_id_order_index_key"),)
 
     template_subtask_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
     template_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("task_templates.template_id"), index=True)
