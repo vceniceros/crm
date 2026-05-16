@@ -58,7 +58,7 @@ class TaskPreFormService:
         existing = (
             self._session.query(TaskPreFormInstance)
             .filter_by(task_id=task.task_id)
-            .order_by(TaskPreFormInstance.created_at.desc())
+            .order_by(TaskPreFormInstance.submitted_at.is_(None).desc(), TaskPreFormInstance.created_at.desc())
             .first()
         )
 
@@ -92,7 +92,7 @@ class TaskPreFormService:
         return (
             self._session.query(TaskPreFormInstance)
             .filter_by(task_id=task.task_id)
-            .order_by(TaskPreFormInstance.created_at.desc())
+            .order_by(TaskPreFormInstance.submitted_at.is_(None).desc(), TaskPreFormInstance.created_at.desc())
             .first()
         )
 

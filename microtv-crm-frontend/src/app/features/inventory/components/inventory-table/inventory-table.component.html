@@ -116,6 +116,16 @@
                 <button
                   mat-icon-button
                   type="button"
+                  aria-label="Editar producto"
+                  [disabled]="isPending(product.productId)"
+                  (click)="openEditProductDialog(product)"
+                >
+                  <mat-icon>edit_note</mat-icon>
+                </button>
+
+                <button
+                  mat-icon-button
+                  type="button"
                   aria-label="Restar stock"
                   [disabled]="!hasStock(product) || isPending(product.productId)"
                   (click)="removeStock(product.productId)"
@@ -239,6 +249,17 @@
 
           <div class="inventory-table__actions inventory-table__actions--mobile">
             @if (canManageStock()) {
+              <button
+                mat-stroked-button
+                type="button"
+                class="inventory-table__action-button"
+                [disabled]="isPending(product.productId)"
+                (click)="openEditProductDialog(product)"
+              >
+                <mat-icon>edit_note</mat-icon>
+                <span>Editar</span>
+              </button>
+
               <button
                 mat-stroked-button
                 type="button"

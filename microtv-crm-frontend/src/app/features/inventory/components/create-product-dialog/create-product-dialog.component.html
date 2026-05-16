@@ -1,13 +1,11 @@
-<h2 mat-dialog-title>Cargar nuevo producto</h2>
+<h2 mat-dialog-title>{{ dialogTitle }}</h2>
 
 <mat-dialog-content>
   @if (categories$ | async; as categories) {
     <form class="create-product-dialog__form" [formGroup]="form" (ngSubmit)="submit()">
       <section class="create-product-dialog__intro">
-        <p class="create-product-dialog__intro-title">Alta inicial de producto</p>
-        <p class="create-product-dialog__intro-copy">
-          Registra un nuevo item del deposito con su categoria, referencia visual y stock de arranque para dejarlo disponible en el listado.
-        </p>
+        <p class="create-product-dialog__intro-title">{{ introTitle }}</p>
+        <p class="create-product-dialog__intro-copy">{{ introCopy }}</p>
       </section>
 
       <div class="create-product-dialog__fields">
@@ -42,7 +40,12 @@
         <div class="create-product-dialog__upload create-product-dialog__wide-field">
           <label class="create-product-dialog__upload-label" for="product-image">Imagen</label>
           <input id="product-image" type="file" accept="image/jpeg,image/png,image/webp" (change)="onFileSelected($event)" />
-          <p class="create-product-dialog__upload-hint">Opcional. Formatos permitidos: JPG, PNG, WEBP. Se optimiza automáticamente antes de subir.</p>
+          <p class="create-product-dialog__upload-hint">
+            Opcional. Formatos permitidos: JPG, PNG, WEBP. Se optimiza automaticamente antes de subir.
+            @if (isEditMode) {
+              Si no seleccionas una nueva imagen, se conserva la actual.
+            }
+          </p>
           @if (selectedFileName(); as selectedFileName) {
             <p class="create-product-dialog__upload-file">Archivo seleccionado: {{ selectedFileName }}</p>
           }
@@ -52,18 +55,18 @@
         </div>
 
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Stock inicial</mat-label>
+          <mat-label>{{ stockLabel }}</mat-label>
           <input matInput type="number" min="0" formControlName="initialStock" placeholder="0" />
           @if (form.controls.initialStock.hasError('required') && form.controls.initialStock.touched) {
-            <mat-error>El stock inicial es obligatorio.</mat-error>
+            <mat-error>El stock es obligatorio.</mat-error>
           }
           @if (form.controls.initialStock.hasError('min') && form.controls.initialStock.touched) {
-            <mat-error>El stock inicial no puede ser negativo.</mat-error>
+            <mat-error>El stock no puede ser negativo.</mat-error>
           }
         </mat-form-field>
 
         <mat-form-field appearance="outline">
-          <mat-label>Stock mínimo</mat-label>
+          <mat-label>Stock minimo</mat-label>
           <input matInput type="number" min="1" formControlName="minimumStock" />
           <mat-hint>Notifica cuando el stock baje de este valor. Por defecto: 3.</mat-hint>
           @if (form.controls.minimumStock.hasError('min')) {
@@ -72,8 +75,28 @@
         </mat-form-field>
 
         <mat-checkbox formControlName="requiresTracking" class="create-product-dialog__wide-field">
-          Requiere serial o código de barras por unidad
+          Requiere serial o codigo de barras por unidad
         </mat-checkbox>
+
+        @if (isEditMode) {
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Estante</mat-label>
+            <mat-select formControlName="shelfId">
+              <mat-option [value]="null">Sin ubicacion</mat-option>
+              @for (letter of shelfOptions; track letter) {
+                <mat-option [value]="letter">{{ letter }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Altura</mat-label>
+            <input matInput type="number" min="1" formControlName="shelfHeight" />
+            @if (form.controls.shelfHeight.hasError('min')) {
+              <mat-error>Debe ser al menos 1.</mat-error>
+            }
+          </mat-form-field>
+        }
       </div>
 
       @if (submissionError(); as submissionError) {
@@ -84,7 +107,7 @@
 
       <mat-dialog-actions align="end">
         <button mat-button type="button" mat-dialog-close [disabled]="isSubmitting()">Cancelar</button>
-        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || isSubmitting()">Cargar producto</button>
+        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || isSubmitting()">{{ submitLabel }}</button>
       </mat-dialog-actions>
     </form>
   }

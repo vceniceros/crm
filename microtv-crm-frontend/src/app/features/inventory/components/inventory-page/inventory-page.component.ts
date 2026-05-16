@@ -13,7 +13,6 @@ import { InventoryService } from '../../../../core/services/inventory.service';
 import { PermissionService } from '../../../../core/services/permission.service';
 import { ContextHelpCardComponent } from '../../../../shared/ui/context-help-card/context-help-card.component';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
-import { CreateProductDialogComponent } from '../create-product-dialog/create-product-dialog.component';
 import { InventoryTableComponent } from '../inventory-table/inventory-table.component';
 
 @Component({
@@ -84,12 +83,13 @@ export class InventoryPageComponent {
       });
   }
 
-  openCreateProductDialog(): void {
+  async openCreateProductDialog(): Promise<void> {
     if (!this.canCreateProducts()) {
       return;
     }
 
-    this.dialog.open<CreateProductDialogComponent, undefined, InventoryProduct>(CreateProductDialogComponent, {
+    const { CreateProductDialogComponent } = await import('../create-product-dialog/create-product-dialog.component');
+    this.dialog.open(CreateProductDialogComponent, {
       autoFocus: false,
       maxWidth: 'calc(100vw - 1.5rem)',
       width: '44rem'

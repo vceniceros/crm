@@ -14,6 +14,11 @@ from crm_backend.core.config import get_settings
 from crm_backend.models import CrmRole, CrmUser, CrmUserRole, StockProduct
 
 
+PNG_1X1 = bytes.fromhex(
+    "89504E470D0A1A0A0000000D49484452000000010000000108060000001F15C4890000000D49444154789C6360000002000154A24F5D0000000049454E44AE426082"
+)
+
+
 class FakeStockAuthAdapter:
     """Adapter fake para probar endpoints protegidos de depósito."""
 
@@ -204,10 +209,6 @@ def test_create_product_accepts_multipart_image_upload(client) -> None:
 
     categories_response = client.get("/stock/categories", headers={"Authorization": "Bearer access-token"})
     category_id = next(category["id"] for category in categories_response.json() if category["name"] == "Varios")
-    png = bytes.fromhex(
-        "89504E470D0A1A0A0000000D49484452000000010000000108060000001F15C4890000000D49444154789C6360000002000154A24F5D0000000049454E44AE426082"
-    )
-
     response = client.post(
         "/stock/products",
         headers={"Authorization": "Bearer access-token"},
@@ -217,20 +218,214 @@ def test_create_product_accepts_multipart_image_upload(client) -> None:
             "category_id": category_id,
             "stock_initial": "6",
         },
-        files={"image": ("utp.png", png, "image/png")},
+        files={"image": ("utp.png", PNG_1X1, "image/png")},
     )
 
     assert response.status_code == 200
     body = response.json()
     assert body["product_code"] == "PRD-UTP-INT-001"
-    assert body["image_url"].startswith("/images/products/")
+    assert body["image_url"].endswith(".png")
 
-    image_path = get_settings().public_dir / Path(body["image_url"].lstrip("/"))
+    image_path = get_settings().resolve_media_filesystem_path(body["image_url"]) or (get_settings().public_dir / Path(body["image_url"].lstrip("/")))
     try:
         assert image_path.exists()
     finally:
         if image_path.exists():
             image_path.unlink()
+
+
+def test_deposito_can_edit_product_details_and_stock(client, db_session) -> None:
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeStockAuthAdapter()
+
+    products_response = client.get("/stock/products", headers={"Authorization": "Bearer access-token"})
+    product = next(product for product in products_response.json() if product["name"] == "Splitter HDMI 1x4")
+    categories_response = client.get("/stock/categories", headers={"Authorization": "Bearer access-token"})
+    category_id = next(category["id"] for category in categories_response.json() if category["name"] == "Varios")
+
+    response = client.patch(
+        f"/stock/products/{product['product_id']}",
+        headers={"Authorization": "Bearer access-token"},
+        json={
+            "name": "Splitter HDMI 1x4 editado",
+            "product_code": "PRD-SPLITTER-EDIT-001",
+            "category_id": category_id,
+            "current_stock": 9,
+            "minimum_stock": 5,
+            "shelf_id": "B",
+            "shelf_height": 2,
+            "requires_tracking": True,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == "Splitter HDMI 1x4 editado"
+    assert body["product_code"] == "PRD-SPLITTER-EDIT-001"
+    assert body["category_name"] == "Varios"
+    assert body["current_stock"] == 9
+    assert body["minimum_stock"] == 5
+    assert body["shelf_id"] == "B"
+    assert body["shelf_height"] == 2
+    assert body["requires_tracking"] is True
+
+    db_session.expire_all()
+    persisted = db_session.scalar(select(StockProduct).where(StockProduct.product_id == product["product_id"]))
+    assert persisted is not None
+    assert persisted.current_stock == 9
+    assert persisted.product_code == "PRD-SPLITTER-EDIT-001"
+
+
+def test_admin_can_edit_product_outside_ycc_tenant(client) -> None:
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeStockAuthAdapter(
+        tenant_id="MICROTV",
+        roles=["platform_admin"],
+    )
+
+    products_response = client.get("/stock/products", headers={"Authorization": "Bearer access-token"})
+    product = next(product for product in products_response.json() if product["name"] == "Splitter HDMI 1x4")
+
+    response = client.patch(
+        f"/stock/products/{product['product_id']}",
+        headers={"Authorization": "Bearer access-token"},
+        json={
+            "name": "Splitter admin edit",
+            "product_code": "PRD-SPLITTER-ADMIN-EDIT-001",
+            "category_id": product["category_id"],
+            "current_stock": product["current_stock"],
+            "minimum_stock": product["minimum_stock"],
+            "requires_tracking": product["requires_tracking"],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["product_code"] == "PRD-SPLITTER-ADMIN-EDIT-001"
+
+
+def test_ejecutivo_cannot_edit_product(client, db_session) -> None:
+    _seed_local_role_user(db_session, role_key="ejecutivo", display_name="Ejecutivo YCC")
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeStockAuthAdapter(roles=[])
+
+    products_response = client.get("/stock/products", headers={"Authorization": "Bearer access-token"})
+    product = next(product for product in products_response.json() if product["name"] == "Splitter HDMI 1x4")
+
+    response = client.patch(
+        f"/stock/products/{product['product_id']}",
+        headers={"Authorization": "Bearer access-token"},
+        json={
+            "name": "Splitter ejecutivo edit",
+            "product_code": "PRD-SPLITTER-EJEC-EDIT-001",
+            "category_id": product["category_id"],
+            "current_stock": product["current_stock"],
+            "minimum_stock": product["minimum_stock"],
+            "requires_tracking": product["requires_tracking"],
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "inventory_access_denied"
+
+
+def test_edit_product_rejects_duplicate_product_code(client) -> None:
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeStockAuthAdapter()
+
+    products_response = client.get("/stock/products", headers={"Authorization": "Bearer access-token"})
+    products = products_response.json()
+    target = next(product for product in products if product["name"] == "Splitter HDMI 1x4")
+    existing = next(product for product in products if product["product_id"] != target["product_id"])
+
+    response = client.patch(
+        f"/stock/products/{target['product_id']}",
+        headers={"Authorization": "Bearer access-token"},
+        json={
+            "name": target["name"],
+            "product_code": existing["product_code"],
+            "category_id": target["category_id"],
+            "current_stock": target["current_stock"],
+            "minimum_stock": target["minimum_stock"],
+            "requires_tracking": target["requires_tracking"],
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "stock_product_code_duplicated"
+
+
+def test_edit_product_replaces_image_when_uploaded(client) -> None:
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeStockAuthAdapter()
+
+    products_response = client.get("/stock/products", headers={"Authorization": "Bearer access-token"})
+    product = next(product for product in products_response.json() if product["name"] == "Splitter HDMI 1x4")
+
+    response = client.patch(
+        f"/stock/products/{product['product_id']}",
+        headers={"Authorization": "Bearer access-token"},
+        data={
+            "product_name": product["name"],
+            "product_code": "PRD-SPLITTER-IMAGE-EDIT-001",
+            "category_id": product["category_id"],
+            "current_stock": str(product["current_stock"]),
+            "minimum_stock": str(product["minimum_stock"]),
+            "requires_tracking": str(product["requires_tracking"]).lower(),
+        },
+        files={"image": ("splitter-edit.png", PNG_1X1, "image/png")},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["image_url"].endswith(".png")
+
+    image_path = get_settings().resolve_media_filesystem_path(body["image_url"]) or (get_settings().public_dir / Path(body["image_url"].lstrip("/")))
+    try:
+        assert image_path.exists()
+    finally:
+        if image_path.exists():
+            image_path.unlink()
+
+
+def test_edit_product_without_image_keeps_existing_image(client) -> None:
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeStockAuthAdapter()
+
+    products_response = client.get("/stock/products", headers={"Authorization": "Bearer access-token"})
+    product = next(product for product in products_response.json() if product["image_url"])
+    original_image_url = product["image_url"]
+
+    response = client.patch(
+        f"/stock/products/{product['product_id']}",
+        headers={"Authorization": "Bearer access-token"},
+        json={
+            "name": f"{product['name']} editado",
+            "product_code": "PRD-KEEP-IMAGE-EDIT-001",
+            "category_id": product["category_id"],
+            "current_stock": product["current_stock"],
+            "minimum_stock": product["minimum_stock"],
+            "requires_tracking": product["requires_tracking"],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["image_url"] == original_image_url
+
+
+def test_edit_product_rejects_negative_stock(client) -> None:
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeStockAuthAdapter()
+
+    products_response = client.get("/stock/products", headers={"Authorization": "Bearer access-token"})
+    product = next(product for product in products_response.json() if product["name"] == "Splitter HDMI 1x4")
+
+    response = client.patch(
+        f"/stock/products/{product['product_id']}",
+        headers={"Authorization": "Bearer access-token"},
+        json={
+            "name": product["name"],
+            "product_code": "PRD-SPLITTER-NEGATIVE-EDIT-001",
+            "category_id": product["category_id"],
+            "current_stock": -1,
+            "minimum_stock": product["minimum_stock"],
+            "requires_tracking": product["requires_tracking"],
+        },
+    )
+
+    assert response.status_code == 422
 
 
 def test_admin_can_delete_product_with_soft_delete(client, db_session) -> None:

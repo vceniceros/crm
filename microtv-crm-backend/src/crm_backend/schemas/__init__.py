@@ -45,6 +45,7 @@ from crm_backend.schemas.stock import (
     StockProductResponse,
     StockRollbackResponse,
     UpdateProductLocationRequest,
+    UpdateStockProductRequest,
 )
 from crm_backend.schemas.tasks import (
     ApproveTaskRequest,
@@ -142,6 +143,7 @@ __all__ = [
     "StockProductResponse",
     "StockRollbackResponse",
     "UpdateProductLocationRequest",
+    "UpdateStockProductRequest",
     "CreateTaskFromTemplateRequest",
     "CreateTaskTemplateRequest",
     "CreateTaskCommentRequest",

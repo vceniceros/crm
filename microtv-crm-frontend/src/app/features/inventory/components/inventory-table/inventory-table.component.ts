@@ -139,6 +139,20 @@ export class InventoryTableComponent {
     }
   }
 
+  async openEditProductDialog(product: InventoryProduct): Promise<void> {
+    if (!this.canManageStock() || this.pendingProductId() !== null) {
+      return;
+    }
+
+    const { CreateProductDialogComponent } = await import('../create-product-dialog/create-product-dialog.component');
+    this.dialog.open(CreateProductDialogComponent, {
+      data: { mode: 'edit', product },
+      autoFocus: false,
+      maxWidth: 'calc(100vw - 1.5rem)',
+      width: '44rem'
+    });
+  }
+
   labelFor(column: (typeof this.displayedColumns)[number]): string {
     return this.block().columns.find((item) => item.key === column)?.label ?? column;
   }

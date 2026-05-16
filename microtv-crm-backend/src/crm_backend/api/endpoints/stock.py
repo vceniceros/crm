@@ -1,6 +1,8 @@
 """Endpoints HTTP del flujo real inicial de depósito."""
 
 from fastapi import APIRouter, Depends, File, Request, Response, UploadFile, status
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 
 from crm_backend.api.dependencies import get_authenticated_crm_session, get_product_image_storage, get_stock_application_service
 from crm_backend.infrastructure.product_image_storage import ProductImageStorage
@@ -16,9 +18,10 @@ from crm_backend.schemas import (
     StockProductResponse,
     StockRollbackResponse,
     UpdateProductLocationRequest,
+    UpdateStockProductRequest,
 )
 from crm_backend.services.auth_service import ResolvedCrmSession
-from crm_backend.services.stock_service import CreateStockProductCommand, StockApplicationService
+from crm_backend.services.stock_service import CreateStockProductCommand, StockApplicationService, UpdateStockProductCommand
 
 
 router = APIRouter(prefix="/stock", tags=["stock"])
@@ -240,6 +243,81 @@ async def _parse_create_product_request(request: Request) -> tuple[CreateStockPr
 
     payload = CreateStockProductRequest.model_validate(await request.json())
     return payload, None
+
+
+@router.patch(
+    "/products/{product_id}",
+    response_model=StockProductResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
+)
+async def update_product(
+    product_id: str,
+    request: Request,
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    stock_service: StockApplicationService = Depends(get_stock_application_service),
+    image_storage: ProductImageStorage = Depends(get_product_image_storage),
+) -> StockProductResponse:
+    """Edita los datos maestros de un producto de depósito."""
+
+    payload, upload = await _parse_update_product_request(request)
+
+    image_url = payload.image_url
+    stored_image_url: str | None = None
+    if upload is not None:
+        stored_image_url = await image_storage.store(upload)
+        image_url = stored_image_url
+
+    try:
+        product = stock_service.update_product(
+            actor,
+            product_id,
+            UpdateStockProductCommand(
+                name=payload.name,
+                product_code=payload.product_code,
+                category_id=payload.category_id,
+                current_stock=payload.current_stock,
+                minimum_stock=payload.minimum_stock,
+                image_url=image_url,
+                shelf_id=payload.shelf_id,
+                shelf_height=payload.shelf_height,
+                requires_tracking=payload.requires_tracking,
+            ),
+        )
+    except Exception:
+        image_storage.delete(stored_image_url)
+        raise
+
+    return _build_product_response(product)
+
+
+async def _parse_update_product_request(request: Request) -> tuple[UpdateStockProductRequest, UploadFile | None]:
+    content_type = request.headers.get("content-type", "")
+    try:
+        if content_type.startswith("multipart/form-data"):
+            form = await request.form()
+            raw_upload = form.get("image")
+            upload = raw_upload if getattr(raw_upload, "filename", "") else None
+            shelf_id = form.get("shelf_id")
+            shelf_height = form.get("shelf_height")
+            payload = UpdateStockProductRequest.model_validate(
+                {
+                    "product_name": form.get("product_name") or form.get("name"),
+                    "product_code": form.get("product_code"),
+                    "category_id": form.get("category_id"),
+                    "current_stock": int(form.get("current_stock") or form.get("stock") or 0),
+                    "minimum_stock": int(form.get("minimum_stock") or 3),
+                    "requires_tracking": str(form.get("requires_tracking") or "false").lower() in {"1", "true", "on", "yes"},
+                    "shelf_id": shelf_id or None,
+                    "shelf_height": int(shelf_height) if shelf_height else None,
+                    "image_url": None,
+                }
+            )
+            return payload, upload
+
+        payload = UpdateStockProductRequest.model_validate(await request.json())
+        return payload, None
+    except ValidationError as exc:
+        raise RequestValidationError(exc.errors()) from exc
 
 
 @router.post(

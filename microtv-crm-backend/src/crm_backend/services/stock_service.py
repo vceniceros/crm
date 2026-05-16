@@ -67,6 +67,21 @@ class CreateStockProductCommand:
     minimum_stock: int = 3
 
 
+@dataclass(slots=True)
+class UpdateStockProductCommand:
+    """Agrupa los datos editables de un producto."""
+
+    name: str
+    product_code: str
+    category_id: str
+    current_stock: int
+    minimum_stock: int
+    image_url: str | None
+    shelf_id: str | None
+    shelf_height: int | None
+    requires_tracking: bool
+
+
 class StockApplicationService:
     """Orquesta el módulo inicial real de depósito."""
 
@@ -159,6 +174,56 @@ class StockApplicationService:
             saved.product_id,
             saved.product_name,
             {"product_code": saved.visible_product_code, "stock": saved.current_stock},
+        )
+        return saved
+
+    def update_product(self, actor: ResolvedCrmSession, product_id: str, command: UpdateStockProductCommand) -> StockProduct:
+        """Edita los datos maestros de un producto y ajusta stock si cambia."""
+
+        self._ensure_inventory_write_access(actor)
+        product = self._get_operable_product(product_id)
+        category = self._category_repository.get_active_by_id(command.category_id)
+        if category is None:
+            raise StockCategoryNotFoundError()
+
+        existing_with_code = self._product_repository.get_by_code(command.product_code)
+        if existing_with_code is not None and existing_with_code.product_id != product.product_id:
+            raise DuplicateStockProductCodeError()
+
+        current_stock = product.current_stock
+        if command.current_stock > current_stock:
+            product.increase_stock(
+                quantity=command.current_stock - current_stock,
+                actor_crm_user_id=actor.crm_user.crm_user_id,
+                warehouse_id=self._product_repository.get_default_warehouse_id(),
+                notes="Edicion manual de producto",
+            )
+        elif command.current_stock < current_stock:
+            product.decrease_stock(
+                quantity=current_stock - command.current_stock,
+                actor_crm_user_id=actor.crm_user.crm_user_id,
+                warehouse_id=self._product_repository.get_default_warehouse_id(),
+                notes="Edicion manual de producto",
+            )
+
+        changed_fields = self._changed_product_fields(product, command)
+        product.product_name = command.name
+        product.product_code = command.product_code
+        product.category_id = category.stock_category_id
+        if command.image_url is not None:
+            product.image_url = command.image_url
+        product.minimum_stock = command.minimum_stock
+        product.shelf_id = command.shelf_id
+        product.shelf_height = command.shelf_height
+        product.requires_tracking = command.requires_tracking
+
+        saved = self._product_repository.save(product)
+        self._log_event(
+            "stock.product_updated",
+            actor,
+            saved.product_id,
+            saved.product_name,
+            {"changed_fields": changed_fields, "product_code": saved.visible_product_code, "stock": saved.current_stock},
         )
         return saved
 
@@ -802,6 +867,21 @@ class StockApplicationService:
         if shelf_id is None or shelf_height is None:
             return None
         return f"{shelf_id}-{shelf_height}"
+
+    def _changed_product_fields(self, product: StockProduct, command: UpdateStockProductCommand) -> list[str]:
+        desired_image_url = product.image_url if command.image_url is None else command.image_url
+        candidates = {
+            "product_name": (product.product_name, command.name),
+            "product_code": (product.visible_product_code, command.product_code),
+            "category_id": (product.category_id, command.category_id),
+            "image_url": (product.image_url, desired_image_url),
+            "minimum_stock": (product.minimum_stock, command.minimum_stock),
+            "shelf_id": (product.shelf_id, command.shelf_id),
+            "shelf_height": (product.shelf_height, command.shelf_height),
+            "requires_tracking": (product.requires_tracking, command.requires_tracking),
+            "current_stock": (product.current_stock, command.current_stock),
+        }
+        return [field for field, (current, desired) in candidates.items() if current != desired]
 
     def _safe_filename(self, filename: str) -> str:
         return PurePath(filename or "stock-import").name[:255]
