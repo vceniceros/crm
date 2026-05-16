@@ -21,7 +21,6 @@ import {
   TASK_ROLE_OPTIONS,
   TaskAssignmentPolicy,
   TaskItemType,
-  TaskSubtaskType,
   TaskTemplate,
   TaskTemplateSubtaskWriteRequest,
   UpdateTaskTemplateRequest
@@ -76,6 +75,8 @@ export class TaskTemplateFormPageComponent {
     requires_pre_form: this.formBuilder.control(false, { nonNullable: true }),
     pre_form_title: this.formBuilder.control<string | null>(null),
     pre_form_instructions: this.formBuilder.control<string | null>(null),
+    pre_form_assignment_role_key: this.formBuilder.control('tecnico', { validators: [Validators.required], nonNullable: true }),
+    pre_form_assignment_crm_user_id: this.formBuilder.control<string | null>(null),
     pre_form_fields: this.formBuilder.array([] as Array<ReturnType<TaskTemplateFormPageComponent['createPreFormFieldGroup']>>),
     required_materials: this.formBuilder.array([]),
     subtasks: this.formBuilder.array([] as Array<ReturnType<TaskTemplateFormPageComponent['createSubtaskGroup']>>)
@@ -92,6 +93,11 @@ export class TaskTemplateFormPageComponent {
       .refresh()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({ error: () => undefined });
+    this.form.controls.requires_pre_form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((requiresPreForm) => {
+      if (requiresPreForm) {
+        this.loadUsersForRole(this.form.controls.pre_form_assignment_role_key.getRawValue());
+      }
+    });
 
     if (this.isEditMode() && this.templateId) {
       this.isLoading.set(true);
@@ -197,6 +203,21 @@ export class TaskTemplateFormPageComponent {
     const subtask = this.subtasks.at(subtaskIndex);
     subtask.get('default_responsible_crm_user_id')?.setValue(null);
     this.loadUsersForSubtask(subtaskIndex);
+  }
+
+  onPreFormAssignmentRoleChange(): void {
+    this.form.controls.pre_form_assignment_crm_user_id.setValue(null);
+    this.loadUsersForRole(this.form.controls.pre_form_assignment_role_key.getRawValue());
+  }
+
+  getAvailablePreFormAssignmentUsers(): CrmUserOption[] {
+    const roleKey = this.form.controls.pre_form_assignment_role_key.getRawValue();
+    return this.userOptionsByRole()[roleKey] ?? [];
+  }
+
+  isLoadingPreFormAssignmentUsers(): boolean {
+    const roleKey = this.form.controls.pre_form_assignment_role_key.getRawValue();
+    return this.loadingRoles().includes(roleKey);
   }
 
   getAvailableUsers(subtaskIndex: number): CrmUserOption[] {
@@ -329,6 +350,8 @@ export class TaskTemplateFormPageComponent {
       requires_pre_form: template.requires_pre_form,
       pre_form_title: template.pre_form?.title ?? null,
       pre_form_instructions: template.pre_form?.instructions ?? null,
+      pre_form_assignment_role_key: template.pre_form?.assignment_role_key ?? 'tecnico',
+      pre_form_assignment_crm_user_id: template.pre_form?.assignment_crm_user_id ?? null,
     });
     this.preFormFields.clear();
     (template.pre_form?.fields ?? [])
@@ -369,7 +392,7 @@ export class TaskTemplateFormPageComponent {
             requires_arrival_comment: subtask.requires_arrival_comment,
             requires_video_evidence: subtask.requires_video_evidence,
             next_assignment_policy: subtask.next_assignment_policy,
-            subtask_type: subtask.subtask_type,
+            subtask_type: 'standard',
             items: subtask.items.map((item) => ({
               item_label: item.item_label,
               item_order: item.item_order,
@@ -381,6 +404,9 @@ export class TaskTemplateFormPageComponent {
       });
     this.resequenceSubtasks();
     this.subtasks.controls.forEach((_, index) => this.loadUsersForSubtask(index));
+    if (template.requires_pre_form) {
+      this.loadUsersForRole(template.pre_form?.assignment_role_key ?? 'tecnico');
+    }
   }
 
   private createSubtaskGroup(subtask?: Partial<TaskTemplateSubtaskWriteRequest & { requires_arrival_comment: boolean; requires_video_evidence: boolean }>) {
@@ -398,7 +424,7 @@ export class TaskTemplateFormPageComponent {
       requires_arrival_comment: this.formBuilder.control(subtask?.requires_arrival_comment ?? false, { nonNullable: true }),
       requires_video_evidence: this.formBuilder.control(subtask?.requires_video_evidence ?? false, { nonNullable: true }),
       next_assignment_policy: this.formBuilder.control<TaskAssignmentPolicy>(subtask?.next_assignment_policy ?? 'role_queue_auto', { nonNullable: true }),
-      subtask_type: this.formBuilder.control<TaskSubtaskType>(subtask?.subtask_type ?? 'standard', { nonNullable: true }),
+      subtask_type: this.formBuilder.control('standard', { nonNullable: true }),
       items: this.formBuilder.array(items)
     });
   }
@@ -452,6 +478,12 @@ export class TaskTemplateFormPageComponent {
   private loadUsersForSubtask(subtaskIndex: number): void {
     const subtask = this.subtasks.at(subtaskIndex);
     const roleKey = String(subtask.get('responsible_role_key')?.value ?? '');
+    this.loadUsersForRole(roleKey, String(subtask.get('default_responsible_crm_user_id')?.value ?? '').trim() || null, (value) => {
+      subtask.get('default_responsible_crm_user_id')?.setValue(value);
+    });
+  }
+
+  private loadUsersForRole(roleKey: string, selectedUserId: string | null = null, clearSelected?: (value: null) => void): void {
     if (!roleKey || this.userOptionsByRole()[roleKey] || this.loadingRoles().includes(roleKey)) {
       return;
     }
@@ -466,9 +498,9 @@ export class TaskTemplateFormPageComponent {
       .subscribe({
         next: (users) => {
           this.userOptionsByRole.update((current) => ({ ...current, [roleKey]: users }));
-          const selectedUserId = String(subtask.get('default_responsible_crm_user_id')?.value ?? '').trim();
-          if (selectedUserId && !users.some((user) => user.crm_user_id === selectedUserId)) {
-            subtask.get('default_responsible_crm_user_id')?.setValue(null);
+          const selected = String(selectedUserId ?? '').trim();
+          if (selected && !users.some((user) => user.crm_user_id === selected)) {
+            clearSelected?.(null);
           }
         },
         error: (error: Error) => {
@@ -489,7 +521,7 @@ export class TaskTemplateFormPageComponent {
       requires_arrival_comment: Boolean(subtaskControl.get('requires_arrival_comment')?.value),
       requires_video_evidence: Boolean(subtaskControl.get('requires_video_evidence')?.value),
       next_assignment_policy: subtaskControl.get('next_assignment_policy')?.value as TaskAssignmentPolicy,
-      subtask_type: (subtaskControl.get('subtask_type')?.value as TaskSubtaskType) || 'standard',
+      subtask_type: 'standard' as const,
       items: (subtaskControl.get('items') as FormArray).controls.map((itemControl, itemIndex) => ({
         item_label: String(itemControl.get('item_label')?.value ?? '').trim(),
         item_order: itemIndex,
@@ -508,6 +540,8 @@ export class TaskTemplateFormPageComponent {
         ? {
             title: this.form.controls.pre_form_title.getRawValue()?.trim() || null,
             instructions: this.form.controls.pre_form_instructions.getRawValue()?.trim() || null,
+            assignment_role_key: this.form.controls.pre_form_assignment_role_key.getRawValue(),
+            assignment_crm_user_id: String(this.form.controls.pre_form_assignment_crm_user_id.getRawValue() ?? '').trim() || null,
             fields: this.preFormFields.controls.map((fieldControl, fieldIndex) => ({
               label: String(fieldControl.get('label')?.value ?? '').trim(),
               field_type: fieldControl.get('field_type')?.value as TaskPreFormFieldType,

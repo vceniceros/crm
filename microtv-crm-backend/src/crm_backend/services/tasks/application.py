@@ -15,7 +15,6 @@ from crm_backend.core.exceptions import TaskAccessDeniedError, TaskConflictError
 from crm_backend.core.exceptions import InvalidTaskAttachmentError, TaskAttachmentNotFoundError
 from crm_backend.infrastructure.task_media_storage import StoredTaskMedia, TaskMediaStorageFacade
 from crm_backend.models import (
-    NextAssignmentPolicy,
     Subtask,
     SubtaskAssignment,
     SubtaskType,
@@ -101,15 +100,13 @@ class TaskBuilder:
         )
 
         ordered_subtasks = sorted(template.subtasks, key=lambda item: item.order_index)
-        has_pre_form_subtask = any(
-            (item.subtask_type or SubtaskType.STANDARD.value) == SubtaskType.PRE_FORM.value
-            for item in ordered_subtasks
-        )
+        wait_for_pre_form = bool(template.requires_pre_form and template.pre_form is not None)
+        has_pre_form_subtask = any((item.subtask_type or SubtaskType.STANDARD.value) == SubtaskType.PRE_FORM.value for item in ordered_subtasks)
         for index, template_subtask in enumerate(ordered_subtasks):
             status = SubtaskStatus.LOCKED.value
             assigned_crm_user_id = None
             subtask_type = template_subtask.subtask_type or SubtaskType.STANDARD.value
-            if index == 0 and not has_pre_form_subtask and subtask_type != SubtaskType.PRE_FORM.value:
+            if index == 0 and not wait_for_pre_form and not has_pre_form_subtask and subtask_type != SubtaskType.PRE_FORM.value:
                 assigned_crm_user_id = template_subtask.default_responsible_crm_user_id
                 status = (
                     SubtaskStatus.ASSIGNED.value
@@ -143,7 +140,7 @@ class TaskBuilder:
                         is_required=template_item.is_required,
                     )
                 )
-            if index == 0 and not has_pre_form_subtask and subtask_type != SubtaskType.PRE_FORM.value:
+            if index == 0 and not wait_for_pre_form and not has_pre_form_subtask and subtask_type != SubtaskType.PRE_FORM.value:
                 task.current_assigned_crm_user_id = assigned_crm_user_id
                 task.status = TaskStatus.IN_PROGRESS.value
             task.subtasks.append(subtask)
@@ -250,9 +247,14 @@ class TaskApplicationService:
             if pre_form_payload is not None:
                 pre_form.title = (pre_form_payload.title or "").strip() or None
                 pre_form.instructions = (pre_form_payload.instructions or "").strip() or None
+                pre_form.assignment_role_key = (pre_form_payload.assignment_role_key or "").strip() or "tecnico"
+                pre_form.assignment_crm_user_id = pre_form_payload.assignment_crm_user_id
+                self._validate_default_user(pre_form.assignment_crm_user_id, pre_form.assignment_role_key)
             else:
                 pre_form.title = None
                 pre_form.instructions = None
+                pre_form.assignment_role_key = "tecnico"
+                pre_form.assignment_crm_user_id = None
 
             pre_form.fields.clear()
 
@@ -272,42 +274,27 @@ class TaskApplicationService:
         else:
             template.pre_form = None
 
-        if template.requires_pre_form:
-            template.subtasks.append(
-                TaskTemplateSubtask(
-                    subtask_title="Formulario previo del cliente",
-                    subtask_description="El cliente completa este formulario antes de iniciar el trabajo.",
-                    order_index=0,
-                    responsible_role_key="ejecutivo",
-                    default_responsible_crm_user_id=None,
-                    close_comment_required=False,
-                    requires_arrival_comment=False,
-                    requires_video_evidence=False,
-                    next_assignment_policy=NextAssignmentPolicy.MANUAL_REQUIRED.value,
-                    subtask_type=SubtaskType.PRE_FORM.value,
-                )
-            )
-
-        ordered_payload_subtasks = sorted(payload.subtasks, key=lambda item: item.order_index)
+        ordered_payload_subtasks = [
+            subtask
+            for subtask in sorted(payload.subtasks, key=lambda item: item.order_index)
+            if subtask.subtask_type != SubtaskType.PRE_FORM.value
+        ]
+        if not ordered_payload_subtasks:
+            raise TaskValidationError("El template debe tener al menos una subtarea operativa.")
         self._apply_legacy_template_rules(payload, ordered_payload_subtasks)
-        order_offset = 1 if template.requires_pre_form else 0
         for user_subtask_index, subtask_payload in enumerate(ordered_payload_subtasks):
             self._validate_default_user(subtask_payload.default_responsible_crm_user_id, subtask_payload.responsible_role_key)
             template_subtask = TaskTemplateSubtask(
                 subtask_title=subtask_payload.subtask_title.strip(),
                 subtask_description=subtask_payload.subtask_description,
-                order_index=user_subtask_index + order_offset,
+                order_index=user_subtask_index,
                 responsible_role_key=subtask_payload.responsible_role_key,
                 default_responsible_crm_user_id=subtask_payload.default_responsible_crm_user_id,
                 close_comment_required=subtask_payload.close_comment_required,
                 requires_arrival_comment=bool(subtask_payload.requires_arrival_comment),
                 requires_video_evidence=bool(subtask_payload.requires_video_evidence),
                 next_assignment_policy=subtask_payload.next_assignment_policy,
-                subtask_type=(
-                    SubtaskType.STANDARD.value
-                    if template.requires_pre_form and subtask_payload.subtask_type == SubtaskType.PRE_FORM.value
-                    else subtask_payload.subtask_type
-                ),
+                subtask_type=SubtaskType.STANDARD.value,
             )
             for item_payload in sorted(subtask_payload.items, key=lambda item: item.item_order):
                 template_subtask.items.append(

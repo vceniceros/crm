@@ -51,6 +51,8 @@ class PreFormFieldWriteRequest(BaseModel):
 class PreFormDefinitionWriteRequest(BaseModel):
     title: str | None = Field(default=None, max_length=255)
     instructions: str | None = None
+    assignment_role_key: str | None = Field(default=None, max_length=50)
+    assignment_crm_user_id: str | None = None
     fields: list[PreFormFieldWriteRequest] = Field(default_factory=list)
 
 
@@ -195,6 +197,8 @@ class PreFormDefinitionResponse(BaseModel):
     form_id: str
     title: str | None
     instructions: str | None
+    assignment_role_key: str | None = None
+    assignment_crm_user_id: str | None = None
     fields: list[PreFormFieldResponse] = Field(default_factory=list)
 
 

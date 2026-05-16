@@ -301,6 +301,7 @@ def _ensure_extension_tables(session: Session) -> None:
     _ensure_inventory_product_columns(session, inspector)
     _ensure_inventory_dispatch_columns(session, inspector)
     ensure_task_rule_columns(session, inspector)
+    _ensure_task_pre_form_columns(session, inspector)
     _ensure_task_attachment_columns(session, inspector)
     _ensure_ticket_attachment_columns(session, inspector)
     _ensure_ticket_columns(session, inspector)
@@ -421,6 +422,48 @@ def ensure_task_rule_columns(session: Session, inspector=None) -> None:
                 )
             )
             session.commit()
+
+
+def _ensure_task_pre_form_columns(session: Session, inspector=None) -> None:
+    bind = session.get_bind()
+    active_inspector = inspector or inspect(bind)
+    table_names = set(active_inspector.get_table_names())
+    if "task_template_pre_forms" not in table_names:
+        return
+
+    if bind.dialect.name == "postgresql":
+        session.execute(text("ALTER TABLE task_template_pre_forms ADD COLUMN IF NOT EXISTS assignment_role_key VARCHAR(50)"))
+        session.execute(
+            text(
+                "ALTER TABLE task_template_pre_forms "
+                "ADD COLUMN IF NOT EXISTS assignment_crm_user_id UUID REFERENCES crm_users(crm_user_id)"
+            )
+        )
+        session.execute(
+            text(
+                "UPDATE task_template_pre_forms "
+                "SET assignment_role_key = 'tecnico' "
+                "WHERE assignment_role_key IS NULL"
+            )
+        )
+        session.execute(text("CREATE INDEX IF NOT EXISTS idx_task_template_pre_forms_assignment_role ON task_template_pre_forms(assignment_role_key)"))
+        session.execute(text("CREATE INDEX IF NOT EXISTS idx_task_template_pre_forms_assignment_user ON task_template_pre_forms(assignment_crm_user_id)"))
+        session.commit()
+        return
+
+    columns = {column["name"] for column in active_inspector.get_columns("task_template_pre_forms")}
+    if "assignment_role_key" not in columns:
+        session.execute(text("ALTER TABLE task_template_pre_forms ADD COLUMN assignment_role_key VARCHAR(50)"))
+    if "assignment_crm_user_id" not in columns:
+        session.execute(text("ALTER TABLE task_template_pre_forms ADD COLUMN assignment_crm_user_id VARCHAR(36)"))
+    session.execute(
+        text(
+            "UPDATE task_template_pre_forms "
+            "SET assignment_role_key = 'tecnico' "
+            "WHERE assignment_role_key IS NULL"
+        )
+    )
+    session.commit()
 
 
 def _ensure_task_attachment_columns(session: Session, inspector=None) -> None:
