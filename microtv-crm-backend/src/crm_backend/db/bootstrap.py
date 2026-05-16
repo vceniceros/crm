@@ -270,6 +270,14 @@ def _ensure_extension_tables(session: Session) -> None:
         "template_materials",
         "task_required_materials",
         "task_extra_materials",
+        "task_satisfaction_forms",
+        "task_satisfaction_responses",
+        "task_template_pre_forms",
+        "task_template_pre_form_fields",
+        "task_pre_form_instances",
+        "task_pre_form_responses",
+        "task_pre_form_attachments",
+        "task_pre_form_field_values",
         "inventory_requests",
         "inventory_request_items",
         "inventory_dispatches",
@@ -297,11 +305,12 @@ def _ensure_extension_tables(session: Session) -> None:
     missing_tables = [Base.metadata.tables[name] for name in table_names if name in Base.metadata.tables and name not in present_tables]
     if missing_tables:
         Base.metadata.create_all(bind=bind, tables=missing_tables)
+        inspector = inspect(bind)
 
     _ensure_inventory_product_columns(session, inspector)
     _ensure_inventory_dispatch_columns(session, inspector)
     ensure_task_rule_columns(session, inspector)
-    _ensure_task_pre_form_columns(session, inspector)
+    ensure_task_pre_form_columns(session, inspector)
     _ensure_task_attachment_columns(session, inspector)
     _ensure_ticket_attachment_columns(session, inspector)
     _ensure_ticket_columns(session, inspector)
@@ -424,7 +433,7 @@ def ensure_task_rule_columns(session: Session, inspector=None) -> None:
             session.commit()
 
 
-def _ensure_task_pre_form_columns(session: Session, inspector=None) -> None:
+def ensure_task_pre_form_columns(session: Session, inspector=None) -> None:
     bind = session.get_bind()
     active_inspector = inspector or inspect(bind)
     table_names = set(active_inspector.get_table_names())
@@ -463,6 +472,8 @@ def _ensure_task_pre_form_columns(session: Session, inspector=None) -> None:
             "WHERE assignment_role_key IS NULL"
         )
     )
+    session.execute(text("CREATE INDEX IF NOT EXISTS idx_task_template_pre_forms_assignment_role ON task_template_pre_forms(assignment_role_key)"))
+    session.execute(text("CREATE INDEX IF NOT EXISTS idx_task_template_pre_forms_assignment_user ON task_template_pre_forms(assignment_crm_user_id)"))
     session.commit()
 
 

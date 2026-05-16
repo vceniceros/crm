@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from io import BytesIO
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from crm_backend.adapters.auth_service_adapter import ActiveMembershipContext, AuthenticatedAuthResult
 from crm_backend.api.dependencies import get_auth_service_adapter
@@ -315,6 +315,108 @@ def test_update_template_with_pre_form_keeps_single_pre_form_record(client, db_s
     assert len(pre_forms) == 1
 
 
+def test_create_template_with_pre_form_assignment_self_heals_legacy_schema(client, db_session) -> None:
+    """Template creation must repair legacy pre-form tables before inserting assignment columns."""
+
+    tech_user = _seed_local_role_user(
+        db_session,
+        role_key="tecnico_campo",
+        auth_user_id="auth-tech",
+        email="tecnico.crm@yccbrothers.com",
+        display_name="Tecnico Campo",
+    )
+    seeded_client = _seed_client(db_session)
+    db_session.execute(text("DROP INDEX IF EXISTS idx_task_template_pre_forms_assignment_role"))
+    db_session.execute(text("DROP INDEX IF EXISTS idx_task_template_pre_forms_assignment_user"))
+    db_session.execute(text("DROP INDEX IF EXISTS ix_task_template_pre_forms_assignment_role_key"))
+    db_session.execute(text("DROP INDEX IF EXISTS ix_task_template_pre_forms_assignment_crm_user_id"))
+    db_session.execute(text("ALTER TABLE task_template_pre_forms DROP COLUMN assignment_role_key"))
+    db_session.commit()
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeTaskAuthAdapter()
+
+    template_response = client.post(
+        "/tasks/templates",
+        headers=_auth_header("admin-token"),
+        json={
+            "template_name": "Template legado con formulario previo",
+            "description": "Valida reparacion de columnas",
+            "requires_arrival_comment": False,
+            "requires_video_evidence": False,
+            "requires_pre_form": True,
+            "pre_form": {
+                "title": "Datos previos",
+                "instructions": "Completar antes de la visita",
+                "assignment_role_key": "tecnico",
+                "assignment_crm_user_id": tech_user.crm_user_id,
+                "fields": [
+                    {
+                        "label": "Nombre del titular",
+                        "field_type": "TEXT",
+                        "is_required": True,
+                        "order_index": 0,
+                        "placeholder": "Nombre",
+                    }
+                ],
+            },
+            "required_materials": [],
+            "subtasks": [
+                {
+                    "subtask_title": "Visita tecnica",
+                    "subtask_description": "Diagnostico",
+                    "order_index": 0,
+                    "responsible_role_key": "tecnico",
+                    "default_responsible_crm_user_id": None,
+                    "close_comment_required": True,
+                    "next_assignment_policy": "role_queue_auto",
+                    "subtask_type": "standard",
+                    "items": [
+                        {
+                            "item_label": "Checklist inicial",
+                            "item_order": 0,
+                            "item_type": "checkbox",
+                            "is_required": True,
+                        }
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert template_response.status_code == 200, template_response.text
+    template = template_response.json()
+    assert template["pre_form"]["assignment_role_key"] == "tecnico"
+    assert template["pre_form"]["assignment_crm_user_id"] == tech_user.crm_user_id
+
+    task = _create_task(client, template["template_id"], seeded_client.client_id, _auth_header("admin-token"))
+    assert task["status"] == "PENDING"
+    assert task["current_assigned_crm_user_id"] is None
+    assert task["subtasks"][0]["status"] == "locked"
+
+    generate_response = client.post(
+        f"/tasks/{task['task_id']}/pre-form/generate",
+        headers=_auth_header("admin-token"),
+    )
+    assert generate_response.status_code == 200, generate_response.text
+    token = generate_response.json()["form_link_path"].rsplit("/", maxsplit=1)[-1]
+    public_form = client.get(f"/pre-form/{token}")
+    assert public_form.status_code == 200, public_form.text
+    field_id = public_form.json()["fields"][0]["field_id"]
+
+    submit_response = client.post(
+        f"/pre-form/{token}",
+        json={"values": [{"field_id": field_id, "text_value": "Cliente validado"}]},
+    )
+    assert submit_response.status_code == 200, submit_response.text
+
+    task_after_submit = client.get(f"/tasks/{task['task_id']}", headers=_auth_header("admin-token"))
+    assert task_after_submit.status_code == 200, task_after_submit.text
+    task_after_submit_body = task_after_submit.json()
+    assert task_after_submit_body["status"] == "IN_PROGRESS"
+    assert task_after_submit_body["current_assigned_crm_user_id"] == tech_user.crm_user_id
+    assert task_after_submit_body["subtasks"][0]["assigned_crm_user_id"] == tech_user.crm_user_id
+    assert task_after_submit_body["subtasks"][0]["status"] == "assigned"
+
+
 def test_update_template_materials_updates_existing_rows_without_duplicate_insert(client, db_session) -> None:
     """Updating required materials must reuse existing template-material rows."""
 
@@ -457,6 +559,8 @@ def test_can_regenerate_pre_form_link_after_customer_submission(client, db_sessi
     template_body = template_response.json()
     assert len(template_body["subtasks"]) == 1
     assert template_body["subtasks"][0]["subtask_type"] == "standard"
+    assert template_body["pre_form"]["assignment_role_key"] == "tecnico"
+    assert template_body["pre_form"]["assignment_crm_user_id"] == tech_user.crm_user_id
     template_id = template_response.json()["template_id"]
 
     task = _create_task(client, template_id, seeded_client.client_id, _auth_header("admin-token"))

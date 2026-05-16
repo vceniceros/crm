@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class StockCategoryResponse(BaseModel):
@@ -123,6 +123,58 @@ class CreateStockProductRequest(BaseModel):
             return None
         normalized = value.strip()
         return normalized or None
+
+
+class UpdateStockProductRequest(BaseModel):
+    """Payload de edición completa de producto."""
+
+    name: str = Field(..., min_length=1, max_length=160, validation_alias=AliasChoices("name", "product_name"))
+    product_code: str = Field(..., min_length=3, max_length=100)
+    category_id: str
+    current_stock: int = Field(..., ge=0, validation_alias=AliasChoices("current_stock", "stock"))
+    minimum_stock: int = Field(default=3, ge=1)
+    image_url: str | None = Field(default=None, max_length=500)
+    shelf_id: str | None = Field(default=None, pattern=r"^[A-Z]$")
+    shelf_height: int | None = Field(default=None, ge=1)
+    requires_tracking: bool = False
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("El nombre es obligatorio.")
+        return normalized
+
+    @field_validator("product_code")
+    @classmethod
+    def normalize_product_code(cls, value: str) -> str:
+        normalized = value.strip().upper()
+        if not normalized:
+            raise ValueError("El código del producto es obligatorio.")
+        return normalized
+
+    @field_validator("image_url")
+    @classmethod
+    def normalize_image_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+    @field_validator("shelf_id", mode="before")
+    @classmethod
+    def normalize_shelf_id(cls, value: object) -> object:
+        if value is None:
+            return None
+        normalized = str(value).strip().upper()
+        return normalized or None
+
+    @model_validator(mode="after")
+    def validate_location_pair(self) -> "UpdateStockProductRequest":
+        if (self.shelf_id is None) != (self.shelf_height is None):
+            raise ValueError("La ubicación debe incluir estante y altura, o quedar vacía.")
+        return self
 
 
 class StockAdjustmentRequest(BaseModel):

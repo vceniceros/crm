@@ -272,9 +272,14 @@ Esto aplica:
 ### 9.2 CRM backend
 
 ```bash
-cd /opt/ycc/microtv-crm-ycc/microtv-crm-backend
-source .venv/bin/activate
-# Si el proyecto usa bootstrap interno al inicio, mantener; si agregan alembic futuro, ejecutar aquí.
+cd /opt/ycc/microtv-crm-ycc
+source microtv-crm-backend/.venv/bin/activate
+
+# Reparacion idempotente para templates de pedido con formulario previo.
+psql "$DATABASE_URL" -f microtv-crm-backend/sql/20260516_task_template_pre_form_assignment_columns.sql
+
+# Verificar que las columnas requeridas por el backend existen antes del restart.
+psql "$DATABASE_URL" -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'task_template_pre_forms' AND column_name IN ('assignment_role_key', 'assignment_crm_user_id') ORDER BY column_name;"
 ```
 
 ## 10) systemd (servicios separados)
@@ -545,6 +550,7 @@ Opciones:
 
 - [ ] Auth interno CRM responde `200` en `/health`.
 - [ ] Backend CRM responde `200` en `/health`.
+- [ ] `task_template_pre_forms` tiene columnas `assignment_role_key` y `assignment_crm_user_id`.
 - [ ] Login admin inicial funciona.
 - [ ] Token emitido por auth interno es aceptado por CRM backend.
 - [ ] Menú Configuración > Gestión de usuarios visible para admin.

@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, forkJoin, map, shareReplay, tap, catchError, throwError, finalize } from 'rxjs';
 
 import { crmApiConfig } from '../config/crm-api.config';
-import { CreateInventoryProductFormValue } from '../models/create-product.model';
+import { CreateInventoryProductFormValue, UpdateInventoryProductFormValue } from '../models/create-product.model';
 import { InventoryCategory } from '../models/inventory-category.model';
 import {
   InventoryPageData,
@@ -203,6 +203,41 @@ export class InventoryService {
           this.productsSubject.next([product, ...this.productsSubject.getValue()]);
         }),
         catchError((error) => this.handleRequestError(error, 'No se pudo crear el producto.'))
+      );
+  }
+
+  updateProduct(productId: string, payload: UpdateInventoryProductFormValue): Observable<InventoryProduct> {
+    const headers = this.buildAuthHeaders();
+    if (!headers) {
+      return this.failRequest('No hay una sesión autenticada válida para editar productos.');
+    }
+
+    const formData = new FormData();
+    formData.append('product_name', payload.name.trim());
+    formData.append('product_code', payload.productCode.trim().toUpperCase());
+    formData.append('category_id', payload.categoryId ?? '');
+    formData.append('current_stock', String(Math.max(0, Math.trunc(payload.currentStock ?? 0))));
+    formData.append('minimum_stock', String(payload.minimumStock));
+    formData.append('requires_tracking', String(payload.requiresTracking));
+    formData.append('shelf_id', payload.shelfId ?? '');
+    formData.append('shelf_height', payload.shelfHeight ? String(payload.shelfHeight) : '');
+    if (payload.imageFile) {
+      formData.append('image', payload.imageFile);
+    }
+
+    return this.http
+      .patch<StockProductResponseDto>(this.buildUrl(`/stock/products/${productId}`), formData, { headers })
+      .pipe(
+        map((product) => this.mapProduct(product)),
+        tap((product) => {
+          this.errorMessageSubject.next(null);
+          this.productsSubject.next(
+            this.productsSubject.getValue().map((currentProduct) =>
+              currentProduct.productId === product.productId ? product : currentProduct
+            )
+          );
+        }),
+        catchError((error) => this.handleRequestError(error, 'No se pudo editar el producto.'))
       );
   }
 

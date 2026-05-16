@@ -171,10 +171,14 @@ CREATE TABLE IF NOT EXISTS task_template_pre_forms (
   template_id UUID NOT NULL UNIQUE REFERENCES task_templates(template_id) ON DELETE CASCADE,
   title VARCHAR(255) NULL,
   instructions TEXT NULL,
+  assignment_role_key VARCHAR(50) NULL,
+  assignment_crm_user_id UUID NULL REFERENCES crm_users(crm_user_id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_task_template_pre_forms_template_id ON task_template_pre_forms(template_id);
+CREATE INDEX IF NOT EXISTS idx_task_template_pre_forms_assignment_role ON task_template_pre_forms(assignment_role_key);
+CREATE INDEX IF NOT EXISTS idx_task_template_pre_forms_assignment_user ON task_template_pre_forms(assignment_crm_user_id);
 
 CREATE TABLE IF NOT EXISTS task_template_pre_form_fields (
   field_id UUID PRIMARY KEY,

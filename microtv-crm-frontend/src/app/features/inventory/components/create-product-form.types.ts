@@ -6,6 +6,8 @@ export interface CreateProductFormModel {
   categoryId: FormControl<string | null>;
   initialStock: FormControl<number | null>;
   minimumStock: FormControl<number>;
+  shelfId: FormControl<string | null>;
+  shelfHeight: FormControl<number | null>;
   requiresTracking: FormControl<boolean>;
 }
 
