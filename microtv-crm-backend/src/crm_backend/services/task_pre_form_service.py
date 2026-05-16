@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from crm_backend.core.exceptions import TaskAccessDeniedError, TaskPreFormNotFoundError, TaskValidationError
 from crm_backend.models.notification import NotificationEntityType, NotificationType
-from crm_backend.models import SubtaskStatus, Task, TaskPreFormFieldValue, TaskPreFormInstance, TaskPreFormResponse, TaskStatus
+from crm_backend.models import SubtaskAssignment, SubtaskStatus, Task, TaskPreFormFieldValue, TaskPreFormInstance, TaskPreFormResponse, TaskStatus
 from crm_backend.repositories import CrmUserRepository
 from crm_backend.services.notification_service import NotificationService
 
@@ -143,7 +143,7 @@ class TaskPreFormService:
                 )
             )
 
-        self._mark_pre_form_subtask_completed(instance.task, now)
+        self._advance_task_after_pre_form(instance, now)
         self._notify_pre_form_completed(instance.task)
         self._session.commit()
         self._session.refresh(response)
@@ -159,11 +159,40 @@ class TaskPreFormService:
             raise TaskPreFormNotFoundError()
         return instance
 
-    def _mark_pre_form_subtask_completed(self, task: Task, completed_at: datetime) -> None:
+    def _advance_task_after_pre_form(self, instance: TaskPreFormInstance, completed_at: datetime) -> None:
+        task = instance.task
         pre_form_subtask = next((subtask for subtask in task.subtasks if subtask.subtask_type == "pre_form"), None)
-        if pre_form_subtask is None:
+        if pre_form_subtask is not None:
+            self._mark_legacy_pre_form_subtask_completed(task, pre_form_subtask, completed_at)
             return
 
+        next_subtask = next((subtask for subtask in sorted(task.subtasks, key=lambda item: item.order_index) if subtask.status == SubtaskStatus.LOCKED.value), None)
+        if next_subtask is None:
+            return
+
+        template_pre_form = instance.template_pre_form
+        assignment_role_key = (getattr(template_pre_form, "assignment_role_key", None) or next_subtask.responsible_role_key or "").strip() or None
+        assignment_user_id = getattr(template_pre_form, "assignment_crm_user_id", None)
+        if assignment_role_key is not None:
+            next_subtask.responsible_role_key = assignment_role_key
+        next_subtask.default_responsible_crm_user_id = assignment_user_id
+        next_subtask.assigned_crm_user_id = assignment_user_id
+        next_subtask.status = SubtaskStatus.ASSIGNED.value if assignment_user_id else SubtaskStatus.PENDING_ASSIGNMENT.value
+        task.current_assigned_crm_user_id = assignment_user_id
+        task.status = TaskStatus.IN_PROGRESS.value
+
+        if assignment_user_id:
+            next_subtask.assignments.append(
+                SubtaskAssignment(
+                    assigned_crm_user_id=assignment_user_id,
+                    assigned_by_crm_user_id=None,
+                    notes="Asignacion automatica al completarse el formulario previo.",
+                )
+            )
+
+        self._notify_next_subtask_state(task, next_subtask)
+
+    def _mark_legacy_pre_form_subtask_completed(self, task: Task, pre_form_subtask: object, completed_at: datetime) -> None:
         pre_form_subtask.status = SubtaskStatus.COMPLETED.value
         pre_form_subtask.is_completed = True
         pre_form_subtask.completed_at = completed_at

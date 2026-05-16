@@ -75,6 +75,34 @@
                 <mat-label>Instrucciones</mat-label>
                 <textarea matInput rows="2" formControlName="pre_form_instructions"></textarea>
               </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Asignar al completar</mat-label>
+                <mat-select formControlName="pre_form_assignment_role_key" (selectionChange)="onPreFormAssignmentRoleChange()">
+                  @for (role of roleOptions; track role.value) {
+                    <mat-option [value]="role.value">{{ role.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Usuario especÃ­fico</mat-label>
+                <mat-select formControlName="pre_form_assignment_crm_user_id">
+                  <mat-option [value]="null">Cola del rol seleccionado</mat-option>
+                  @for (user of getAvailablePreFormAssignmentUsers(); track user.crm_user_id) {
+                    <mat-option [value]="user.crm_user_id">{{ formatUserLabel(user) }}</mat-option>
+                  }
+                </mat-select>
+                <mat-hint>
+                  @if (isLoadingPreFormAssignmentUsers()) {
+                    Cargando usuarios del rol...
+                  } @else if (!getAvailablePreFormAssignmentUsers().length) {
+                    Se asignarÃ¡ a la cola del rol.
+                  } @else {
+                    Si no elegÃ­s usuario, queda disponible para el rol.
+                  }
+                </mat-hint>
+              </mat-form-field>
             </div>
 
             <div formArrayName="pre_form_fields" class="task-template-form-page__items-list">
@@ -264,14 +292,6 @@
                 <mat-form-field appearance="outline" class="task-template-form-page__full-width">
                   <mat-label>Descripción</mat-label>
                   <textarea matInput rows="2" formControlName="subtask_description"></textarea>
-                </mat-form-field>
-
-                <mat-form-field appearance="outline">
-                  <mat-label>Tipo de subtarea</mat-label>
-                  <mat-select formControlName="subtask_type">
-                    <mat-option value="standard">Estándar</mat-option>
-                    <mat-option value="pre_form">Formulario previo</mat-option>
-                  </mat-select>
                 </mat-form-field>
 
                 <div class="task-template-form-page__subtask-rules task-template-form-page__full-width">

@@ -59,6 +59,8 @@ export interface TaskPreFormFieldWriteRequest {
 export interface TaskPreFormDefinitionWriteRequest {
   title: string | null;
   instructions: string | null;
+  assignment_role_key: string | null;
+  assignment_crm_user_id: string | null;
   fields: TaskPreFormFieldWriteRequest[];
 }
 
@@ -187,6 +189,8 @@ export interface TaskPreFormDefinition {
   form_id: string;
   title: string | null;
   instructions: string | null;
+  assignment_role_key: string | null;
+  assignment_crm_user_id: string | null;
   fields: TaskPreFormField[];
 }
 

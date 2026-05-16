@@ -418,6 +418,8 @@ def test_can_regenerate_pre_form_link_after_customer_submission(client, db_sessi
             "pre_form": {
                 "title": "Formulario previo",
                 "instructions": "Completar antes de la visita",
+                "assignment_role_key": "tecnico",
+                "assignment_crm_user_id": tech_user.crm_user_id,
                 "fields": [
                     {
                         "label": "Nombre del titular",
@@ -452,9 +454,16 @@ def test_can_regenerate_pre_form_link_after_customer_submission(client, db_sessi
         },
     )
     assert template_response.status_code == 200, template_response.text
+    template_body = template_response.json()
+    assert len(template_body["subtasks"]) == 1
+    assert template_body["subtasks"][0]["subtask_type"] == "standard"
     template_id = template_response.json()["template_id"]
 
     task = _create_task(client, template_id, seeded_client.client_id, _auth_header("admin-token"))
+    assert task["status"] == "PENDING"
+    assert task["current_assigned_crm_user_id"] is None
+    assert len(task["subtasks"]) == 1
+    assert task["subtasks"][0]["status"] == "locked"
 
     generate_response = client.post(
         f"/tasks/{task['task_id']}/pre-form/generate",
@@ -481,6 +490,13 @@ def test_can_regenerate_pre_form_link_after_customer_submission(client, db_sessi
         },
     )
     assert submit_response.status_code == 200, submit_response.text
+
+    task_after_submit = client.get(f"/tasks/{task['task_id']}", headers=_auth_header("admin-token"))
+    assert task_after_submit.status_code == 200, task_after_submit.text
+    task_after_submit_body = task_after_submit.json()
+    assert task_after_submit_body["status"] == "IN_PROGRESS"
+    assert task_after_submit_body["current_assigned_crm_user_id"] == tech_user.crm_user_id
+    assert task_after_submit_body["subtasks"][0]["status"] == "assigned"
 
     regenerate_response = client.post(
         f"/tasks/{task['task_id']}/pre-form/generate",
