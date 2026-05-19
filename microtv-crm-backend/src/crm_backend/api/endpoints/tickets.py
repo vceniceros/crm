@@ -220,6 +220,7 @@ def assign_ticket(
         payload.assigned_role_id,
         payload.assigned_user_id,
         payload.notes,
+        payload.collaborator_user_ids,
     )
     return _to_ticket_detail_response(actor=actor, ticket_service=ticket_service, ticket=ticket)
 

@@ -47,3 +47,24 @@ apartado config:
 - configurar aprovaciones: poder definir categorias de tickets o solicitudes que requieran de una cierta aprobacion de alguna persona o rol, y configurar quien es esa persona o rol que debe aprobar, y que el sistema pueda manejar ese flujo de aprobaciones
 
 - reportes: poder compartir reportes con otros usuarios ahi entrar el armar reportes personalizados, y poder compartirlos con otros usuarios o roles, o dejarlos privados para el usuario que los creó
+
+
+
+o
+- meter busqueda de producto por nombre  despacho real
+- agregar categorias a despachos reales/ productos requeridos (ejemplo si son 5 camaras marcar ccamaras 5 entoncers cualquier producto de tipo camara ya cumpliria esa categoria)
+- agregar el boton de camara al adjuntaar multimedia
+
+- poder pegar capturas en multimedia
+
+- unificar las funciones en un panel
+- poder buscar tickets por comentarios
+- poder asignar a mas de un tecncio a un ticket
+- agregar un campo de "tipo de solicitud" a los tickets, para poder categorizar mejor los tickets y luego poder hacer reportes o reglas de asignacion basados en ese campo
+
+- base de conocimientos: 
+
+- agregar una apartado de assets (activos) para poder asociar activos a los tickets
+
+- agregar herramientas de trabajo (autos, herramientas, etc) para poder asociar a los tickets y llevar un control de su uso   
+

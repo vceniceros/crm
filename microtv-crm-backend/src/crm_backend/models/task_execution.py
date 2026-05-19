@@ -353,7 +353,7 @@ class SubtaskItemValue(Base):
     subtask_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("subtasks.subtask_id"), index=True)
     template_checklist_item_id: Mapped[str | None] = mapped_column(
         Uuid(as_uuid=False),
-        ForeignKey("template_subtask_checklist_items.template_checklist_item_id"),
+        ForeignKey("template_subtask_checklist_items.template_checklist_item_id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )

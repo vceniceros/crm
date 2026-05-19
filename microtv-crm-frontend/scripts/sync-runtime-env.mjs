@@ -9,21 +9,21 @@ const runtimeConfigPath = resolve(projectRoot, 'public', 'runtime-config.js');
 const defaultDevLoginAccounts = [
   {
     label: 'Admin MicroTV',
-    email: 'admin@ycc.com.ar',
-    password: 'b5249a47fc73f4b5618d7b77b9fbe86f1278a96b139d7ee18ba34be181a3809f',
-    roleLabel: 'platform_admin -> admin'
+    email: 'admin@ycc.local',
+    password: 'changeme-secure-password',
+    roleLabel: 'admin -> admin'
   },
   {
     label: 'Operador YCC Brothers',
     email: 'operador.crm@yccbrothers.com',
     password: 'Passw0rd!',
-    roleLabel: 'company_operator -> deposito'
+    roleLabel: 'operador_deposito -> deposito'
   },
   {
     label: 'Auxiliar Deposito YCC',
     email: 'deposito.aux@yccbrothers.com',
     password: 'Passw0rd!',
-    roleLabel: 'company_operator -> deposito'
+    roleLabel: 'operador_deposito -> deposito'
   },
   {
     label: 'Ejecutivo YCC Brothers',
@@ -35,7 +35,7 @@ const defaultDevLoginAccounts = [
     label: 'Tecnico de Campo YCC',
     email: 'tecnico.campo@yccbrothers.com',
     password: 'Passw0rd!',
-    roleLabel: 'company_operator + rol local tecnico_campo -> tecnico'
+    roleLabel: 'tecnico_campo -> tecnico'
   }
 ];
 

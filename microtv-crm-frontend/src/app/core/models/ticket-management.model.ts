@@ -63,6 +63,17 @@ export interface TicketCommentMention {
   created_at: string;
 }
 
+export interface TicketCollaborator {
+  ticket_collaborator_id: string;
+  ticket_id: string;
+  crm_user_id: string;
+  display_name: string | null;
+  email: string | null;
+  source: 'assignment' | 'mention' | 'manual' | string;
+  added_by_crm_user_id: string | null;
+  created_at: string;
+}
+
 export interface TicketStatusTransition {
   ticket_status_transition_id: string;
   from_status: TicketStatus | string;
@@ -122,6 +133,7 @@ export interface TicketSummary {
   assigned_role_label: string | null;
   assigned_user_id: string | null;
   assigned_user_display_name: string | null;
+  collaborators: TicketCollaborator[];
   created_by_crm_user_id: string;
   created_by_display_name: string | null;
   resolved_by_crm_user_id: string | null;
@@ -180,12 +192,14 @@ export interface CreateTicketRequest {
   requires_video_evidence?: boolean;
   assigned_role_id: string | null;
   assigned_user_id: string | null;
+  collaborator_user_ids?: string[];
   required_materials?: TicketRequiredMaterialWrite[];
 }
 
 export interface AssignTicketRequest {
   assigned_role_id: string | null;
   assigned_user_id: string | null;
+  collaborator_user_ids?: string[];
   notes?: string | null;
 }
 
@@ -308,6 +322,7 @@ export interface TicketTableItem {
   assignedUserId: string | null;
   assignedRoleId: string | null;
   assignedRoleKey: string | null;
+  collaborators: TicketCollaborator[];
   isExecutiveApprovedClosed: boolean;
   hasSurveyGenerated: boolean;
   surveyStatusLabel: string | null;

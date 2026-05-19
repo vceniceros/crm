@@ -1,0 +1,81 @@
+<section class="operational-comment-composer" [class.operational-comment-composer--disabled]="isDisabled()">
+  <app-comment-mention-textarea
+    [formControl]="control"
+    [label]="label()"
+    [rows]="rows()"
+    [placeholder]="placeholder()"
+    [disabled]="isDisabled()"
+    (blur)="markTouched()"
+    (mentionedUserIdsChange)="mentionedUserIdsChange.emit($event)"
+  />
+
+  <ng-content />
+
+  <div class="operational-comment-composer__bar">
+    <div class="operational-comment-composer__tools">
+      <button
+        mat-icon-button
+        type="button"
+        matTooltip="Adjuntar multimedia"
+        aria-label="Adjuntar multimedia"
+        (click)="attachmentsClick.emit()"
+        [disabled]="isDisabled() || !canAttach()"
+      >
+        <mat-icon>perm_media</mat-icon>
+      </button>
+
+      <button
+        mat-icon-button
+        type="button"
+        matTooltip="Ubicacion del comentario"
+        aria-label="Ubicacion del comentario"
+        (click)="locationClick.emit()"
+        [disabled]="isDisabled() || !canPickLocation()"
+      >
+        <mat-icon>{{ hasLocation() ? 'location_on' : 'add_location_alt' }}</mat-icon>
+      </button>
+
+      @if (showInventoryButton()) {
+        <button
+          mat-icon-button
+          type="button"
+          matTooltip="Solicitud a deposito"
+          aria-label="Solicitud a deposito"
+          (click)="inventoryClick.emit()"
+          [disabled]="isDisabled() || !canRequestInventory()"
+        >
+          <mat-icon>inventory_2</mat-icon>
+        </button>
+      }
+
+      <div class="operational-comment-composer__indicators" aria-live="polite">
+        @if (attachmentCount() > 0) {
+          <span class="operational-comment-composer__pill">
+            <mat-icon>attach_file</mat-icon>
+            {{ attachmentCount() }}
+          </span>
+        }
+
+        @if (hasLocation()) {
+          <span class="operational-comment-composer__pill operational-comment-composer__pill--location">
+            <mat-icon>place</mat-icon>
+            {{ locationLabel() }}
+          </span>
+        }
+      </div>
+    </div>
+
+    <div class="operational-comment-composer__primary">
+      <button mat-flat-button color="primary" type="button" (click)="primaryActionClick.emit()" [disabled]="primaryActionDisabled() || isDisabled()">
+        <mat-icon>{{ primaryActionIcon() }}</mat-icon>
+        <span>{{ primaryActionLabel() }}</span>
+      </button>
+
+      @if (primaryActionMenu(); as menu) {
+        <button mat-icon-button type="button" [matMenuTriggerFor]="menu" aria-label="Elegir accion principal" [disabled]="isDisabled()">
+          <mat-icon>arrow_drop_down</mat-icon>
+        </button>
+      }
+    </div>
+  </div>
+</section>

@@ -87,6 +87,27 @@
   justify-content: flex-end;
 }
 
+.ticket-execution-page__collaborators {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.ticket-execution-page__collaborator-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 12rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid rgba(23, 24, 26, 0.1);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
 .ticket-execution-page__meta-label,
 .ticket-execution-page__meta-value,
 .ticket-execution-page__summary-caption,

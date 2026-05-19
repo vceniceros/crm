@@ -53,7 +53,7 @@ WHERE (status = 'COMPLETED' AND (is_finalized IS DISTINCT FROM TRUE OR finalized
    OR (is_finalized IS TRUE AND finalized_at IS NULL)
    OR (finalized_at IS NOT NULL AND finalized_by_crm_user_id IS NULL);
 
--- 4. Checklist items still missing type/template linkage after the integration delta.
+-- 4. Checklist items still missing type after the integration delta.
 SELECT
     sci.checklist_item_id,
     sci.subtask_id,
@@ -62,8 +62,7 @@ SELECT
     s.template_subtask_id
 FROM subtask_checklist_items AS sci
 JOIN subtasks AS s ON s.subtask_id = sci.subtask_id
-WHERE sci.item_type IS NULL
-   OR (s.template_subtask_id IS NOT NULL AND sci.template_checklist_item_id IS NULL);
+WHERE sci.item_type IS NULL;
 
 -- 5. Invalid textual enum values introduced by the integration delta.
 SELECT 'template_subtasks.next_assignment_policy' AS source, template_subtask_id::text AS row_id, next_assignment_policy AS invalid_value
@@ -266,15 +265,8 @@ BEGIN
         RAISE EXCEPTION 'v4.1 hardening aborted: subtasks still contains NULL responsible_role_key values';
     END IF;
 
-    IF EXISTS (
-        SELECT 1
-        FROM subtask_checklist_items AS sci
-        JOIN subtasks AS s ON s.subtask_id = sci.subtask_id
-        WHERE s.template_subtask_id IS NOT NULL
-          AND sci.template_checklist_item_id IS NULL
-    ) THEN
-        RAISE EXCEPTION 'v4.1 hardening aborted: instantiated checklist items still lack template_checklist_item_id';
-    END IF;
+    -- template_checklist_item_id is intentionally nullable: instantiated
+    -- checklist rows keep their own historical label/order/type snapshots.
 END $$;
 
 -- =====================================================
@@ -289,7 +281,7 @@ ALTER TABLE subtasks
     ALTER COLUMN responsible_role_key SET NOT NULL;
 
 ALTER TABLE subtask_checklist_items
-    ALTER COLUMN template_checklist_item_id SET NOT NULL;
+    ALTER COLUMN template_checklist_item_id DROP NOT NULL;
 
 -- 2. Domain checks for new textual enums.
 DO $$

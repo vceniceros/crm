@@ -295,6 +295,7 @@ export class TicketsPageComponent {
       assignedUserId: ticket.assigned_user_id,
       assignedRoleId: ticket.assigned_role_id,
       assignedRoleKey: ticket.assigned_role_key,
+      collaborators: ticket.collaborators ?? [],
       isExecutiveApprovedClosed: ticket.status === 'CLOSED',
       hasSurveyGenerated: Boolean(ticket.survey_generated_at),
       surveyStatusLabel: ticket.survey_status_label ?? null,

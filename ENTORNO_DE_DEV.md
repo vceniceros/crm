@@ -32,11 +32,11 @@ Estos usuarios quedan creados automáticamente en `auth_microtv`:
 
 ### Admin MicroTV
 
-- Email: `admin.crm@microtv.com`
-- Password: `Passw0rd!`
-- Display name: `Admin MicroTV`
-- Tenant: `MICROTV`
-- Rol en auth: `platform_admin`
+- Email: `admin@ycc.local`
+- Password: `changeme-secure-password`
+- Display name: `Administrador CRM`
+- Tenant: `YCC`
+- Rol en auth: `admin`
 - Bootstrap de rol local CRM esperado: `admin`
 
 ### Operador YCC Brothers
@@ -45,7 +45,7 @@ Estos usuarios quedan creados automáticamente en `auth_microtv`:
 - Password: `Passw0rd!`
 - Display name: `Operador YCC Brothers`
 - Tenant: `YCC`
-- Rol en auth: `company_operator`
+- Rol en auth: `operador_deposito`
 - Bootstrap de rol local CRM esperado: `deposito`
 
 ### Auxiliar Depósito YCC Brothers
@@ -54,7 +54,7 @@ Estos usuarios quedan creados automáticamente en `auth_microtv`:
 - Password: `Passw0rd!`
 - Display name: `Auxiliar Depósito YCC Brothers`
 - Tenant: `YCC`
-- Rol en auth: `company_operator`
+- Rol en auth: `operador_deposito`
 - Bootstrap de rol local CRM esperado: `deposito`
 
 ### Ejecutivo YCC Brothers
@@ -72,7 +72,7 @@ Estos usuarios quedan creados automáticamente en `auth_microtv`:
 - Password: `Passw0rd!`
 - Display name: `Técnico de campo YCC Brothers`
 - Tenant: `YCC`
-- Rol en auth: `company_operator`
+- Rol en auth: `tecnico_campo`
 - Vinculación CRM local: `auth-user-ycc-tech-001` con rol local `tecnico_campo`
 - Rol efectivo en UI: `tecnico`
 
@@ -94,12 +94,12 @@ Con eso el backend queda en `http://localhost:8010`.
 El `.env.example` ya viene listo para este flujo inicial. Si querés verificarlo, los valores importantes son:
 
 ```env
-DATABASE_URL=sqlite:///./microtv_crm.db
+DATABASE_URL=postgresql+psycopg://crmmicrotv:crmmicrotv@localhost:5433/crm_microtv
 AUTH_BASE_URL=http://localhost:8001
 AUTH_LOGIN_PATH=/v1/auth/login
 AUTH_JWT_SECRET=change-me
 AUTH_JWT_ALGORITHM=HS256
-AUTH_JWT_ISSUER=auth.microtv.ar
+AUTH_JWT_ISSUER=auth.crm.ycc.internal
 AUTH_JWT_AUDIENCE=microtv-platform
 ```
 
@@ -189,7 +189,7 @@ http://localhost:4200/login
 Usá cualquiera de estas credenciales:
 
 ```text
-admin.crm@microtv.com / Passw0rd!
+admin@ycc.local / changeme-secure-password
 operador.crm@yccbrothers.com / Passw0rd!
 deposito.aux@yccbrothers.com / Passw0rd!
 ejecutivo.crm@yccbrothers.com / Passw0rd!
@@ -207,7 +207,7 @@ tecnico.campo@yccbrothers.com / Passw0rd!
 ## 7.1 Verificación manual del técnico y clientes reales
 
 1. Ingresá con `tecnico.campo@yccbrothers.com / Passw0rd!` y verificá que el CRM resuelva el rol UI `tecnico`.
-2. Cerrá sesión e ingresá con `ejecutivo.crm@yccbrothers.com / Passw0rd!` o `admin.crm@microtv.com / Passw0rd!`.
+2. Cerrá sesión e ingresá con `ejecutivo.crm@yccbrothers.com / Passw0rd!` o `admin@ycc.local / changeme-secure-password`.
 3. Abrí el módulo de clientes y verificá que el listado consulte datos reales del backend.
 4. Creá un cliente nuevo desde el formulario existente.
 5. Confirmá por API o recargando la vista que el cliente persiste en la base del CRM.
@@ -228,7 +228,7 @@ Invoke-RestMethod \
   -Method Post \
   -Uri http://localhost:8010/auth/login \
   -ContentType 'application/json' \
-  -Body '{"email":"admin.crm@microtv.com","password":"Passw0rd!"}'
+  -Body '{"email":"admin@ycc.local","password":"changeme-secure-password"}'
 ```
 
 ## 9. Tests y validaciones

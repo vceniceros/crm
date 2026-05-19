@@ -3,7 +3,7 @@ import os
 
 # Configuración
 OUTPUT_FILE = "historial_completo_para_gpt_crm.md"
-DIAS_ATRAS = 7  # Cuántos días de historial quieres
+DIAS_ATRAS = 21  # Cuántos días de historial quieres
 EXCLUDE_EXTENSIONS = ['.json', '.lock', '.png', '.jpg', '.svg', '.map'] # Ignorar archivos ruidosos
 
 def run_git_command(command):

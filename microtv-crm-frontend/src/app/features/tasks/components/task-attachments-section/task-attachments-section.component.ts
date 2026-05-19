@@ -62,6 +62,35 @@ export class TaskAttachmentsSectionComponent {
     input.value = '';
   }
 
+  openCameraInput(input: HTMLInputElement): void {
+    if (!input) {
+      return;
+    }
+
+    input.value = '';
+    input.click();
+  }
+
+  openGalleryInput(input: HTMLInputElement): void {
+    if (!input) {
+      return;
+    }
+
+    input.value = '';
+
+    const picker = (input as HTMLInputElement & { showPicker?: () => void }).showPicker;
+    if (typeof picker === 'function') {
+      try {
+        picker.call(input);
+        return;
+      } catch {
+        // Fall back to click below.
+      }
+    }
+
+    input.click();
+  }
+
   removeAttachment(attachmentId: string): void {
     this.attachmentRemoved.emit(attachmentId);
   }

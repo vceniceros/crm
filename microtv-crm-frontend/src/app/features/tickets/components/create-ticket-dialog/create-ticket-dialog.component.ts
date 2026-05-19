@@ -102,6 +102,7 @@ export class CreateTicketDialogComponent {
     requires_video_evidence: this.formBuilder.control(true, { nonNullable: true }),
     assigned_role_id: this.formBuilder.control<string | null>(null),
     assigned_user_id: this.formBuilder.control<string | null>(null),
+    collaborator_user_ids: this.formBuilder.control<string[]>([], { nonNullable: true }),
     description: this.formBuilder.control('', {
       validators: [Validators.required],
       nonNullable: true
@@ -345,6 +346,7 @@ export class CreateTicketDialogComponent {
     if (!roleId) {
       this.assignees.set([]);
       this.form.controls.assigned_user_id.setValue(null);
+      this.form.controls.collaborator_user_ids.setValue([]);
       return;
     }
 
@@ -352,6 +354,7 @@ export class CreateTicketDialogComponent {
     if (!role) {
       this.assignees.set([]);
       this.form.controls.assigned_user_id.setValue(null);
+      this.form.controls.collaborator_user_ids.setValue([]);
       return;
     }
 
@@ -365,11 +368,17 @@ export class CreateTicketDialogComponent {
           if (selectedUserId && !users.some((user) => user.crm_user_id === selectedUserId)) {
             this.form.controls.assigned_user_id.setValue(null);
           }
+          const validUserIds = new Set(users.map((user) => user.crm_user_id));
+          this.form.controls.collaborator_user_ids.setValue(
+            this.form.controls.collaborator_user_ids.getRawValue().filter((userId) => validUserIds.has(userId)),
+            { emitEvent: false }
+          );
         },
         error: (error: Error) => {
           this.errorMessage.set(error.message);
           this.assignees.set([]);
           this.form.controls.assigned_user_id.setValue(null);
+          this.form.controls.collaborator_user_ids.setValue([]);
         }
       });
   }
@@ -385,6 +394,7 @@ export class CreateTicketDialogComponent {
       requires_video_evidence: this.form.controls.requires_video_evidence.getRawValue(),
       assigned_role_id: this.form.controls.assigned_role_id.getRawValue(),
       assigned_user_id: this.form.controls.assigned_user_id.getRawValue(),
+      collaborator_user_ids: this.form.controls.collaborator_user_ids.getRawValue(),
       required_materials: this.buildRequiredMaterialsPayload()
     };
 

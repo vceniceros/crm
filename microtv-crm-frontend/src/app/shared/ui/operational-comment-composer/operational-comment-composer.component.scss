@@ -1,0 +1,116 @@
+.operational-comment-composer {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.8rem;
+  border: 1px solid rgba(23, 24, 26, 0.08);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.operational-comment-composer--disabled {
+  opacity: 0.82;
+}
+
+.operational-comment-composer__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+  padding-top: 0.2rem;
+  border-top: 1px solid rgba(23, 24, 26, 0.08);
+}
+
+.operational-comment-composer__tools,
+.operational-comment-composer__primary,
+.operational-comment-composer__indicators,
+.operational-comment-composer__pill {
+  display: inline-flex;
+  align-items: center;
+}
+
+.operational-comment-composer__tools {
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.operational-comment-composer__primary {
+  flex-shrink: 0;
+  border: 1px solid rgba(23, 24, 26, 0.1);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.operational-comment-composer__primary button[mat-flat-button],
+.operational-comment-composer__primary button[mat-icon-button] {
+  border-radius: 0;
+}
+
+.operational-comment-composer__primary button[mat-icon-button] {
+  border-left: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.operational-comment-composer__indicators {
+  gap: 0.35rem;
+  min-width: 0;
+  margin-left: 0.25rem;
+}
+
+.operational-comment-composer__pill {
+  max-width: min(18rem, 36vw);
+  gap: 0.25rem;
+  padding: 0.22rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(23, 24, 26, 0.06);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.operational-comment-composer__pill mat-icon {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  font-size: 1rem;
+}
+
+.operational-comment-composer__pill--location {
+  color: #1f6a45;
+  background: rgba(238, 250, 242, 0.92);
+}
+
+@media (max-width: 720px) {
+  .operational-comment-composer__bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .operational-comment-composer__tools {
+    flex-wrap: wrap;
+  }
+
+  .operational-comment-composer__primary,
+  .operational-comment-composer__primary button[mat-flat-button] {
+    width: 100%;
+  }
+
+  .operational-comment-composer__primary button[mat-flat-button] {
+    justify-content: center;
+  }
+
+  .operational-comment-composer__pill {
+    max-width: 100%;
+  }
+}
+
+:host-context(html.theme-dark) .operational-comment-composer {
+  background: var(--surface-panel);
+  border-color: var(--border-subtle);
+}
+
+:host-context(html.theme-dark) .operational-comment-composer__bar {
+  border-color: var(--border-subtle);
+}

@@ -315,6 +315,65 @@ def test_update_template_with_pre_form_keeps_single_pre_form_record(client, db_s
     assert len(pre_forms) == 1
 
 
+def test_update_template_after_task_creation_preserves_existing_task_items(client, db_session) -> None:
+    """Editing an already-used template must not break historical pedido checklist rows."""
+
+    tech_user = _seed_local_role_user(
+        db_session,
+        role_key="tecnico_campo",
+        auth_user_id="auth-tech",
+        email="tecnico.crm@yccbrothers.com",
+        display_name="Tecnico Campo",
+    )
+    seeded_client = _seed_client(db_session)
+    client.app.dependency_overrides[get_auth_service_adapter] = lambda: FakeTaskAuthAdapter()
+
+    template = _create_template(client, headers=_auth_header("admin-token"), default_tech_user_id=tech_user.crm_user_id)
+    task = _create_task(client, template["template_id"], seeded_client.client_id, _auth_header("admin-token"))
+    original_item_labels = [item["item_label"] for item in task["subtasks"][0]["items"]]
+
+    update_response = client.put(
+        f"/tasks/templates/{template['template_id']}",
+        headers=_auth_header("admin-token"),
+        json={
+            "template_name": "Instalacion DVR estandar editada",
+            "description": "Plantilla operativa actualizada",
+            "requires_arrival_comment": False,
+            "requires_video_evidence": False,
+            "requires_pre_form": False,
+            "pre_form": None,
+            "required_materials": [],
+            "subtasks": [
+                {
+                    "subtask_title": "Visita tecnica editada",
+                    "subtask_description": "Diagnostico actualizado",
+                    "order_index": 0,
+                    "responsible_role_key": "tecnico",
+                    "default_responsible_crm_user_id": tech_user.crm_user_id,
+                    "close_comment_required": True,
+                    "next_assignment_policy": "role_queue_auto",
+                    "subtask_type": "standard",
+                    "items": [
+                        {
+                            "item_label": "Equipo revisado actualizado",
+                            "item_order": 0,
+                            "item_type": "checkbox",
+                            "is_required": True,
+                        }
+                    ],
+                }
+            ],
+        },
+    )
+    assert update_response.status_code == 200, update_response.text
+    assert update_response.json()["subtasks"][0]["items"][0]["item_label"] == "Equipo revisado actualizado"
+
+    task_detail = client.get(f"/tasks/{task['task_id']}", headers=_auth_header("admin-token"))
+    assert task_detail.status_code == 200, task_detail.text
+    task_item_labels = [item["item_label"] for item in task_detail.json()["subtasks"][0]["items"]]
+    assert task_item_labels == original_item_labels
+
+
 def test_create_template_with_pre_form_assignment_self_heals_legacy_schema(client, db_session) -> None:
     """Template creation must repair legacy pre-form tables before inserting assignment columns."""
 
