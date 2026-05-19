@@ -14,6 +14,7 @@ from crm_backend.models import (
     TicketAuditEvent,
     TicketComment,
     TicketCommentMention,
+    TicketCollaborator,
     TicketSatisfactionForm,
     TicketSatisfactionResponse,
     TicketStatus,
@@ -40,6 +41,7 @@ class TicketRepository:
 
     def _summary_options(self):
         return (
+            selectinload(Ticket.collaborators).selectinload(TicketCollaborator.crm_user),
             selectinload(Ticket.status_history),
             selectinload(Ticket.audit_events),
             selectinload(Ticket.satisfaction_forms).selectinload(TicketSatisfactionForm.response),
@@ -49,6 +51,7 @@ class TicketRepository:
         return (
             selectinload(Ticket.comments).selectinload(TicketComment.attachments),
             selectinload(Ticket.comments).selectinload(TicketComment.mentions).selectinload(TicketCommentMention.mentioned_user),
+            selectinload(Ticket.collaborators).selectinload(TicketCollaborator.crm_user),
             selectinload(Ticket.attachments),
             selectinload(Ticket.status_history),
             selectinload(Ticket.assignment_history),
@@ -77,10 +80,17 @@ class TicketRepository:
         return self._session.get(TicketAttachment, attachment_id)
 
     def list_tickets_assigned_to_user(self, crm_user_id: str) -> list[Ticket]:
+        collaborator_ticket_ids = select(TicketCollaborator.ticket_id).where(
+            TicketCollaborator.crm_user_id == crm_user_id,
+            TicketCollaborator.deleted_at.is_(None),
+        )
         statement = (
             select(Ticket)
             .options(*self._summary_options())
-            .where(Ticket.assigned_user_id == crm_user_id, Ticket.status != TicketStatus.CLOSED.value)
+            .where(
+                or_(Ticket.assigned_user_id == crm_user_id, Ticket.ticket_id.in_(collaborator_ticket_ids)),
+                Ticket.status != TicketStatus.CLOSED.value,
+            )
             .order_by(Ticket.updated_at.desc())
         )
         return list(self._session.scalars(statement).all())
@@ -107,6 +117,22 @@ class TicketRepository:
             select(Ticket)
             .options(*self._summary_options())
             .where(Ticket.assigned_role_id.in_(role_ids), Ticket.status != TicketStatus.CLOSED.value)
+            .order_by(Ticket.updated_at.desc())
+        )
+        return list(self._session.scalars(statement).all())
+
+    def list_tracking_tickets_for_roles_or_collaborator(self, role_ids: list[str], crm_user_id: str) -> list[Ticket]:
+        collaborator_ticket_ids = select(TicketCollaborator.ticket_id).where(
+            TicketCollaborator.crm_user_id == crm_user_id,
+            TicketCollaborator.deleted_at.is_(None),
+        )
+        filters = [Ticket.ticket_id.in_(collaborator_ticket_ids)]
+        if role_ids:
+            filters.append(Ticket.assigned_role_id.in_(role_ids))
+        statement = (
+            select(Ticket)
+            .options(*self._summary_options())
+            .where(or_(*filters), Ticket.status != TicketStatus.CLOSED.value)
             .order_by(Ticket.updated_at.desc())
         )
         return list(self._session.scalars(statement).all())
@@ -139,6 +165,12 @@ class TicketRepository:
                 )
             )
         )
+        collaborated_ids = select(TicketCollaborator.ticket_id).where(TicketCollaborator.crm_user_id == crm_user_id)
+        mentioned_ids = (
+            select(TicketComment.ticket_id)
+            .join(TicketCommentMention, TicketCommentMention.ticket_comment_id == TicketComment.ticket_comment_id)
+            .where(TicketCommentMention.mentioned_crm_user_id == crm_user_id)
+        )
         statement = (
             select(Ticket)
             .options(*self._summary_options())
@@ -146,6 +178,8 @@ class TicketRepository:
                 Ticket.status == TicketStatus.CLOSED.value,
                 or_(
                     Ticket.ticket_id.in_(participated_ids),
+                    Ticket.ticket_id.in_(collaborated_ids),
+                    Ticket.ticket_id.in_(mentioned_ids),
                     Ticket.closed_by_crm_user_id == crm_user_id,
                     Ticket.created_by_crm_user_id == crm_user_id,
                 ),

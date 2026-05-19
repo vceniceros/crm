@@ -32,6 +32,7 @@ from crm_backend.models import (
     TicketComment,
     TicketCommentMention,
     TicketCommentType,
+    TicketCollaborator,
     TicketPriority,
     TicketRequiredMaterial,
     TicketStatus,
@@ -145,6 +146,12 @@ class TicketApplicationService:
             )
 
         self._append_required_materials(ticket, payload)
+        self._sync_ticket_collaborators(
+            ticket,
+            payload.collaborator_user_ids,
+            source="assignment",
+            actor_user_id=actor.crm_user.crm_user_id,
+        )
 
         ticket.audit_events.append(
             TicketAuditEvent(
@@ -190,7 +197,10 @@ class TicketApplicationService:
             if {"admin", "ejecutivo"}.intersection(actor_role_keys):
                 return self._ticket_repository.list_tracking_tickets_for_all_roles()
             role_ids = sorted(self._actor_role_ids(actor))
-            return self._ticket_repository.list_tracking_tickets_for_roles(role_ids)
+            return self._ticket_repository.list_tracking_tickets_for_roles_or_collaborator(
+                role_ids,
+                actor.crm_user.crm_user_id,
+            )
         except Exception:
             _logger.exception("Failed to list tracking tickets for actor %s", getattr(actor.crm_user, "crm_user_id", "unknown"))
             return []
@@ -274,6 +284,12 @@ class TicketApplicationService:
                     created_by_crm_user_id=actor.crm_user.crm_user_id,
                 )
             )
+            self._add_ticket_collaborator(
+                ticket,
+                mentioned_user.crm_user_id,
+                source="mention",
+                actor_user_id=actor.crm_user.crm_user_id,
+            )
         self._try_register_arrival_from_comment(
             actor=actor,
             ticket=ticket,
@@ -299,7 +315,7 @@ class TicketApplicationService:
             if self._notification_service is not None:
                 recipient_ids = self._resolve_notification_recipients_for_event(
                     event_code=NotificationType.TICKET_COMMENT_ADDED.value,
-                    assigned_user_id=saved_ticket.assigned_user_id,
+                    ticket=saved_ticket,
                     actor_crm_user_id=actor.crm_user.crm_user_id,
                 )
                 actor_name = actor.crm_user.display_name or actor.crm_user.email or actor.crm_user.crm_user_id
@@ -337,6 +353,7 @@ class TicketApplicationService:
         assigned_role_id: str | None,
         assigned_user_id: str | None,
         notes: str | None,
+        collaborator_user_ids: list[str] | None = None,
     ) -> Ticket:
         ticket = self.get_ticket_detail(actor, ticket_id)
         role, user = self._resolve_assignment_target(assigned_role_id, assigned_user_id)
@@ -355,6 +372,12 @@ class TicketApplicationService:
         if ticket.status == TicketStatus.OPEN.value and user is not None:
             ticket.status = TicketStatus.IN_PROGRESS.value
         self._sync_legacy_ticket_fields(ticket)
+        self._sync_ticket_collaborators(
+            ticket,
+            collaborator_user_ids or [],
+            source="assignment",
+            actor_user_id=actor.crm_user.crm_user_id,
+        )
 
         ticket.assignment_history.append(
             TicketAssignmentHistory(
@@ -390,14 +413,24 @@ class TicketApplicationService:
             if self._notification_service is not None and saved_ticket.assigned_user_id is not None:
                 is_reassignment = previous_user_id is not None and previous_user_id != saved_ticket.assigned_user_id
                 notif_type = NotificationType.TICKET_REASSIGNED if is_reassignment else NotificationType.TICKET_ASSIGNED
-                self._notification_service.notify(
-                    recipient_crm_user_id=saved_ticket.assigned_user_id,
-                    notification_type=notif_type,
-                    title=f"Ticket {saved_ticket.ticket_number} asignado a vos",
-                    body=f"Se te asignó el ticket {saved_ticket.ticket_number}: {saved_ticket.title}",
-                    entity_type=NotificationEntityType.TICKET,
-                    entity_id=saved_ticket.ticket_id,
-                )
+                recipient_ids = {
+                    saved_ticket.assigned_user_id,
+                    *[
+                        collaborator.crm_user_id
+                        for collaborator in saved_ticket.collaborators
+                        if collaborator.deleted_at is None
+                    ],
+                }
+                recipient_ids.discard(actor.crm_user.crm_user_id)
+                for recipient_id in recipient_ids:
+                    self._notification_service.notify(
+                        recipient_crm_user_id=recipient_id,
+                        notification_type=notif_type,
+                        title=f"Ticket {saved_ticket.ticket_number} asignado a vos",
+                        body=f"Se te asignó el ticket {saved_ticket.ticket_number}: {saved_ticket.title}",
+                        entity_type=NotificationEntityType.TICKET,
+                        entity_id=saved_ticket.ticket_id,
+                    )
             elif self._notification_service is not None and saved_ticket.assigned_user_id is None:
                 self._notify_ticket_unassigned_to_tecnicos(saved_ticket)
         except Exception:
@@ -1014,6 +1047,7 @@ class TicketApplicationService:
             raise InvalidTaskAttachmentError("Se requiere al menos un archivo para subir multimedia.")
 
         ticket = self.get_ticket_detail(actor, ticket_id)
+        self._ensure_ticket_operable(actor, ticket)
 
         stored_media_batch: list[StoredTaskMedia] = []
         persisted_attachments: list[TicketAttachment] = []
@@ -1115,6 +1149,87 @@ class TicketApplicationService:
         if user is None and role is None:
             return None, None
         return role, user
+
+    def _resolve_collaborator_users(self, collaborator_user_ids: list[str]) -> list[CrmUser]:
+        normalized_ids: list[str] = []
+        seen: set[str] = set()
+        for raw_user_id in collaborator_user_ids:
+            normalized = raw_user_id.strip() if isinstance(raw_user_id, str) else ""
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            normalized_ids.append(normalized)
+        if not normalized_ids:
+            return []
+
+        users = self._user_repository.list_active_by_ids(normalized_ids)
+        users_by_id = {user.crm_user_id: user for user in users}
+        missing_ids = [user_id for user_id in normalized_ids if user_id not in users_by_id]
+        if missing_ids:
+            raise TicketValidationError("Uno de los colaboradores indicados no existe o no está activo.")
+        return [users_by_id[user_id] for user_id in normalized_ids]
+
+    def _sync_ticket_collaborators(
+        self,
+        ticket: Ticket,
+        collaborator_user_ids: list[str],
+        *,
+        source: str,
+        actor_user_id: str,
+    ) -> None:
+        target_user_ids = {user.crm_user_id for user in self._resolve_collaborator_users(collaborator_user_ids)}
+        if ticket.assigned_user_id:
+            target_user_ids.discard(ticket.assigned_user_id)
+
+        now = datetime.now(UTC)
+        active_assignment_collaborators = [
+            collaborator
+            for collaborator in ticket.collaborators
+            if collaborator.deleted_at is None and collaborator.source in {"assignment", "manual"}
+        ]
+        for collaborator in active_assignment_collaborators:
+            if collaborator.crm_user_id not in target_user_ids:
+                collaborator.deleted_at = now
+
+        for user_id in target_user_ids:
+            self._add_ticket_collaborator(ticket, user_id, source=source, actor_user_id=actor_user_id)
+
+    def _add_ticket_collaborator(
+        self,
+        ticket: Ticket,
+        user_id: str,
+        *,
+        source: str,
+        actor_user_id: str,
+    ) -> None:
+        if not user_id:
+            return
+        existing = next(
+            (
+                collaborator
+                for collaborator in ticket.collaborators
+                if collaborator.crm_user_id == user_id and collaborator.deleted_at is None
+            ),
+            None,
+        )
+        if existing is not None:
+            if existing.source != "assignment" and source == "assignment":
+                existing.source = source
+            return
+        ticket.collaborators.append(
+            TicketCollaborator(
+                ticket_id=ticket.ticket_id,
+                crm_user_id=user_id,
+                source=source,
+                added_by_crm_user_id=actor_user_id,
+            )
+        )
+
+    def _is_active_ticket_collaborator(self, ticket: Ticket, crm_user_id: str) -> bool:
+        return any(
+            collaborator.crm_user_id == crm_user_id and collaborator.deleted_at is None
+            for collaborator in ticket.collaborators
+        )
 
     def _append_required_materials(self, ticket: Ticket, payload: CreateTicketRequest) -> None:
         if not payload.required_materials:
@@ -1299,9 +1414,11 @@ class TicketApplicationService:
         actor_role_ids = self._actor_role_ids(actor)
         if ticket.assigned_user_id == actor_user_id:
             return
+        if self._is_active_ticket_collaborator(ticket, actor_user_id):
+            return
         if ticket.assigned_user_id is None and ticket.assigned_role_id is not None and ticket.assigned_role_id in actor_role_ids:
             return
-        raise TicketAccessDeniedError("Solo el usuario asignado o el mismo rol puede operar este ticket.")
+        raise TicketAccessDeniedError("Solo el usuario asignado, colaborador o el mismo rol puede operar este ticket.")
 
     def _ensure_assignment_access(self, actor: ResolvedCrmSession, ticket: Ticket, role: CrmRole | None) -> None:
         if self._permission_service is not None and self._permission_service.resolve(
@@ -1347,11 +1464,19 @@ class TicketApplicationService:
         actor_user_id = actor.crm_user.crm_user_id
         if ticket.assigned_user_id == actor_user_id:
             return True
+        if self._is_active_ticket_collaborator(ticket, actor_user_id):
+            return True
         if ticket.created_by_crm_user_id == actor_user_id:
             return True
         if any(
             assignment.previous_user_id == actor_user_id or assignment.assigned_user_id == actor_user_id
             for assignment in ticket.assignment_history
+        ):
+            return True
+        if any(
+            mention.mentioned_crm_user_id == actor_user_id
+            for comment in ticket.comments
+            for mention in comment.mentions
         ):
             return True
 
@@ -1436,7 +1561,7 @@ class TicketApplicationService:
         self,
         *,
         event_code: str,
-        assigned_user_id: str | None,
+        ticket: Ticket,
         actor_crm_user_id: str,
     ) -> list[str]:
         if self._notification_service is None:
@@ -1452,8 +1577,14 @@ class TicketApplicationService:
             return []
 
         recipients: set[str] = set()
-        if rule.notify_assigned and assigned_user_id:
-            recipients.add(assigned_user_id)
+        if rule.notify_assigned:
+            if ticket.assigned_user_id:
+                recipients.add(ticket.assigned_user_id)
+            recipients.update(
+                collaborator.crm_user_id
+                for collaborator in ticket.collaborators
+                if collaborator.deleted_at is None
+            )
 
         for role_key in rule.notify_roles_json or []:
             recipients.update(self._notification_service.resolve_users_with_role_key(role_key))

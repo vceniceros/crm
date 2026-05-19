@@ -103,7 +103,12 @@
             @if (ticket.assignedUserId) {
               <div class="tickets-table__assignee">
                 <app-user-avatar [initials]="initialsFor(ticket.assignedTo)" [size]="32" />
-                <span>{{ ticket.assignedTo }}</span>
+                <div class="tickets-table__assignee-stack">
+                  <span>{{ ticket.assignedTo }}</span>
+                  @if (ticket.collaborators.length) {
+                    <span class="tickets-table__collaborators">+{{ ticket.collaborators.length }} colaborador(es)</span>
+                  }
+                </div>
               </div>
             } @else {
               <div class="tickets-table__unassigned-wrap">
@@ -185,7 +190,12 @@
               @if (ticket.assignedUserId) {
                 <div class="tickets-table__assignee">
                   <app-user-avatar [initials]="initialsFor(ticket.assignedTo)" [size]="32" />
-                  <span>{{ ticket.assignedTo }}</span>
+                  <div class="tickets-table__assignee-stack">
+                    <span>{{ ticket.assignedTo }}</span>
+                    @if (ticket.collaborators.length) {
+                      <span class="tickets-table__collaborators">+{{ ticket.collaborators.length }} colaborador(es)</span>
+                    }
+                  </div>
                 </div>
               } @else {
                 <p class="tickets-table__mobile-value tickets-table__unassigned">{{ ticket.assignedTo || 'Sin asignar' }}</p>

@@ -42,7 +42,7 @@ from crm_backend.models import (
     TransitionAction,
 )
 from crm_backend.repositories import CrmUserRepository, TaskRepository, TaskTemplateRepository
-from crm_backend.db.bootstrap import ensure_task_pre_form_columns, ensure_task_rule_columns
+from crm_backend.db.bootstrap import ensure_task_pre_form_columns, ensure_task_rule_columns, ensure_task_template_item_history_reference
 from crm_backend.schemas.tasks import (
     ApproveTaskRequest,
     CreateTaskFromTemplateRequest,
@@ -177,6 +177,7 @@ class TaskApplicationService:
         self._assignment_strategy_registry = NextAssignmentStrategyRegistry()
         ensure_task_rule_columns(self._task_repository.session)
         ensure_task_pre_form_columns(self._task_repository.session)
+        ensure_task_template_item_history_reference(self._task_repository.session)
 
     def create_template(self, actor: ResolvedCrmSession, payload: CreateTaskTemplateRequest) -> TaskTemplate:
         self._ensure_admin_or_executive(actor)

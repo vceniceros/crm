@@ -39,7 +39,7 @@
         >
           <app-user-avatar [initials]="(ticket.assigned_user_display_name || ticket.assigned_role_label || 'SA').slice(0, 2).toUpperCase()" [size]="40" />
           <div>
-            <p class="ticket-execution-page__meta-label">Asignado a</p>
+            <p class="ticket-execution-page__meta-label">Asignado principal</p>
             <p class="ticket-execution-page__meta-value">{{ ticket.assigned_user_display_name || 'Sin usuario asignado' }}</p>
           </div>
           <div>
@@ -74,6 +74,15 @@
             </mat-form-field>
 
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Colaboradores</mat-label>
+              <mat-select formControlName="collaborator_user_ids" multiple>
+                @for (user of assignableUsers(); track user.crm_user_id) {
+                  <mat-option [value]="user.crm_user_id">{{ user.display_name || user.email || 'Usuario CRM' }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
               <mat-label>Nota de reasignación</mat-label>
               <input matInput formControlName="notes" />
             </mat-form-field>
@@ -85,6 +94,16 @@
             </div>
           </div>
         </mat-menu>
+
+        @if (ticket.collaborators.length) {
+          <div class="ticket-execution-page__collaborators" aria-label="Colaboradores del ticket">
+            @for (collaborator of ticket.collaborators; track collaborator.crm_user_id) {
+              <span class="ticket-execution-page__collaborator-chip">
+                {{ (collaborator.display_name || collaborator.email || 'Usuario CRM') }}
+              </span>
+            }
+          </div>
+        }
       </div>
     </div>
 
@@ -229,16 +248,61 @@
             </div>
           }
 
+          <mat-menu #primaryActionMenu="matMenu" xPosition="after">
+            <button mat-menu-item type="button" (click)="selectPrimaryAction('comment')">
+              <mat-icon>chat</mat-icon>
+              <span>Comentar</span>
+            </button>
+            <button mat-menu-item type="button" (click)="selectPrimaryAction('transition')" [disabled]="!canCloseOrTransition()">
+              <mat-icon>sync</mat-icon>
+              <span>Cambiar estado</span>
+            </button>
+            <button mat-menu-item type="button" (click)="selectPrimaryAction('close')" [disabled]="!canCloseOrTransition()">
+              <mat-icon>task_alt</mat-icon>
+              <span>Cerrar ticket</span>
+            </button>
+          </mat-menu>
+
           <form [formGroup]="commentForm" class="ticket-execution-page__comment-form">
-            <app-comment-mention-textarea
+            <app-operational-comment-composer
               formControlName="body"
               [label]="commentFieldLabel()"
               [rows]="4"
               [placeholder]="commentFieldPlaceholder()"
               [disabled]="!canOperateTicket()"
-              (mentionedUserIdsChange)="commentMentionedUserIds.set($event)" />
+              [loading]="isSaving()"
+              [attachmentCount]="pendingAttachments().length"
+              [hasLocation]="!!selectedCommentLocation()"
+              [locationLabel]="selectedCommentLocationLabel()"
+              [canAttach]="canOperateTicket()"
+              [canPickLocation]="canOperateTicket()"
+              [canRequestInventory]="canCreateInventoryRequest()"
+              [primaryActionLabel]="primaryActionLabel()"
+              [primaryActionIcon]="primaryActionIcon()"
+              [primaryActionDisabled]="!canExecutePrimaryAction()"
+              [primaryActionMenu]="primaryActionMenu"
+              (attachmentsClick)="openAttachmentsDialog(ticketAttachmentsDialog)"
+              (locationClick)="openLocationDialog(ticketLocationDialog)"
+              (inventoryClick)="openInventoryRequestDialog(ticketInventoryRequestDialog)"
+              (primaryActionClick)="executePrimaryAction()"
+              (mentionedUserIdsChange)="commentMentionedUserIds.set($event)"
+            >
+              @if (selectedPrimaryAction() === 'transition') {
+                <div class="ticket-execution-page__composer-inline" [formGroup]="statusForm">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>Estado destino</mat-label>
+                    <mat-select formControlName="to_status" [disabled]="!canCloseOrTransition()">
+                      @for (transition of availableTransitions(); track transition.toStatus) {
+                        <mat-option [value]="transition.toStatus">{{ transition.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+              }
+            </app-operational-comment-composer>
           </form>
 
+          @if (false) {
           <div class="ticket-execution-page__composer-actions">
             <button mat-stroked-button type="button" (click)="captureCurrentCommentLocation()" [disabled]="!canOperateTicket() || isSaving() || isResolvingCommentLocation()">
               <mat-icon>my_location</mat-icon>
@@ -292,12 +356,12 @@
               <button mat-flat-button color="primary" type="button" (click)="executePrimaryAction()" [disabled]="!canExecutePrimaryAction()">
                 {{ primaryActionLabel() }}
               </button>
-              <button mat-icon-button type="button" [matMenuTriggerFor]="primaryActionMenu" aria-label="Elegir acción principal" [disabled]="!canOperateTicket()">
+              <button mat-icon-button type="button" [matMenuTriggerFor]="legacyPrimaryActionMenu" aria-label="Elegir acción principal" [disabled]="!canOperateTicket()">
                 <mat-icon>arrow_drop_down</mat-icon>
               </button>
             </div>
 
-            <mat-menu #primaryActionMenu="matMenu" xPosition="after">
+            <mat-menu #legacyPrimaryActionMenu="matMenu" xPosition="after">
               <button mat-menu-item type="button" (click)="selectPrimaryAction('comment')">
                 <mat-icon>chat</mat-icon>
                 <span>Comentar</span>
@@ -317,6 +381,8 @@
             </button>
 
           </div>
+
+          }
 
           @if (selectedPrimaryAction() === 'close' && (isCloseBlockedByArrivalRequirement() || isCloseBlockedByVideoRequirement())) {
             <div class="close-requirements-panel">
@@ -362,6 +428,82 @@
               </div>
             </section>
           }
+
+          <ng-template #ticketAttachmentsDialog>
+            <h2 mat-dialog-title>Multimedia del comentario</h2>
+            <mat-dialog-content>
+              <app-ticket-attachments-section
+                [attachments]="pendingAttachments()"
+                [canEdit]="canOperateTicket()"
+                (attachmentsSelected)="addAttachments($event)"
+                (attachmentRemoved)="removeAttachment($event)"
+              />
+            </mat-dialog-content>
+            <mat-dialog-actions align="end">
+              <button mat-stroked-button type="button" mat-dialog-close>Cerrar</button>
+            </mat-dialog-actions>
+          </ng-template>
+
+          <ng-template #ticketLocationDialog>
+            <h2 mat-dialog-title>Ubicación del comentario</h2>
+            <mat-dialog-content class="ticket-execution-page__dialog-grid">
+              <p class="ticket-execution-page__summary-caption">{{ selectedCommentLocationLabel() }}</p>
+              <button mat-stroked-button type="button" (click)="captureCurrentCommentLocation()" [disabled]="!canOperateTicket() || isSaving() || isResolvingCommentLocation()">
+                <mat-icon>my_location</mat-icon>
+                <span>{{ isResolvingCommentLocation() ? 'Ubicando...' : 'Usar ubicación actual' }}</span>
+              </button>
+              <button mat-stroked-button type="button" (click)="openCommentLocationPicker()" [disabled]="!canOperateTicket() || isSaving()">
+                <mat-icon>pin_drop</mat-icon>
+                <span>Elegir en mapa</span>
+              </button>
+              @if (selectedCommentLocation()) {
+                <button mat-stroked-button type="button" (click)="openCommentLocationInMaps()" [disabled]="!canOpenCommentLocationInMaps()">
+                  <mat-icon>map</mat-icon>
+                  <span>Abrir ubicación</span>
+                </button>
+                <button mat-stroked-button type="button" (click)="clearCommentLocation()" [disabled]="isSaving()">
+                  <mat-icon>close</mat-icon>
+                  <span>Quitar ubicación</span>
+                </button>
+              }
+            </mat-dialog-content>
+            <mat-dialog-actions align="end">
+              <button mat-stroked-button type="button" mat-dialog-close>Cerrar</button>
+            </mat-dialog-actions>
+          </ng-template>
+
+          <ng-template #ticketInventoryRequestDialog>
+            <h2 mat-dialog-title>Solicitud a depósito</h2>
+            <mat-dialog-content>
+              <section class="ticket-execution-page__request-drawer" [formGroup]="inventoryRequestForm">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Item</mat-label>
+                  <mat-select formControlName="inventoryItemId">
+                    @for (item of inventoryOptions(); track item.id) {
+                      <mat-option [value]="item.id">{{ item.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Cantidad</mat-label>
+                  <input matInput type="number" min="1" formControlName="quantity" />
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="ticket-execution-page__operation-grid--wide">
+                  <mat-label>Observación</mat-label>
+                  <input matInput formControlName="notes" />
+                </mat-form-field>
+
+                <div class="ticket-execution-page__drawer-actions">
+                  <button mat-flat-button color="primary" type="button" (click)="submitInventoryRequestFromDrawer()" [disabled]="isSaving()">Enviar solicitud</button>
+                </div>
+              </section>
+            </mat-dialog-content>
+            <mat-dialog-actions align="end">
+              <button mat-stroked-button type="button" mat-dialog-close>Cerrar</button>
+            </mat-dialog-actions>
+          </ng-template>
 
           @if (!canOperateTicket() && !blockingRequestForCurrentUser()) {
             <p class="ticket-execution-page__empty-text">Solo lectura. El ticket está asignado a otro usuario o rol operativo.</p>

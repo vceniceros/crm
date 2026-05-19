@@ -96,7 +96,7 @@ El orden es obligatorio por dependencias de JWT:
 
 ```
 PostgreSQL (auth-db)
-   └── auth.microtv (crm-auth-local)  <- espera healthcheck de BD
+   └── auth.microtv (microtv-crm-ycc-auth-local)  <- espera healthcheck de BD
 
 PostgreSQL (crm-backend-db)
    └── schema-propuesto-v4.sql        <- bootstrap por psql si la BD está vacía
@@ -225,7 +225,7 @@ Verificar login completo:
 ```powershell
 curl -s -X POST http://localhost:8010/auth/login `
   -H "Content-Type: application/json" `
-  -d '{"email":"admin.crm@microtv.com","password":"Passw0rd!"}' | ConvertFrom-Json
+  -d '{"email":"admin@ycc.local","password":"changeme-secure-password"}' | ConvertFrom-Json
 ```
 
 Debe devolver un JSON con `access_token`, `refresh_token`, `user` y `active_membership`.
@@ -261,21 +261,20 @@ Creados por `seed_crm_auth.py` en la base de datos auth (`auth_microtv`):
 
 | Email | Password | Tenant | Rol en auth | Rol en CRM |
 |---|---|---|---|---|
-| `admin.crm@microtv.com` | `Passw0rd!` | MICROTV | `platform_admin` | `admin_crm` (alias app: `admin`) |
-| `operador.crm@yccbrothers.com` | `Passw0rd!` | YCC | `company_operator` | `encargado_deposito` (alias app: `deposito`) |
-| `deposito.aux@yccbrothers.com` | `Passw0rd!` | YCC | `company_operator` | `encargado_deposito` (alias app: `deposito`) |
+| `admin@ycc.local` | `changeme-secure-password` | YCC | `admin` | `admin_crm` (alias app: `admin`) |
+| `operador.crm@yccbrothers.com` | `Passw0rd!` | YCC | `operador_deposito` | `encargado_deposito` (alias app: `deposito`) |
+| `deposito.aux@yccbrothers.com` | `Passw0rd!` | YCC | `operador_deposito` | `encargado_deposito` (alias app: `deposito`) |
+| `ejecutivo.crm@yccbrothers.com` | `Passw0rd!` | YCC | `ejecutivo` | `ejecutivo` |
+| `tecnico.campo@yccbrothers.com` | `Passw0rd!` | YCC | `tecnico_campo` | `tecnico_campo` (alias app: `tecnico`) |
 
 ### Lógica de mapeo de roles (fuente: `role_resolution_service.py`)
 
 El CRM mapea roles del JWT de auth a roles locales CRM del schema v4 así:
 
-1. Si el JWT incluye `platform_admin` o `company_admin` → rol CRM persistido: **`admin_crm`**; alias expuesto a la app: **`admin`**
-2. Si el JWT incluye `company_operator` **y** el `tenant_id == YCC` → rol CRM persistido: **`encargado_deposito`**; alias expuesto a la app: **`deposito`**
-3. Si el JWT incluye `company_operator` **y** el tenant NO es YCC → rol CRM persistido: **`tecnico_campo`**; alias expuesto a la app: **`tecnico`**
-
-> **Nota:** El `ENTORNO_DE_DEV.md` documenta erróneamente `operador.crm@yccbrothers.com` con rol `tecnico`. El comportamiento real del código (confirmado en `_map_auth_roles_to_crm_role`) es que cualquier `company_operator` en el tenant `YCC` recibe rol `deposito`, porque `deposito_demo_tenant_id=YCC` en el `.env` del backend.
-
-> Para probar el rol `tecnico` se necesitaría un usuario `company_operator` en un tenant distinto a `YCC`. No está incluido en el seed actual por ser innecesario para el flujo del CRM YCC.
+1. Si el JWT incluye `admin`, `platform_admin` o `company_admin` → rol CRM persistido: **`admin_crm`**; alias expuesto a la app: **`admin`**
+2. Si el JWT incluye `ejecutivo` → rol CRM persistido y alias app: **`ejecutivo`**
+3. Si el JWT incluye `operador_deposito` o `company_operator` en el tenant `YCC` → rol CRM persistido: **`encargado_deposito`**; alias expuesto a la app: **`deposito`**
+4. Si el JWT incluye `tecnico_campo` → rol CRM persistido: **`tecnico_campo`**; alias expuesto a la app: **`tecnico`**
 
 ---
 
@@ -292,8 +291,10 @@ El CRM mapea roles del JWT de auth a roles locales CRM del schema v4 así:
 
 | role_name | Uso |
 |---|---|
-| `platform_admin` | Admin de plataforma (acceso total) |
-| `company_operator` | Operador de empresa (deposito/tecnico según tenant) |
+| `admin` | Administrador operativo del CRM |
+| `operador_deposito` | Operador de deposito |
+| `ejecutivo` | Ejecutivo operativo |
+| `tecnico_campo` | Tecnico de campo |
 
 > La migración `20260306_0006_seed_roles.py` también crea `passenger_user` y `company_admin`. El seed de prueba garantiza solo los dos roles necesarios para el CRM.
 
@@ -446,12 +447,16 @@ microtv-crm-backend\docker-compose.auth-local.yml
 ```
 Variables:
 ```yaml
-CRM_LOCAL_ADMIN_EMAIL: admin.crm@microtv.com
-CRM_LOCAL_ADMIN_PASSWORD: Passw0rd!
+CRM_AUTH_ADMIN_EMAIL: admin@ycc.local
+CRM_AUTH_ADMIN_PASSWORD: changeme-secure-password
 CRM_LOCAL_YCC_EMAIL: operador.crm@yccbrothers.com
 CRM_LOCAL_YCC_PASSWORD: Passw0rd!
 CRM_LOCAL_YCC_AUX_EMAIL: deposito.aux@yccbrothers.com
 CRM_LOCAL_YCC_AUX_PASSWORD: Passw0rd!
+CRM_LOCAL_YCC_EXECUTIVE_EMAIL: ejecutivo.crm@yccbrothers.com
+CRM_LOCAL_YCC_EXECUTIVE_PASSWORD: Passw0rd!
+CRM_LOCAL_YCC_TECH_EMAIL: tecnico.campo@yccbrothers.com
+CRM_LOCAL_YCC_TECH_PASSWORD: Passw0rd!
 ```
 El seed las lee desde estas variables de entorno. Cambiarlas y volver a ejecutar `docker compose up --build` aplica los cambios (el seed es idempotente, actualiza passwords existentes con ON CONFLICT DO UPDATE).
 

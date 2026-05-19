@@ -8,7 +8,27 @@
     <div class="task-attachments-section__actions">
       @if (!disabled()) {
         <input
-          #fileInput
+          #cameraInput
+          type="file"
+          accept="image/*"
+          capture="environment"
+          hidden
+          [disabled]="isUploading()"
+          (change)="onFileSelection($event)"
+        />
+
+        <input
+          #videoInput
+          type="file"
+          accept="video/*"
+          capture="environment"
+          hidden
+          [disabled]="isUploading()"
+          (change)="onFileSelection($event)"
+        />
+
+        <input
+          #galleryInput
           type="file"
           [accept]="acceptAttribute"
           multiple
@@ -17,9 +37,19 @@
           (change)="onFileSelection($event)"
         />
 
-        <button mat-stroked-button type="button" [disabled]="isUploading()" (click)="fileInput.click()">
-          <mat-icon>upload_file</mat-icon>
-          <span>{{ isUploading() ? 'Subiendo multimedia...' : 'Agregar fotos o videos' }}</span>
+        <button mat-stroked-button type="button" [disabled]="isUploading()" (click)="openCameraInput(cameraInput)">
+          <mat-icon>photo_camera</mat-icon>
+          <span>{{ isUploading() ? 'Subiendo...' : 'Cámara foto' }}</span>
+        </button>
+
+        <button mat-stroked-button type="button" [disabled]="isUploading()" (click)="openCameraInput(videoInput)">
+          <mat-icon>videocam</mat-icon>
+          <span>Grabar video</span>
+        </button>
+
+        <button mat-stroked-button type="button" [disabled]="isUploading()" (click)="openGalleryInput(galleryInput)">
+          <mat-icon>photo_library</mat-icon>
+          <span>Galería/archivo</span>
         </button>
 
         <p class="task-attachments-section__hint">

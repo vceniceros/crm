@@ -1,12 +1,13 @@
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, TemplateRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { finalize, forkJoin, switchMap } from 'rxjs';
+import { finalize, forkJoin, of, switchMap, tap } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -49,7 +50,7 @@ import { AppLocation } from '../../../../core/models/location.model';
 import { LocationLinkService } from '../../../../shared/services/location-link.service';
 import { LocationPickerService } from '../../../../shared/services/location-picker.service';
 import { LocationMapComponent } from '../../../../shared/ui/location-map/location-map.component';
-import { CommentMentionTextareaComponent } from '../../../../shared/ui/comment-mention-textarea/comment-mention-textarea.component';
+import { OperationalCommentComposerComponent } from '../../../../shared/ui/operational-comment-composer/operational-comment-composer.component';
 import { TaskAttachmentsSectionComponent } from '../task-attachments-section/task-attachments-section.component';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 import { StatusBadgeComponent } from '../../../../shared/ui/status-badge/status-badge.component';
@@ -65,6 +66,16 @@ type TaskExecutionSectionId =
   | 'subtask_operation'
   | 'subtask_transitions'
   | 'subtask_comments';
+
+type OperationFormUiState = {
+  selectedSubtaskId: string | null;
+  comment: string;
+  nextAssignedCrmUserId: string | null;
+  primaryCommentAction: TaskCommentPrimaryAction;
+  selectedCommentLocation: AppLocation | null;
+  mentionedUserIds: string[];
+  pendingAttachments: TaskAttachment[];
+};
 
 type DispatchDraftItem = InventoryDispatchItemWriteRequest & {
   draft_id: string;
@@ -84,6 +95,7 @@ type DispatchDraftItem = InventoryDispatchItemWriteRequest & {
     MatButtonModule,
     MatCardModule,
     MatCheckboxModule,
+    MatDialogModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -91,7 +103,7 @@ type DispatchDraftItem = InventoryDispatchItemWriteRequest & {
     MatProgressSpinnerModule,
     MatSnackBarModule,
     MatSelectModule,
-    CommentMentionTextareaComponent,
+    OperationalCommentComposerComponent,
     LocationMapComponent,
     PageTitleComponent,
     ReactiveFormsModule,
@@ -114,8 +126,11 @@ export class TaskExecutionPageComponent {
   private readonly router = inject(Router);
   private readonly locationLinkService = inject(LocationLinkService);
   private readonly locationPickerService = inject(LocationPickerService);
+  private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly destroyRef = inject(DestroyRef);
+  private activeCommentLocationRequest = 0;
+  private commentLocationWatchdogId: ReturnType<typeof setTimeout> | null = null;
 
   readonly task = signal<TaskDetail | null>(null);
   readonly pageError = signal<string | null>(null);
@@ -147,6 +162,7 @@ export class TaskExecutionPageComponent {
   readonly selectedPrimaryCommentAction = signal<TaskCommentPrimaryAction>('comment');
   readonly selectedCommentLocation = signal<AppLocation | null>(null);
   readonly commentMentionedUserIds = signal<string[]>([]);
+  readonly isResolvingCommentLocation = signal(false);
   readonly actionOptions = TASK_ACTION_OPTIONS;
   readonly operationForm = this.formBuilder.group({
     items: this.formBuilder.array([]),
@@ -692,22 +708,11 @@ export class TaskExecutionPageComponent {
       return;
     }
 
-    const currentComment = this.operationForm.controls.comment.getRawValue();
-    const currentNextAssignee = this.operationForm.controls.next_assigned_crm_user_id.getRawValue();
-
     this.isSaving.set(true);
-    this.taskManagementService
-      .saveSubtaskProgress(subtask.subtask_id, {
-        items: this.buildSubtaskProgressItemsPayload()
-      })
+    this.persistSelectedSubtaskProgress(subtask)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (task) => {
-          this.task.set(task);
-          this.selectedSubtaskId.set(task.current_subtask_id ?? this.selectedSubtaskId());
-          this.rebuildOperationForm();
-          this.operationForm.controls.comment.setValue(currentComment);
-          this.operationForm.controls.next_assigned_crm_user_id.setValue(currentNextAssignee);
+        next: () => {
           this.errorMessage.set(null);
           this.isSaving.set(false);
         },
@@ -762,17 +767,15 @@ export class TaskExecutionPageComponent {
     this.isSaving.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
-    this.taskManagementService
-      .saveSubtaskProgress(subtask.subtask_id, {
-        items: this.buildSubtaskProgressItemsPayload()
-      })
+    const preservedState = this.captureOperationFormUiState();
+    this.persistSelectedSubtaskProgress(subtask, preservedState)
       .pipe(
         switchMap(() =>
           this.taskManagementService.executeSubtaskAction(subtask.subtask_id, {
             action,
-            comment: this.operationForm.controls.comment.getRawValue().trim(),
-            next_assigned_crm_user_id: this.operationForm.controls.next_assigned_crm_user_id.getRawValue()?.trim() || null,
-            attachment_ids: this.pendingAttachments().map((attachment) => attachment.id)
+            comment: preservedState.comment.trim(),
+            next_assigned_crm_user_id: preservedState.nextAssignedCrmUserId?.trim() || null,
+            attachment_ids: preservedState.pendingAttachments.map((attachment) => attachment.id)
           })
         ),
       )
@@ -1150,6 +1153,15 @@ export class TaskExecutionPageComponent {
     return this.actionOptions.find((option) => option.value === action)?.label ?? 'Ejecutar acción';
   }
 
+  primaryCommentActionIcon(): string {
+    const action = this.selectedPrimaryCommentAction();
+    if (action === 'comment') {
+      return 'send';
+    }
+
+    return this.actionOptions.find((option) => option.value === action)?.icon ?? 'play_circle';
+  }
+
   commentFieldLabel(): string {
     const action = this.selectedPrimaryCommentAction();
     if (action === 'comment') {
@@ -1221,6 +1233,98 @@ export class TaskExecutionPageComponent {
       });
   }
 
+  openAttachmentsDialog(template: TemplateRef<unknown>): void {
+    this.dialog.open(template, {
+      autoFocus: false,
+      maxWidth: 'calc(100vw - 1.5rem)',
+      width: '42rem'
+    });
+  }
+
+  openLocationDialog(template: TemplateRef<unknown>): void {
+    this.dialog.open(template, {
+      autoFocus: false,
+      maxWidth: 'calc(100vw - 1.5rem)',
+      width: '28rem'
+    });
+  }
+
+  openInventoryRequestDialog(template: TemplateRef<unknown>): void {
+    this.dialog.open(template, {
+      autoFocus: false,
+      maxWidth: 'calc(100vw - 1.5rem)',
+      width: '34rem'
+    });
+  }
+
+  captureCurrentCommentLocation(): void {
+    if (this.isResolvingCommentLocation()) {
+      return;
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      this.showOperationError('Este navegador no permite usar GPS directo. Usá "Elegir en mapa" para marcar la ubicación.');
+      this.snackBar.open('Este navegador no soporta GPS automático.', 'Cerrar', { duration: 4500 });
+      return;
+    }
+
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      this.showOperationError('El GPS automático requiere HTTPS o localhost. Usá "Elegir en mapa" o abrí la app en HTTPS.');
+      this.snackBar.open('GPS bloqueado: abrí la app en HTTPS o usá Elegir en mapa.', 'Cerrar', { duration: 6000 });
+      return;
+    }
+
+    const requestId = this.activeCommentLocationRequest + 1;
+    this.activeCommentLocationRequest = requestId;
+    this.isResolvingCommentLocation.set(true);
+    this.errorMessage.set(null);
+    this.snackBar.open('Solicitando ubicación al dispositivo...', 'Cerrar', { duration: 3000 });
+
+    this.clearCommentLocationWatchdog();
+    this.commentLocationWatchdogId = setTimeout(() => {
+      if (this.activeCommentLocationRequest !== requestId) {
+        return;
+      }
+
+      this.isResolvingCommentLocation.set(false);
+      this.showOperationError('No llegó respuesta de ubicación del dispositivo. Revisá permisos GPS y reintentá, o usá "Elegir en mapa".');
+      this.snackBar.open('Sin respuesta de GPS. Revisá permisos de ubicación.', 'Cerrar', { duration: 6000 });
+    }, 12000);
+
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          if (this.activeCommentLocationRequest !== requestId) {
+            return;
+          }
+
+          this.clearCommentLocationWatchdog();
+          this.selectedCommentLocation.set({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            addressLabel: `Ubicación actual ${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`
+          });
+          this.isResolvingCommentLocation.set(false);
+          this.snackBar.open('Ubicación actual capturada.', 'Cerrar', { duration: 2500 });
+        },
+        (error) => {
+          if (this.activeCommentLocationRequest !== requestId) {
+            return;
+          }
+
+          this.clearCommentLocationWatchdog();
+          this.showOperationError(this.resolveCommentLocationError(error));
+          this.isResolvingCommentLocation.set(false);
+        },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
+      );
+    } catch {
+      this.clearCommentLocationWatchdog();
+      this.isResolvingCommentLocation.set(false);
+      this.showOperationError('No se pudo iniciar la solicitud de ubicación. Probá con "Elegir en mapa".');
+    }
+  }
+
   useTaskLocationForComment(): void {
     this.selectedCommentLocation.set(this.taskLocation());
   }
@@ -1278,23 +1382,26 @@ export class TaskExecutionPageComponent {
     this.errorMessage.set(null);
     this.successMessage.set(null);
 
-    if (hasSelectedLocation) {
-      this.taskManagementService
-        .createLocation(selectedLocation as AppLocation)
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe({
-          next: (location) => {
-            this.submitTaskCommentWithLocationId(currentTask.task_id, body, location.locationId);
-          },
-          error: (error: Error) => {
-            this.showOperationError(error.message);
-            this.isSaving.set(false);
+    this.persistSelectedSubtaskProgress(subtask)
+      .pipe(
+        switchMap(() => {
+          if (hasSelectedLocation) {
+            return this.taskManagementService.createLocation(selectedLocation as AppLocation);
           }
-        });
-      return;
-    }
 
-    this.submitTaskCommentWithLocationId(currentTask.task_id, body, null);
+          return of(null);
+        }),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: (location) => {
+          this.submitTaskCommentWithLocationId(currentTask.task_id, body, location?.locationId ?? null);
+        },
+        error: (error: Error) => {
+          this.showOperationError(error.message);
+          this.isSaving.set(false);
+        }
+      });
   }
 
   removeAttachment(attachmentId: string): void {
@@ -1452,6 +1559,46 @@ export class TaskExecutionPageComponent {
     this.isSaving.set(false);
   }
 
+  private captureOperationFormUiState(): OperationFormUiState {
+    return {
+      selectedSubtaskId: this.selectedSubtaskId(),
+      comment: this.operationForm.controls.comment.getRawValue(),
+      nextAssignedCrmUserId: this.operationForm.controls.next_assigned_crm_user_id.getRawValue(),
+      primaryCommentAction: this.selectedPrimaryCommentAction(),
+      selectedCommentLocation: this.selectedCommentLocation(),
+      mentionedUserIds: [...this.commentMentionedUserIds()],
+      pendingAttachments: [...this.pendingAttachments()]
+    };
+  }
+
+  private restoreOperationFormUiState(state: OperationFormUiState): void {
+    this.operationForm.controls.comment.setValue(state.comment);
+    this.operationForm.controls.next_assigned_crm_user_id.setValue(state.nextAssignedCrmUserId);
+    this.selectedPrimaryCommentAction.set(state.primaryCommentAction);
+    this.selectedCommentLocation.set(state.selectedCommentLocation);
+    this.commentMentionedUserIds.set(state.mentionedUserIds);
+    this.pendingAttachments.set(state.pendingAttachments);
+  }
+
+  private acceptSavedSubtaskProgress(task: TaskDetail, state: OperationFormUiState): void {
+    this.task.set(task);
+    this.selectedSubtaskId.set(state.selectedSubtaskId ?? task.current_subtask_id ?? task.subtasks[0]?.subtask_id ?? null);
+    this.rebuildOperationForm();
+    this.restoreOperationFormUiState(state);
+    this.errorMessage.set(null);
+  }
+
+  private persistSelectedSubtaskProgress(
+    subtask: Subtask,
+    preservedState: OperationFormUiState = this.captureOperationFormUiState()
+  ) {
+    return this.taskManagementService
+      .saveSubtaskProgress(subtask.subtask_id, {
+        items: this.buildSubtaskProgressItemsPayload()
+      })
+      .pipe(tap((task) => this.acceptSavedSubtaskProgress(task, preservedState)));
+  }
+
   private submitTaskCommentWithLocationId(taskId: string, body: string, locationId: string | null): void {
     this.taskManagementService
       .addTaskComment(taskId, {
@@ -1580,5 +1727,28 @@ export class TaskExecutionPageComponent {
     this.pageError.set(null);
     this.errorMessage.set(message);
     this.snackBar.open(message, 'Cerrar', { duration: 4500 });
+  }
+
+  private clearCommentLocationWatchdog(): void {
+    if (this.commentLocationWatchdogId !== null) {
+      clearTimeout(this.commentLocationWatchdogId);
+      this.commentLocationWatchdogId = null;
+    }
+  }
+
+  private resolveCommentLocationError(error: GeolocationPositionError): string {
+    if (error.code === error.PERMISSION_DENIED) {
+      return 'No se concedió permiso de ubicación en el navegador. Habilitalo y reintentá, o usá "Elegir en mapa".';
+    }
+
+    if (error.code === error.POSITION_UNAVAILABLE) {
+      return 'El dispositivo no pudo obtener una ubicación GPS válida. Podés marcarla manualmente con "Elegir en mapa".';
+    }
+
+    if (error.code === error.TIMEOUT) {
+      return 'La ubicación tardó demasiado en responder. Reintentá o usá "Elegir en mapa".';
+    }
+
+    return 'No se pudo obtener la ubicación actual del dispositivo. Podés usar "Elegir en mapa".';
   }
 }

@@ -25,20 +25,34 @@
         <input
           #galleryInput
           type="file"
-          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.mov"
+          accept="image/*,video/*"
           multiple
+          hidden
+          (change)="onFileSelection($event)"
+        />
+
+        <input
+          #videoInput
+          type="file"
+          accept="video/*"
+          capture="environment"
           hidden
           (change)="onFileSelection($event)"
         />
 
         <button mat-stroked-button type="button" (click)="openCameraInput(cameraInput)">
           <mat-icon>photo_camera</mat-icon>
-          <span>Cámara</span>
+          <span>Cámara foto</span>
+        </button>
+
+        <button mat-stroked-button type="button" (click)="openCameraInput(videoInput)">
+          <mat-icon>videocam</mat-icon>
+          <span>Grabar video</span>
         </button>
 
         <button mat-stroked-button type="button" (click)="openGalleryInput(galleryInput)">
           <mat-icon>photo_library</mat-icon>
-          <span>Galería</span>
+          <span>Galería/archivo</span>
         </button>
 
         <p class="ticket-attachments-section__hint">{{ hintText() }}</p>

@@ -479,7 +479,7 @@
 
         @if (!isSectionCollapsed('requests')) {
         <mat-card-content>
-          @if (isTecnico()) {
+          @if (false && isTecnico()) {
             <section class="task-execution-page__composer" [formGroup]="requestComposerForm">
               <div class="task-execution-page__composer-grid">
                 <mat-form-field appearance="outline">
@@ -673,6 +673,81 @@
                 }
               </div>
 
+              <mat-menu #commentActionMenu="matMenu" panelClass="task-execution-page__actions-menu-panel">
+                <button mat-menu-item type="button" (click)="selectPrimaryCommentAction('comment')">
+                  <mat-icon>chat</mat-icon>
+                  <span>Comentar</span>
+                </button>
+
+                @for (action of actionOptions; track action.value) {
+                  <button
+                    mat-menu-item
+                    type="button"
+                    (click)="selectPrimaryCommentAction(action.value)"
+                    [disabled]="action.value === 'close_subtask' && isCloseBlockedByVideoRequirement()"
+                  >
+                    <mat-icon>{{ action.icon }}</mat-icon>
+                    <span>{{ action.label }}</span>
+                  </button>
+                }
+              </mat-menu>
+
+              <app-operational-comment-composer
+                formControlName="comment"
+                [label]="commentFieldLabel()"
+                [rows]="4"
+                [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()"
+                [loading]="isSaving()"
+                [placeholder]="commentFieldPlaceholder()"
+                [attachmentCount]="pendingAttachments().length"
+                [hasLocation]="!!selectedCommentLocation()"
+                [locationLabel]="selectedCommentLocationLabel()"
+                [canAttach]="subtaskCanBeOperated(selectedSubtask)"
+                [canPickLocation]="subtaskCanBeOperated(selectedSubtask)"
+                [canRequestInventory]="canCreateInventoryRequest()"
+                [primaryActionLabel]="primaryCommentActionLabel()"
+                [primaryActionIcon]="primaryCommentActionIcon()"
+                [primaryActionDisabled]="!canExecutePrimaryCommentAction(selectedSubtask)"
+                [primaryActionMenu]="commentActionMenu"
+                (attachmentsClick)="openAttachmentsDialog(taskAttachmentsDialog)"
+                (locationClick)="openLocationDialog(taskLocationDialog)"
+                (inventoryClick)="openInventoryRequestDialog(taskInventoryRequestDialog)"
+                (primaryActionClick)="executePrimaryCommentAction(selectedSubtask)"
+                (mentionedUserIdsChange)="commentMentionedUserIds.set($event)"
+              >
+                @if (requiresArrivalRegistration()) {
+                  <p class="task-execution-page__summary-caption">
+                    Este pedido requiere llegada: publicá un comentario con al menos un adjunto y ubicación para registrarla.
+                  </p>
+                }
+
+                @if (requiresVideoEvidenceForCurrentClose()) {
+                  <p class="task-execution-page__summary-caption">
+                    El cierre final exige al menos un adjunto multimedia (foto o video) en esta subtarea.
+                  </p>
+                }
+
+                @if (selectedPrimaryCommentAction() !== 'comment' && selectedSubtask.next_assignment_policy === 'manual_required') {
+                  <mat-form-field appearance="outline" class="task-execution-page__comment-field">
+                    <mat-label>Siguiente usuario</mat-label>
+                    <mat-select formControlName="next_assigned_crm_user_id" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()">
+                      <mat-option [value]="null">Seleccionar usuario</mat-option>
+                      @for (option of nextAssigneeOptions(); track option.crm_user_id) {
+                        <mat-option [value]="option.crm_user_id">{{ nextAssigneeLabel(option) }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                }
+              </app-operational-comment-composer>
+
+              <div class="task-execution-page__footer-actions">
+                <button mat-stroked-button type="button" (click)="saveProgress()" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()">
+                  <mat-icon>save</mat-icon>
+                  <span>Guardar progreso</span>
+                </button>
+              </div>
+
+              <!--
               <div class="task-execution-page__comment-box">
                 <app-comment-mention-textarea
                   class="task-execution-page__comment-field"
@@ -768,12 +843,12 @@
                     <span>{{ primaryCommentActionLabel() }}</span>
                   </button>
 
-                  <button mat-icon-button type="button" [matMenuTriggerFor]="commentActionMenu" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()" aria-label="Seleccionar tipo de comentario">
+                  <button mat-icon-button type="button" [matMenuTriggerFor]="legacyCommentActionMenu" [disabled]="!subtaskCanBeOperated(selectedSubtask) || isSaving()" aria-label="Seleccionar tipo de comentario">
                     <mat-icon>arrow_drop_down</mat-icon>
                   </button>
                 </div>
 
-                <mat-menu #commentActionMenu="matMenu" panelClass="task-execution-page__actions-menu-panel">
+                <mat-menu #legacyCommentActionMenu="matMenu" panelClass="task-execution-page__actions-menu-panel">
                   <button mat-menu-item type="button" (click)="selectPrimaryCommentAction('comment')">
                     <mat-icon>chat</mat-icon>
                     <span>Comentar</span>
@@ -792,6 +867,117 @@
                   }
                 </mat-menu>
               </div>
+              -->
+
+              <ng-template #taskAttachmentsDialog>
+                <h2 mat-dialog-title>Multimedia del comentario</h2>
+                <mat-dialog-content>
+                  <app-task-attachments-section
+                    [taskId]="task.task_id"
+                    [subtaskId]="selectedSubtask.subtask_id"
+                    [attachments]="subtaskCanBeOperated(selectedSubtask) ? pendingAttachments() : selectedSubtaskAttachments()"
+                    [disabled]="isSaving() || !subtaskCanBeOperated(selectedSubtask)"
+                    (attachmentsSelected)="addAttachments($event)"
+                    (attachmentRemoved)="removeAttachment($event)"
+                  />
+                </mat-dialog-content>
+                <mat-dialog-actions align="end">
+                  <button mat-stroked-button type="button" mat-dialog-close>Cerrar</button>
+                </mat-dialog-actions>
+              </ng-template>
+
+              <ng-template #taskLocationDialog>
+                <h2 mat-dialog-title>Ubicación del comentario</h2>
+                <mat-dialog-content class="task-execution-page__dialog-grid">
+                  <p class="task-execution-page__summary-caption">{{ selectedCommentLocationLabel() }}</p>
+                  <button mat-stroked-button type="button" (click)="captureCurrentCommentLocation()" [disabled]="isSaving() || isResolvingCommentLocation() || !subtaskCanBeOperated(selectedSubtask)">
+                    <mat-icon>my_location</mat-icon>
+                    <span>{{ isResolvingCommentLocation() ? 'Ubicando...' : 'Usar ubicación actual' }}</span>
+                  </button>
+                  <button mat-stroked-button type="button" (click)="openCommentLocationPicker()" [disabled]="isSaving() || !subtaskCanBeOperated(selectedSubtask)">
+                    <mat-icon>edit_location_alt</mat-icon>
+                    <span>Elegir en mapa</span>
+                  </button>
+                  @if (selectedCommentLocation()) {
+                    <button mat-stroked-button type="button" (click)="openCommentLocationInMaps()" [disabled]="!canOpenCommentLocationInMaps()">
+                      <mat-icon>map</mat-icon>
+                      <span>Abrir en Maps</span>
+                    </button>
+                    <button mat-stroked-button type="button" (click)="clearCommentLocation()" [disabled]="isSaving() || !subtaskCanBeOperated(selectedSubtask)">
+                      <mat-icon>close</mat-icon>
+                      <span>Quitar ubicación</span>
+                    </button>
+                  }
+                </mat-dialog-content>
+                <mat-dialog-actions align="end">
+                  <button mat-stroked-button type="button" mat-dialog-close>Cerrar</button>
+                </mat-dialog-actions>
+              </ng-template>
+
+              <ng-template #taskInventoryRequestDialog>
+                <h2 mat-dialog-title>Solicitud a depósito</h2>
+                <mat-dialog-content>
+                  <section class="task-execution-page__composer" [formGroup]="requestComposerForm">
+                    <div class="task-execution-page__composer-grid">
+                      <mat-form-field appearance="outline">
+                        <mat-label>Producto</mat-label>
+                        <mat-select formControlName="product_id">
+                          @for (product of inventoryProducts(); track product.productId) {
+                            <mat-option [value]="product.productId">{{ product.productName }} · {{ product.productCode }}</mat-option>
+                          }
+                        </mat-select>
+                      </mat-form-field>
+
+                      <mat-form-field appearance="outline">
+                        <mat-label>Cantidad</mat-label>
+                        <input matInput type="number" min="1" formControlName="quantity_requested" />
+                      </mat-form-field>
+
+                      <mat-form-field appearance="outline" class="task-execution-page__full-width-field">
+                        <mat-label>Motivo general</mat-label>
+                        <input matInput formControlName="request_reason" />
+                      </mat-form-field>
+
+                      <mat-form-field appearance="outline" class="task-execution-page__full-width-field">
+                        <mat-label>Observación del item</mat-label>
+                        <input matInput formControlName="notes" />
+                      </mat-form-field>
+                    </div>
+
+                    <button mat-stroked-button type="button" (click)="addRequestDraftItem()" [disabled]="isSaving() || !canCreateInventoryRequest()">
+                      <mat-icon>playlist_add</mat-icon>
+                      <span>Agregar item</span>
+                    </button>
+
+                    @if (requestDraftItems().length) {
+                      <div class="task-execution-page__draft-list">
+                        @for (item of requestDraftItems(); track item.product_id) {
+                          <article class="task-execution-page__material-row">
+                            <div>
+                              <strong>{{ item.product_name }}</strong>
+                              <span>x{{ item.quantity_requested }}</span>
+                              <span>{{ item.notes || 'Sin observación' }}</span>
+                            </div>
+                            <button mat-icon-button type="button" (click)="removeRequestDraftItem(item.product_id)">
+                              <mat-icon>delete</mat-icon>
+                            </button>
+                          </article>
+                        }
+                      </div>
+
+                      <div class="task-execution-page__footer-actions">
+                        <button mat-flat-button color="primary" type="button" (click)="submitInventoryRequest()" [disabled]="isSaving() || !canCreateInventoryRequest()">
+                          <mat-icon>send</mat-icon>
+                          <span>Enviar solicitud</span>
+                        </button>
+                      </div>
+                    }
+                  </section>
+                </mat-dialog-content>
+                <mat-dialog-actions align="end">
+                  <button mat-stroked-button type="button" mat-dialog-close>Cerrar</button>
+                </mat-dialog-actions>
+              </ng-template>
 
             </form>
           </mat-card-content>

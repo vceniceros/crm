@@ -7,7 +7,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, JSON, String, Text, UniqueConstraint, Uuid, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, JSON, String, Text, UniqueConstraint, Uuid, func
 from sqlalchemy.orm import Mapped, foreign, mapped_column, relationship
 
 from crm_backend.db.base import Base
@@ -163,6 +163,14 @@ class Ticket(Base):
         back_populates="ticket",
         cascade="all, delete-orphan",
         order_by="TicketAssignmentHistory.created_at",
+        lazy="selectin",
+    )
+    collaborators: Mapped[list["TicketCollaborator"]] = relationship(
+        "TicketCollaborator",
+        back_populates="ticket",
+        primaryjoin="and_(Ticket.ticket_id == TicketCollaborator.ticket_id, TicketCollaborator.deleted_at.is_(None))",
+        cascade="all, delete-orphan",
+        order_by="TicketCollaborator.created_at",
         lazy="selectin",
     )
     audit_events: Mapped[list[TicketAuditEvent]] = relationship(
@@ -335,6 +343,36 @@ class TicketCommentMention(Base):
     @property
     def mentioned_email(self) -> str | None:
         return getattr(self.mentioned_user, "email", None)
+
+
+class TicketCollaborator(Base):
+    """User with operational access to a ticket beyond the primary assignee."""
+
+    __tablename__ = "ticket_collaborators"
+    __table_args__ = (
+        Index("idx_ticket_collaborators_ticket", "ticket_id"),
+        Index("idx_ticket_collaborators_user", "crm_user_id"),
+    )
+
+    ticket_collaborator_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    ticket_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("tickets.ticket_id", ondelete="CASCADE"), index=True)
+    crm_user_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id", ondelete="CASCADE"), index=True)
+    source: Mapped[str] = mapped_column(String(30), default="manual", index=True)
+    added_by_crm_user_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id"), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    ticket: Mapped[Ticket] = relationship("Ticket", back_populates="collaborators")
+    crm_user: Mapped["CrmUser"] = relationship("CrmUser", foreign_keys=[crm_user_id], lazy="joined")
+    added_by_user: Mapped["CrmUser | None"] = relationship("CrmUser", foreign_keys=[added_by_crm_user_id], lazy="joined")
+
+    @property
+    def display_name(self) -> str | None:
+        return _user_display_label(self.crm_user)
+
+    @property
+    def email(self) -> str | None:
+        return getattr(self.crm_user, "email", None)
 
 
 class TicketAttachment(Base):

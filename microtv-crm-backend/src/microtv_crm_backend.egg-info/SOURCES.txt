@@ -47,6 +47,7 @@ src/crm_backend/models/permission.py
 src/crm_backend/models/push_subscription.py
 src/crm_backend/models/settings.py
 src/crm_backend/models/stock_category.py
+src/crm_backend/models/stock_import.py
 src/crm_backend/models/stock_level.py
 src/crm_backend/models/stock_movement.py
 src/crm_backend/models/stock_product.py

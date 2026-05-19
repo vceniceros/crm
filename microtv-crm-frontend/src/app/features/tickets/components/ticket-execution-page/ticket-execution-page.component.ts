@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, TemplateRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -8,7 +8,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
@@ -41,7 +41,7 @@ import { isVideoFile, optimizeImagesForUpload } from '../../../../core/utils/med
 import { LocationLinkService } from '../../../../shared/services/location-link.service';
 import { LocationPickerService } from '../../../../shared/services/location-picker.service';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
-import { CommentMentionTextareaComponent } from '../../../../shared/ui/comment-mention-textarea/comment-mention-textarea.component';
+import { OperationalCommentComposerComponent } from '../../../../shared/ui/operational-comment-composer/operational-comment-composer.component';
 import { StatusBadgeComponent } from '../../../../shared/ui/status-badge/status-badge.component';
 import { UserAvatarComponent } from '../../../../shared/ui/user-avatar/user-avatar.component';
 import { SurveyLinkDialogComponent } from '../survey-link-dialog/survey-link-dialog.component';
@@ -94,6 +94,7 @@ interface TicketTimelineEvent {
     DatePipe,
     MatButtonModule,
     MatCardModule,
+    MatDialogModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -101,7 +102,7 @@ interface TicketTimelineEvent {
     MatProgressSpinnerModule,
     MatSelectModule,
     MatTooltipModule,
-    CommentMentionTextareaComponent,
+    OperationalCommentComposerComponent,
     PageTitleComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -161,6 +162,7 @@ export class TicketExecutionPageComponent {
   readonly assignmentForm = this.formBuilder.group({
     assigned_role_id: this.formBuilder.control<string | null>(null),
     assigned_user_id: this.formBuilder.control<string | null>(null),
+    collaborator_user_ids: this.formBuilder.control<string[]>([], { nonNullable: true }),
     notes: this.formBuilder.control<string | null>(null)
   });
   readonly statusForm = this.formBuilder.group({
@@ -218,6 +220,10 @@ export class TicketExecutionPageComponent {
     }
 
     if (ticket.assigned_user_id && ticket.assigned_user_id === this.currentUserId()) {
+      return true;
+    }
+
+    if (ticket.collaborators?.some((collaborator) => collaborator.crm_user_id === this.currentUserId())) {
       return true;
     }
 
@@ -744,6 +750,7 @@ export class TicketExecutionPageComponent {
     const payload: AssignTicketRequest = {
       assigned_role_id: this.assignmentForm.controls.assigned_role_id.getRawValue(),
       assigned_user_id: this.assignmentForm.controls.assigned_user_id.getRawValue(),
+      collaborator_user_ids: this.assignmentForm.controls.collaborator_user_ids.getRawValue(),
       notes: this.assignmentForm.controls.notes.getRawValue()?.trim() || null
     };
 
@@ -1427,6 +1434,41 @@ export class TicketExecutionPageComponent {
     this.showInventoryRequestDrawer.update((value) => !value);
   }
 
+  openAttachmentsDialog(template: TemplateRef<unknown>): void {
+    this.dialog.open(template, {
+      autoFocus: false,
+      maxWidth: 'calc(100vw - 1.5rem)',
+      width: '42rem'
+    });
+  }
+
+  openLocationDialog(template: TemplateRef<unknown>): void {
+    this.dialog.open(template, {
+      autoFocus: false,
+      maxWidth: 'calc(100vw - 1.5rem)',
+      width: '28rem'
+    });
+  }
+
+  openInventoryRequestDialog(template: TemplateRef<unknown>): void {
+    this.dialog.open(template, {
+      autoFocus: false,
+      maxWidth: 'calc(100vw - 1.5rem)',
+      width: '34rem'
+    });
+  }
+
+  primaryActionIcon(): string {
+    const action = this.selectedPrimaryAction();
+    if (action === 'transition') {
+      return 'sync';
+    }
+    if (action === 'close') {
+      return 'task_alt';
+    }
+    return 'send';
+  }
+
   closeDispatchComposer(): void {
     this.showDispatchComposer.set(false);
     this.dispatchDraftItems.set([]);
@@ -1455,6 +1497,7 @@ export class TicketExecutionPageComponent {
       {
         assigned_role_id: ticket.assigned_role_id,
         assigned_user_id: ticket.assigned_user_id,
+        collaborator_user_ids: (ticket.collaborators ?? []).map((collaborator) => collaborator.crm_user_id),
         notes: null
       },
       { emitEvent: false }
@@ -1684,6 +1727,7 @@ export class TicketExecutionPageComponent {
       {
         assigned_role_id: ticket.assigned_role_id,
         assigned_user_id: ticket.assigned_user_id,
+        collaborator_user_ids: (ticket.collaborators ?? []).map((collaborator) => collaborator.crm_user_id),
         notes: null
       },
       { emitEvent: false }
@@ -1695,6 +1739,7 @@ export class TicketExecutionPageComponent {
     if (!roleId) {
       this.assignableUsers.set([]);
       this.assignmentForm.controls.assigned_user_id.setValue(null, { emitEvent: false });
+      this.assignmentForm.controls.collaborator_user_ids.setValue([], { emitEvent: false });
       return;
     }
 
@@ -1702,6 +1747,7 @@ export class TicketExecutionPageComponent {
     if (!role) {
       this.assignableUsers.set([]);
       this.assignmentForm.controls.assigned_user_id.setValue(null, { emitEvent: false });
+      this.assignmentForm.controls.collaborator_user_ids.setValue([], { emitEvent: false });
       return;
     }
 
@@ -1715,11 +1761,17 @@ export class TicketExecutionPageComponent {
           if (currentUserId && !users.some((user) => user.crm_user_id === currentUserId)) {
             this.assignmentForm.controls.assigned_user_id.setValue(null, { emitEvent: false });
           }
+          const validUserIds = new Set(users.map((user) => user.crm_user_id));
+          this.assignmentForm.controls.collaborator_user_ids.setValue(
+            this.assignmentForm.controls.collaborator_user_ids.getRawValue().filter((userId) => validUserIds.has(userId)),
+            { emitEvent: false }
+          );
         },
         error: (error: Error) => {
           this.errorMessage.set(error.message);
           this.assignableUsers.set([]);
           this.assignmentForm.controls.assigned_user_id.setValue(null, { emitEvent: false });
+          this.assignmentForm.controls.collaborator_user_ids.setValue([], { emitEvent: false });
         }
       });
   }

@@ -46,7 +46,11 @@ services:
       CRM_LOCAL_YCC_TECH_PASSWORD: Passw0rd!
       CRM_LOCAL_YCC_TECH_USER_ID: auth-user-ycc-tech-001
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8001/health >/dev/null 2>&1 || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import json, urllib.request; raise SystemExit(0 if json.load(urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)).get('status') == 'ok' else 1)\"",
+        ]
       interval: 5s
       timeout: 5s
       retries: 20

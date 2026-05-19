@@ -31,12 +31,14 @@ class CreateTicketRequest(BaseModel):
     requires_video_evidence: bool = True
     assigned_role_id: str | None = None
     assigned_user_id: str | None = None
+    collaborator_user_ids: list[str] = Field(default_factory=list)
     required_materials: list[RequiredMaterialItem] = Field(default_factory=list)
 
 
 class AssignTicketRequest(BaseModel):
     assigned_role_id: str | None = None
     assigned_user_id: str | None = None
+    collaborator_user_ids: list[str] = Field(default_factory=list)
     notes: str | None = None
 
 
@@ -92,6 +94,19 @@ class TicketCommentMentionResponse(BaseModel):
     mentioned_display_name: str | None = None
     mentioned_email: str | None = None
     created_by_crm_user_id: str
+    created_at: datetime
+
+
+class TicketCollaboratorResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    ticket_collaborator_id: str
+    ticket_id: str
+    crm_user_id: str
+    display_name: str | None = None
+    email: str | None = None
+    source: str
+    added_by_crm_user_id: str | None = None
     created_at: datetime
 
 
@@ -179,6 +194,7 @@ class TicketSummaryResponse(BaseModel):
     assigned_role_label: str | None = None
     assigned_user_id: str | None
     assigned_user_display_name: str | None = None
+    collaborators: list[TicketCollaboratorResponse] = Field(default_factory=list)
     created_by_crm_user_id: str
     created_by_display_name: str | None = None
     resolved_by_crm_user_id: str | None

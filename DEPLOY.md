@@ -277,9 +277,11 @@ source microtv-crm-backend/.venv/bin/activate
 
 # Reparacion idempotente para templates de pedido con formulario previo.
 psql "$DATABASE_URL" -f microtv-crm-backend/sql/20260516_task_template_pre_form_assignment_columns.sql
+psql "$DATABASE_URL" -f microtv-crm-backend/sql/20260516_editable_template_item_history_refs.sql
 
 # Verificar que las columnas requeridas por el backend existen antes del restart.
 psql "$DATABASE_URL" -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'task_template_pre_forms' AND column_name IN ('assignment_role_key', 'assignment_crm_user_id') ORDER BY column_name;"
+psql "$DATABASE_URL" -c "SELECT column_name, is_nullable FROM information_schema.columns WHERE table_name = 'subtask_checklist_items' AND column_name = 'template_checklist_item_id';"
 ```
 
 ## 10) systemd (servicios separados)
@@ -551,6 +553,7 @@ Opciones:
 - [ ] Auth interno CRM responde `200` en `/health`.
 - [ ] Backend CRM responde `200` en `/health`.
 - [ ] `task_template_pre_forms` tiene columnas `assignment_role_key` y `assignment_crm_user_id`.
+- [ ] `subtask_checklist_items.template_checklist_item_id` acepta `NULL`.
 - [ ] Login admin inicial funciona.
 - [ ] Token emitido por auth interno es aceptado por CRM backend.
 - [ ] Menú Configuración > Gestión de usuarios visible para admin.

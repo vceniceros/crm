@@ -289,6 +289,7 @@ def _ensure_extension_tables(session: Session) -> None:
         "tickets",
         "ticket_required_materials",
         "ticket_comments",
+        "ticket_collaborators",
         "ticket_attachments",
         "ticket_status_transitions",
         "ticket_assignment_history",
@@ -311,8 +312,10 @@ def _ensure_extension_tables(session: Session) -> None:
     _ensure_inventory_dispatch_columns(session, inspector)
     ensure_task_rule_columns(session, inspector)
     ensure_task_pre_form_columns(session, inspector)
+    ensure_task_template_item_history_reference(session, inspector)
     _ensure_task_attachment_columns(session, inspector)
     _ensure_ticket_attachment_columns(session, inspector)
+    _ensure_ticket_comment_columns(session)
     _ensure_ticket_columns(session, inspector)
     _ensure_crm_user_columns(session, inspector)
     _ensure_crm_role_columns(session, inspector)
@@ -477,6 +480,63 @@ def ensure_task_pre_form_columns(session: Session, inspector=None) -> None:
     session.commit()
 
 
+def ensure_task_template_item_history_reference(session: Session, inspector=None) -> None:
+    bind = session.get_bind()
+    active_inspector = inspector or inspect(bind)
+    table_names = set(active_inspector.get_table_names())
+    if not {"subtask_checklist_items", "template_subtask_checklist_items"}.issubset(table_names):
+        return
+
+    columns = {column["name"]: column for column in active_inspector.get_columns("subtask_checklist_items")}
+    template_item_column = columns.get("template_checklist_item_id")
+    if template_item_column is None:
+        return
+
+    if bind.dialect.name != "postgresql":
+        return
+
+    needs_column_repair = not template_item_column.get("nullable", True)
+    if needs_column_repair:
+        session.execute(text("ALTER TABLE subtask_checklist_items ALTER COLUMN template_checklist_item_id DROP NOT NULL"))
+
+    constraint_rows = session.execute(
+        text(
+            """
+            SELECT con.conname, con.confdeltype
+            FROM pg_constraint con
+            JOIN pg_class rel ON rel.oid = con.conrelid
+            JOIN pg_class refrel ON refrel.oid = con.confrelid
+            JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = ANY(con.conkey)
+            WHERE con.contype = 'f'
+              AND rel.relname = 'subtask_checklist_items'
+              AND refrel.relname = 'template_subtask_checklist_items'
+              AND att.attname = 'template_checklist_item_id'
+            """
+        )
+    ).fetchall()
+    needs_constraint_repair = not any(delete_rule == "n" for _, delete_rule in constraint_rows)
+    if needs_constraint_repair:
+        for constraint_name, _ in constraint_rows:
+            session.execute(text(f'ALTER TABLE subtask_checklist_items DROP CONSTRAINT "{constraint_name}"'))
+
+        session.execute(
+            text(
+                "ALTER TABLE subtask_checklist_items "
+                "ADD CONSTRAINT fk_subtask_checklist_items_template_item "
+                "FOREIGN KEY (template_checklist_item_id) "
+                "REFERENCES template_subtask_checklist_items(template_checklist_item_id) "
+                "ON DELETE SET NULL"
+            )
+        )
+    session.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS idx_subtask_checklist_items_template_item "
+            "ON subtask_checklist_items(template_checklist_item_id)"
+        )
+    )
+    session.commit()
+
+
 def _ensure_task_attachment_columns(session: Session, inspector=None) -> None:
     bind = session.get_bind()
     active_inspector = inspector or inspect(bind)
@@ -554,6 +614,27 @@ def _ensure_ticket_attachment_columns(session: Session, inspector=None) -> None:
         session.commit()
 
     session.execute(text("CREATE INDEX IF NOT EXISTS idx_ticket_attachments_comment ON ticket_attachments(ticket_comment_id)"))
+    session.commit()
+
+
+def _ensure_ticket_comment_columns(session: Session) -> None:
+    bind = session.get_bind()
+    active_inspector = inspect(bind)
+    table_names = set(active_inspector.get_table_names())
+    if "ticket_comments" not in table_names:
+        return
+
+    comment_columns = {column["name"] for column in active_inspector.get_columns("ticket_comments")}
+    if "location_id" not in comment_columns:
+        if bind.dialect.name == "postgresql" and "locations" in table_names:
+            session.execute(
+                text("ALTER TABLE ticket_comments ADD COLUMN location_id UUID REFERENCES locations(location_id)")
+            )
+        else:
+            session.execute(text("ALTER TABLE ticket_comments ADD COLUMN location_id VARCHAR(36)"))
+        session.commit()
+
+    session.execute(text("CREATE INDEX IF NOT EXISTS idx_ticket_comments_location ON ticket_comments(location_id)"))
     session.commit()
 
 
@@ -791,11 +872,26 @@ def _ensure_ticket_columns(session: Session, inspector=None) -> None:
     session.execute(text("CREATE INDEX IF NOT EXISTS idx_tickets_arrival_comment_id ON tickets(arrival_comment_id)"))
     session.execute(text("CREATE INDEX IF NOT EXISTS idx_tickets_solution_comment_id ON tickets(solution_comment_id)"))
 
-    if "ticket_comments" in table_names:
-        comment_columns = {column["name"] for column in active_inspector.get_columns("ticket_comments")}
-        if "location_id" not in comment_columns:
-            session.execute(text("ALTER TABLE ticket_comments ADD COLUMN location_id UUID REFERENCES locations(location_id)"))
-    session.commit()
+    _ensure_ticket_comment_columns(session)
+
+    if "ticket_collaborators" in set(inspect(bind).get_table_names()):
+        session.execute(text("CREATE INDEX IF NOT EXISTS idx_ticket_collaborators_ticket ON ticket_collaborators(ticket_id)"))
+        session.execute(text("CREATE INDEX IF NOT EXISTS idx_ticket_collaborators_user ON ticket_collaborators(crm_user_id)"))
+        if bind.dialect.name == "postgresql":
+            session.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_ticket_collaborators_active_ticket_user "
+                    "ON ticket_collaborators(ticket_id, crm_user_id) WHERE deleted_at IS NULL"
+                )
+            )
+        else:
+            session.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_ticket_collaborators_active_ticket_user "
+                    "ON ticket_collaborators(ticket_id, crm_user_id) WHERE deleted_at IS NULL"
+                )
+            )
+        session.commit()
 
 
 def _ensure_crm_user_columns(session: Session, inspector=None) -> None:

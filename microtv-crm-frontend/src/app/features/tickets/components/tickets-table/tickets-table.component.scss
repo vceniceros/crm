@@ -92,6 +92,17 @@
   font-weight: 600;
 }
 
+.tickets-table__assignee-stack {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.tickets-table__collaborators {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
 .tickets-table__location-cell {
   display: grid;
   gap: 0.4rem;

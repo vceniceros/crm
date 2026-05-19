@@ -81,19 +81,19 @@ export class TicketManagementService {
   }
 
   listAssignedTickets(): Observable<TicketSummary[]> {
-    return this.request<TicketSummary[]>('get', '/tickets/assigned/me');
+    return this.request<TicketSummary[]>('get', '/tickets/assigned/me').pipe(map((tickets) => tickets.map((ticket) => this.normalizeTicketSummary(ticket))));
   }
 
   listUnassignedTickets(): Observable<TicketSummary[]> {
-    return this.request<TicketSummary[]>('get', '/tickets/unassigned/me');
+    return this.request<TicketSummary[]>('get', '/tickets/unassigned/me').pipe(map((tickets) => tickets.map((ticket) => this.normalizeTicketSummary(ticket))));
   }
 
   listTrackingTickets(): Observable<TicketSummary[]> {
-    return this.request<TicketSummary[]>('get', '/tickets/tracking/me');
+    return this.request<TicketSummary[]>('get', '/tickets/tracking/me').pipe(map((tickets) => tickets.map((ticket) => this.normalizeTicketSummary(ticket))));
   }
 
   listTicketHistory(): Observable<TicketSummary[]> {
-    return this.request<TicketSummary[]>('get', '/tickets/history/me');
+    return this.request<TicketSummary[]>('get', '/tickets/history/me').pipe(map((tickets) => tickets.map((ticket) => this.normalizeTicketSummary(ticket))));
   }
 
   getTicketDetail(ticketId: string): Observable<TicketDetail> {
@@ -427,11 +427,18 @@ export class TicketManagementService {
 
   private normalizeTicketDetail(ticket: TicketDetail): TicketDetail {
     return {
-      ...ticket,
+      ...this.normalizeTicketSummary(ticket),
       comments: (ticket.comments ?? []).map((comment) => ({
         ...comment,
         attachments: (comment.attachments ?? []).map((attachment) => this.normalizeAttachment(attachment))
       }))
+    };
+  }
+
+  private normalizeTicketSummary<T extends TicketSummary>(ticket: T): T {
+    return {
+      ...ticket,
+      collaborators: ticket.collaborators ?? []
     };
   }
 

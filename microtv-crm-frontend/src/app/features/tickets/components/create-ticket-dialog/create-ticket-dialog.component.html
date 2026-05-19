@@ -60,9 +60,18 @@
         </mat-form-field>
 
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Usuario asignado</mat-label>
+          <mat-label>Asignado principal</mat-label>
           <mat-select formControlName="assigned_user_id">
             <mat-option [value]="null">Sin usuario asignado</mat-option>
+            @for (assignee of assignees(); track assignee.crm_user_id) {
+              <mat-option [value]="assignee.crm_user_id">{{ assignee.display_name || assignee.email || assignee.crm_user_id }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Colaboradores</mat-label>
+          <mat-select formControlName="collaborator_user_ids" multiple>
             @for (assignee of assignees(); track assignee.crm_user_id) {
               <mat-option [value]="assignee.crm_user_id">{{ assignee.display_name || assignee.email || assignee.crm_user_id }}</mat-option>
             }
