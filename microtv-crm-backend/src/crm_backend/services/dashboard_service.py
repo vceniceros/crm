@@ -8,9 +8,25 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import and_, exists, func, or_, select, true
 from sqlalchemy.orm import Session, aliased
 
-from crm_backend.models import Notification, Subtask, Task, TaskStatus, Ticket, TicketPriority, TicketStatus
+from crm_backend.models import (
+    Notification,
+    Subtask,
+    Task,
+    TaskComment,
+    TaskCommentMention,
+    TaskStatus,
+    Ticket,
+    TicketCollaborator,
+    TicketComment,
+    TicketCommentMention,
+    TicketPriority,
+    TicketStatus,
+)
 from crm_backend.schemas.dashboard import (
     DashboardKpiResponse,
+    DashboardPendingMenuItemResponse,
+    DashboardPendingMenuResponse,
+    DashboardPendingMenuTabResponse,
     DashboardRecentActivityResponse,
     DashboardRecentTicketResponse,
     DashboardSummaryResponse,
@@ -44,6 +60,7 @@ class DashboardService:
                 "con datos reales de operación."
             ),
             kpis=self.get_kpis(actor),
+            pending_menu=self.get_pending_menu(actor),
             recent_tickets=self.get_recent_tickets(actor),
             recent_activity=self.get_recent_activity(actor),
         )
@@ -225,6 +242,39 @@ class DashboardService:
 
         return [self._map_notification_to_activity(notification) for notification in notifications]
 
+    def get_pending_menu(self, actor: ResolvedCrmSession, limit: int = 10) -> DashboardPendingMenuResponse:
+        scope = self._build_scope(actor)
+        items = [
+            *self._get_pending_ticket_items(scope, limit=limit),
+            *self._get_pending_task_items(scope, limit=limit),
+        ]
+        items.sort(key=self._pending_sort_key)
+        items = items[:limit]
+
+        tabs = [
+            DashboardPendingMenuTabResponse(key="all", label="Todo", count=len(items)),
+            DashboardPendingMenuTabResponse(
+                key="tickets",
+                label="Tickets",
+                count=sum(1 for item in items if "tickets" in item.tab_keys),
+            ),
+            DashboardPendingMenuTabResponse(
+                key="tasks",
+                label="Tareas",
+                count=sum(1 for item in items if "tasks" in item.tab_keys),
+            ),
+        ]
+        if scope.is_admin_or_executive:
+            tabs.append(
+                DashboardPendingMenuTabResponse(
+                    key="approvals",
+                    label="Aprobaciones",
+                    count=sum(1 for item in items if "approvals" in item.tab_keys),
+                )
+            )
+
+        return DashboardPendingMenuResponse(title="Pendientes", tabs=tabs, items=items)
+
     def _build_scope(self, actor: ResolvedCrmSession) -> VisibilityScope:
         normalized_actor_role_keys = [
             role_key
@@ -305,6 +355,57 @@ class DashboardService:
             )
         return or_(*visible_conditions)
 
+    def _pending_ticket_visibility_condition(self, scope: VisibilityScope):
+        if scope.is_admin_or_executive:
+            return true()
+
+        collaborator_alias = aliased(TicketCollaborator)
+        comment_alias = aliased(TicketComment)
+        mention_alias = aliased(TicketCommentMention)
+        return or_(
+            Ticket.assigned_user_id == scope.actor_crm_user_id,
+            exists(
+                select(collaborator_alias.ticket_collaborator_id).where(
+                    collaborator_alias.ticket_id == Ticket.ticket_id,
+                    collaborator_alias.crm_user_id == scope.actor_crm_user_id,
+                    collaborator_alias.deleted_at.is_(None),
+                )
+            ),
+            exists(
+                select(mention_alias.ticket_comment_mention_id)
+                .join(comment_alias, mention_alias.ticket_comment_id == comment_alias.ticket_comment_id)
+                .where(
+                    comment_alias.ticket_id == Ticket.ticket_id,
+                    mention_alias.mentioned_crm_user_id == scope.actor_crm_user_id,
+                )
+            ),
+        )
+
+    def _pending_task_visibility_condition(self, scope: VisibilityScope):
+        if scope.is_admin_or_executive:
+            return true()
+
+        subtask_alias = aliased(Subtask)
+        comment_alias = aliased(TaskComment)
+        mention_alias = aliased(TaskCommentMention)
+        return or_(
+            Task.current_assigned_crm_user_id == scope.actor_crm_user_id,
+            exists(
+                select(subtask_alias.subtask_id).where(
+                    subtask_alias.task_id == Task.task_id,
+                    subtask_alias.current_assigned_crm_user_id == scope.actor_crm_user_id,
+                )
+            ),
+            exists(
+                select(mention_alias.task_comment_mention_id)
+                .join(comment_alias, mention_alias.task_comment_id == comment_alias.task_comment_id)
+                .where(
+                    comment_alias.task_id == Task.task_id,
+                    mention_alias.mentioned_crm_user_id == scope.actor_crm_user_id,
+                )
+            ),
+        )
+
     def _notification_visibility_condition(self, scope: VisibilityScope):
         if scope.is_admin_or_executive:
             return true()
@@ -332,6 +433,125 @@ class DashboardService:
             )
         )
         return self._session.scalar(statement) or 0
+
+    def _get_pending_ticket_items(self, scope: VisibilityScope, *, limit: int) -> list[DashboardPendingMenuItemResponse]:
+        statuses = [TicketStatus.OPEN.value, TicketStatus.IN_PROGRESS.value, TicketStatus.ON_HOLD.value]
+        if scope.is_admin_or_executive:
+            statuses.append(TicketStatus.PENDING_APPROVAL.value)
+
+        statement = (
+            select(Ticket)
+            .where(
+                Ticket.deleted_at.is_(None),
+                Ticket.status.in_(statuses),
+                self._pending_ticket_visibility_condition(scope),
+            )
+            .order_by(Ticket.updated_at.desc())
+            .limit(limit * 2)
+        )
+        tickets = list(self._session.scalars(statement).unique().all())
+        return [self._map_ticket_to_pending_item(ticket, scope) for ticket in tickets]
+
+    def _get_pending_task_items(self, scope: VisibilityScope, *, limit: int) -> list[DashboardPendingMenuItemResponse]:
+        statuses = [TaskStatus.PENDING.value, TaskStatus.IN_PROGRESS.value, TaskStatus.BLOCKED.value]
+        if scope.is_admin_or_executive:
+            statuses.append(TaskStatus.PENDING_APPROVAL.value)
+
+        statement = (
+            select(Task)
+            .where(
+                Task.deleted_at.is_(None),
+                Task.status.in_(statuses),
+                self._pending_task_visibility_condition(scope),
+            )
+            .order_by(Task.updated_at.desc())
+            .limit(limit * 2)
+        )
+        tasks = list(self._session.scalars(statement).unique().all())
+        return [self._map_task_to_pending_item(task, scope) for task in tasks]
+
+    def _map_ticket_to_pending_item(self, ticket: Ticket, scope: VisibilityScope) -> DashboardPendingMenuItemResponse:
+        tab_keys = ["all", "tickets"]
+        if ticket.status == TicketStatus.PENDING_APPROVAL.value:
+            tab_keys = ["all", "approvals"]
+
+        return DashboardPendingMenuItemResponse(
+            item_type="ticket",
+            public_code=ticket.ticket_number,
+            title=ticket.title,
+            client=ticket.client_name or "Sin cliente",
+            status=ticket.status,
+            status_tone=self._map_status_tone(ticket.status),
+            priority=ticket.priority,
+            priority_tone=self._map_priority_tone(ticket.priority),
+            assigned_to=ticket.assigned_user_display_name or "Sin asignar",
+            assigned_initials=self._resolve_initials(ticket.assigned_user_display_name),
+            reason=self._ticket_pending_reason(ticket, scope),
+            updated_at=ticket.updated_at,
+            target_route=f"/tickets/{ticket.ticket_id}",
+            tab_keys=tab_keys,
+        )
+
+    def _map_task_to_pending_item(self, task: Task, scope: VisibilityScope) -> DashboardPendingMenuItemResponse:
+        tab_keys = ["all", "tasks"]
+        if task.status == TaskStatus.PENDING_APPROVAL.value:
+            tab_keys = ["all", "approvals"]
+
+        return DashboardPendingMenuItemResponse(
+            item_type="task",
+            public_code=self._task_public_code(task),
+            title=task.task_title,
+            client=task.client_name or "Sin cliente",
+            status=task.status,
+            status_tone=self._map_status_tone(task.status),
+            priority=task.priority,
+            priority_tone=self._map_priority_tone(task.priority),
+            assigned_to=task.current_assigned_user_display_name or "Sin asignar",
+            assigned_initials=self._resolve_initials(task.current_assigned_user_display_name),
+            reason=self._task_pending_reason(task, scope),
+            updated_at=task.updated_at,
+            target_route=f"/tasks/{task.task_id}",
+            tab_keys=tab_keys,
+        )
+
+    def _ticket_pending_reason(self, ticket: Ticket, scope: VisibilityScope) -> str:
+        if ticket.status == TicketStatus.PENDING_APPROVAL.value:
+            return "Requiere aprobación"
+        if scope.is_admin_or_executive:
+            return "Pendiente operativo"
+        if ticket.assigned_user_id == scope.actor_crm_user_id:
+            return "Asignado a vos"
+        if any(collaborator.crm_user_id == scope.actor_crm_user_id for collaborator in ticket.collaborators):
+            return "Colaborás en este ticket"
+        return "Te mencionaron"
+
+    def _task_pending_reason(self, task: Task, scope: VisibilityScope) -> str:
+        if task.status == TaskStatus.PENDING_APPROVAL.value:
+            return "Requiere aprobación"
+        if scope.is_admin_or_executive:
+            return "Pendiente operativo"
+        if task.current_assigned_crm_user_id == scope.actor_crm_user_id:
+            return "Asignada a vos"
+        if any(subtask.current_assigned_crm_user_id == scope.actor_crm_user_id for subtask in task.subtasks):
+            return "Subtarea asignada a vos"
+        return "Te mencionaron"
+
+    def _pending_sort_key(self, item: DashboardPendingMenuItemResponse) -> tuple[int, int, float]:
+        is_approval = 0 if "approvals" in item.tab_keys else 1
+        priority_rank = {
+            TicketPriority.CRITICAL.value: 0,
+            TicketPriority.HIGH.value: 1,
+            "ALTA": 1,
+            "HIGH": 1,
+            TicketPriority.MEDIUM.value: 2,
+            "MEDIA": 2,
+            TicketPriority.LOW.value: 3,
+            "BAJA": 3,
+        }.get((item.priority or "").upper(), 2)
+        return (is_approval, priority_rank, -item.updated_at.timestamp())
+
+    def _task_public_code(self, task: Task) -> str:
+        return f"TAR-{task.task_id[:8].upper()}"
 
     def _map_notification_to_activity(self, notification: Notification) -> DashboardRecentActivityResponse:
         entity_type = notification.entity_type
@@ -385,21 +605,21 @@ class DashboardService:
         normalized = (priority or "").upper()
         if normalized == TicketPriority.CRITICAL.value:
             return "critical"
-        if normalized == TicketPriority.HIGH.value:
+        if normalized in {TicketPriority.HIGH.value, "ALTA"}:
             return "high"
-        if normalized == TicketPriority.LOW.value:
+        if normalized in {TicketPriority.LOW.value, "BAJA"}:
             return "low"
         return "medium"
 
     def _map_status_tone(self, status: str) -> str:
         normalized = (status or "").upper()
-        if normalized in {TicketStatus.OPEN.value, TicketStatus.PENDING_APPROVAL.value}:
+        if normalized in {TicketStatus.OPEN.value, TicketStatus.PENDING_APPROVAL.value, TaskStatus.PENDING.value}:
             return "neutral"
         if normalized == TicketStatus.IN_PROGRESS.value:
             return "progress"
-        if normalized == TicketStatus.ON_HOLD.value:
+        if normalized in {TicketStatus.ON_HOLD.value, TaskStatus.BLOCKED.value}:
             return "warning"
-        if normalized in {TicketStatus.RESOLVED.value, TicketStatus.CLOSED.value}:
+        if normalized in {TicketStatus.RESOLVED.value, TicketStatus.CLOSED.value, TaskStatus.COMPLETED.value}:
             return "success"
         return "neutral"
 

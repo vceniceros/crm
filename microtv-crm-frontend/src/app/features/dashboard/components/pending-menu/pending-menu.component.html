@@ -1,0 +1,44 @@
+<mat-card class="pending-menu">
+  <mat-card-header>
+    <mat-card-title>{{ block().title }}</mat-card-title>
+  </mat-card-header>
+
+  <mat-card-content>
+    <mat-tab-group class="pending-menu__tabs" (selectedIndexChange)="selectTab($event)">
+      @for (tab of block().tabs; track tab.key) {
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <span class="pending-menu__tab-label">{{ tab.label }}</span>
+            <span class="pending-menu__tab-count">{{ tab.count }}</span>
+          </ng-template>
+        </mat-tab>
+      }
+    </mat-tab-group>
+
+    @if (selectedItems().length) {
+      <div class="pending-menu__list">
+        @for (item of selectedItems(); track item.itemType + '-' + item.publicCode) {
+          <button type="button" class="pending-menu__item" (click)="navigateTo(item)">
+            <span class="pending-menu__code">{{ item.publicCode }}</span>
+            <span class="pending-menu__main">
+              <span class="pending-menu__title">{{ item.title }}</span>
+              <span class="pending-menu__meta">{{ item.client }} · {{ item.reason }} · {{ item.updatedAt }}</span>
+            </span>
+            <span class="pending-menu__badges">
+              @if (item.priority && item.priorityTone) {
+                <app-priority-indicator [label]="item.priority" [tone]="item.priorityTone" />
+              }
+              <app-status-badge [label]="item.status" [tone]="item.statusTone" />
+            </span>
+            <span class="pending-menu__assignee">
+              <app-user-avatar [initials]="item.assignedInitials" [size]="28" />
+              <span>{{ item.assignedTo }}</span>
+            </span>
+          </button>
+        }
+      </div>
+    } @else {
+      <p class="pending-menu__empty">No hay pendientes para esta vista.</p>
+    }
+  </mat-card-content>
+</mat-card>
