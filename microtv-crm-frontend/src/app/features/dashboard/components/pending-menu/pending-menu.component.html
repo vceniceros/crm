@@ -4,16 +4,21 @@
   </mat-card-header>
 
   <mat-card-content>
-    <mat-tab-group class="pending-menu__tabs" (selectedIndexChange)="selectTab($event)">
+    <div class="pending-menu__tabs" role="tablist" aria-label="Pendientes">
       @for (tab of block().tabs; track tab.key) {
-        <mat-tab>
-          <ng-template mat-tab-label>
-            <span class="pending-menu__tab-label">{{ tab.label }}</span>
-            <span class="pending-menu__tab-count">{{ tab.count }}</span>
-          </ng-template>
-        </mat-tab>
+        <button
+          type="button"
+          class="pending-menu__tab"
+          role="tab"
+          [class.pending-menu__tab--active]="selectedTab() === tab.key"
+          [attr.aria-selected]="selectedTab() === tab.key"
+          (click)="selectTab(tab.key)"
+        >
+          <span class="pending-menu__tab-label">{{ tab.label }}</span>
+          <span class="pending-menu__tab-count">{{ tab.count }}</span>
+        </button>
       }
-    </mat-tab-group>
+    </div>
 
     @if (selectedItems().length) {
       <div class="pending-menu__list">
