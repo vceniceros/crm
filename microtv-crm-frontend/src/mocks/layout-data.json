@@ -73,6 +73,65 @@
         "variant": "success"
       }
     ],
+    "pendingMenu": {
+      "title": "Pendientes",
+      "tabs": [
+        { "key": "all", "label": "Todo", "count": 3 },
+        { "key": "tickets", "label": "Tickets", "count": 2 },
+        { "key": "tasks", "label": "Tareas", "count": 1 },
+        { "key": "approvals", "label": "Aprobaciones", "count": 1 }
+      ],
+      "items": [
+        {
+          "itemType": "ticket",
+          "publicCode": "TK-2418",
+          "title": "Sincronización irregular de cámaras en sucursal centro",
+          "client": "Hotel Plaza",
+          "status": "En progreso",
+          "statusTone": "progress",
+          "priority": "Alta",
+          "priorityTone": "high",
+          "assignedTo": "Luciano G.",
+          "assignedInitials": "LG",
+          "reason": "Asignado a vos",
+          "updatedAt": "Hace 12 min",
+          "targetRoute": "/tickets/TK-2418",
+          "tabKeys": ["all", "tickets"]
+        },
+        {
+          "itemType": "task",
+          "publicCode": "TAR-1A2B3C4D",
+          "title": "Instalación cliente Acme",
+          "client": "Cliente Acme SA",
+          "status": "Pendiente aprobación",
+          "statusTone": "neutral",
+          "priority": "Media",
+          "priorityTone": "medium",
+          "assignedTo": "Ejecutivo CRM",
+          "assignedInitials": "EC",
+          "reason": "Requiere aprobación",
+          "updatedAt": "Hace 35 min",
+          "targetRoute": "/tasks/1A2B3C4D",
+          "tabKeys": ["all", "approvals"]
+        },
+        {
+          "itemType": "ticket",
+          "publicCode": "TK-2411",
+          "title": "Corte intermitente en enlace de monitoreo",
+          "client": "Metalúrgica Sur",
+          "status": "Bloqueado",
+          "statusTone": "warning",
+          "priority": "Crítica",
+          "priorityTone": "critical",
+          "assignedTo": "Diego P.",
+          "assignedInitials": "DP",
+          "reason": "Colaborás en este ticket",
+          "updatedAt": "Hace 1 h",
+          "targetRoute": "/tickets/TK-2411",
+          "tabKeys": ["all", "tickets"]
+        }
+      ]
+    },
     "recentTickets": {
       "title": "Tickets Recientes",
       "columns": [

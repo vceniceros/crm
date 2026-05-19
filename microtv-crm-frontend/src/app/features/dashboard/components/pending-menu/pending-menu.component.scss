@@ -1,0 +1,137 @@
+.pending-menu {
+  border: 1px solid rgba(23, 24, 26, 0.06);
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-panel);
+}
+
+.pending-menu mat-card-header,
+.pending-menu mat-card-content {
+  padding-inline: 1.3rem;
+}
+
+.pending-menu mat-card-header {
+  padding-top: 1rem;
+}
+
+.pending-menu__tabs {
+  margin-top: 0.35rem;
+}
+
+.pending-menu__tab-label {
+  font-weight: 700;
+}
+
+.pending-menu__tab-count {
+  display: inline-flex;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.45rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.pending-menu__list {
+  display: grid;
+  gap: 0.2rem;
+  padding-block: 0.6rem 0.2rem;
+}
+
+.pending-menu__item {
+  display: grid;
+  grid-template-columns: minmax(5.8rem, 0.7fr) minmax(12rem, 2fr) minmax(12rem, 1.35fr) minmax(9rem, 1fr);
+  gap: 0.85rem;
+  align-items: center;
+  width: 100%;
+  min-height: 3.4rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  padding: 0.55rem 0.7rem;
+  text-align: left;
+}
+
+.pending-menu__item:hover {
+  background: rgba(37, 99, 235, 0.04);
+}
+
+.pending-menu__code {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.pending-menu__main {
+  display: grid;
+  min-width: 0;
+  gap: 0.18rem;
+}
+
+.pending-menu__title {
+  overflow: hidden;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pending-menu__meta {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pending-menu__badges,
+.pending-menu__assignee {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pending-menu__assignee {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.pending-menu__assignee span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pending-menu__empty {
+  margin: 0;
+  padding: 1rem 0 0.35rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .pending-menu__item {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.45rem;
+    align-items: start;
+  }
+
+  .pending-menu__badges,
+  .pending-menu__assignee {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .pending-menu mat-card-header,
+  .pending-menu mat-card-content {
+    padding-inline: 1rem;
+  }
+}

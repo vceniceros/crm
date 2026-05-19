@@ -121,6 +121,7 @@ src/microtv_crm_backend.egg-info/requires.txt
 src/microtv_crm_backend.egg-info/top_level.txt
 tests/test_auth_api.py
 tests/test_clients_api.py
+tests/test_dashboard_service.py
 tests/test_stock_api.py
 tests/test_tasks_api.py
 tests/test_ticket_evidence_and_satisfaction.py

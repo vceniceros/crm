@@ -8,6 +8,7 @@ import { UI_HELP_TEXTS } from '../../../../core/config/ui-help-texts.config';
 import { RecentActivityTimelineComponent } from '../recent-activity-timeline/recent-activity-timeline.component';
 import { RecentTicketsTableComponent } from '../recent-tickets-table/recent-tickets-table.component';
 import { StatsCardsComponent } from '../stats-cards/stats-cards.component';
+import { PendingMenuComponent } from '../pending-menu/pending-menu.component';
 import { ContextHelpCardComponent } from '../../../../shared/ui/context-help-card/context-help-card.component';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 
@@ -24,6 +25,7 @@ interface DashboardPageVm {
     AsyncPipe,
     ContextHelpCardComponent,
     PageTitleComponent,
+    PendingMenuComponent,
     RecentActivityTimelineComponent,
     RecentTicketsTableComponent,
     StatsCardsComponent

@@ -6,6 +6,10 @@ export type TicketStatusTone = 'neutral' | 'progress' | 'warning' | 'success';
 
 export type ActivityTone = 'danger' | 'info' | 'warning' | 'success';
 
+export type PendingMenuTabKey = 'all' | 'tickets' | 'tasks' | 'approvals';
+
+export type PendingMenuItemType = 'ticket' | 'task';
+
 export interface DashboardStat {
   label: string;
   value: string;
@@ -52,10 +56,40 @@ export interface RecentActivityBlock {
   items: RecentActivityItem[];
 }
 
+export interface PendingMenuTab {
+  key: PendingMenuTabKey;
+  label: string;
+  count: number;
+}
+
+export interface PendingMenuItem {
+  itemType: PendingMenuItemType;
+  publicCode: string;
+  title: string;
+  client: string;
+  status: string;
+  statusTone: TicketStatusTone;
+  priority?: string;
+  priorityTone?: TicketPriorityTone;
+  assignedTo: string;
+  assignedInitials: string;
+  reason: string;
+  updatedAt: string;
+  targetRoute: string;
+  tabKeys: PendingMenuTabKey[];
+}
+
+export interface PendingMenuBlock {
+  title: string;
+  tabs: PendingMenuTab[];
+  items: PendingMenuItem[];
+}
+
 export interface DashboardData {
   pageTitle: string;
   pageSubtitle: string;
   stats: DashboardStat[];
+  pendingMenu: PendingMenuBlock;
   recentTickets: RecentTicketsBlock;
   recentActivity: RecentActivityBlock;
 }
@@ -91,10 +125,40 @@ export interface DashboardRecentActivityApiResponse {
   target_route: string | null;
 }
 
+export interface DashboardPendingMenuTabApiResponse {
+  key: PendingMenuTabKey;
+  label: string;
+  count: number;
+}
+
+export interface DashboardPendingMenuItemApiResponse {
+  item_type: PendingMenuItemType;
+  public_code: string;
+  title: string;
+  client: string;
+  status: string;
+  status_tone: TicketStatusTone;
+  priority: string | null;
+  priority_tone: TicketPriorityTone | null;
+  assigned_to: string;
+  assigned_initials: string;
+  reason: string;
+  updated_at: string;
+  target_route: string;
+  tab_keys: PendingMenuTabKey[];
+}
+
+export interface DashboardPendingMenuApiResponse {
+  title: string;
+  tabs: DashboardPendingMenuTabApiResponse[];
+  items: DashboardPendingMenuItemApiResponse[];
+}
+
 export interface DashboardSummaryApiResponse {
   page_title: string;
   page_subtitle: string;
   kpis: DashboardKpiApiResponse[];
+  pending_menu: DashboardPendingMenuApiResponse;
   recent_tickets: DashboardRecentTicketApiResponse[];
   recent_activity: DashboardRecentActivityApiResponse[];
 }

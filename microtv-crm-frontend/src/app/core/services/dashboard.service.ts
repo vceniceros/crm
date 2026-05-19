@@ -5,6 +5,7 @@ import { catchError, map } from 'rxjs/operators';
 
 import {
   DashboardData,
+  PendingMenuItem,
   DashboardStat,
   DashboardSummaryApiResponse,
   RecentActivityItem,
@@ -67,6 +68,11 @@ export class DashboardService {
       pageTitle: response.page_title,
       pageSubtitle: response.page_subtitle,
       stats: response.kpis.map((kpi) => this.mapKpi(kpi)),
+      pendingMenu: {
+        title: response.pending_menu.title,
+        tabs: response.pending_menu.tabs,
+        items: response.pending_menu.items.map((item) => this.mapPendingMenuItem(item))
+      },
       recentTickets: {
         title: 'Tickets Recientes',
         columns: [
@@ -122,6 +128,25 @@ export class DashboardService {
     };
   }
 
+  private mapPendingMenuItem(item: DashboardSummaryApiResponse['pending_menu']['items'][number]): PendingMenuItem {
+    return {
+      itemType: item.item_type,
+      publicCode: item.public_code,
+      title: item.title,
+      client: item.client,
+      status: this.normalizeStatusLabel(item.status),
+      statusTone: item.status_tone,
+      priority: item.priority ? this.normalizePriorityLabel(item.priority) : undefined,
+      priorityTone: item.priority_tone ?? undefined,
+      assignedTo: item.assigned_to,
+      assignedInitials: item.assigned_initials,
+      reason: item.reason,
+      updatedAt: this.formatRelativeTime(item.updated_at),
+      targetRoute: item.target_route,
+      tabKeys: item.tab_keys
+    };
+  }
+
   private normalizePriorityLabel(priority: string): string {
     const normalized = priority.toUpperCase();
     if (normalized === 'CRITICAL') {
@@ -131,6 +156,15 @@ export class DashboardService {
       return 'Alta';
     }
     if (normalized === 'LOW') {
+      return 'Baja';
+    }
+    if (normalized === 'ALTA') {
+      return 'Alta';
+    }
+    if (normalized === 'MEDIA') {
+      return 'Media';
+    }
+    if (normalized === 'BAJA') {
       return 'Baja';
     }
     return 'Media';
@@ -147,7 +181,13 @@ export class DashboardService {
     if (normalized === 'ON_HOLD') {
       return 'Bloqueado';
     }
+    if (normalized === 'BLOCKED') {
+      return 'Bloqueado';
+    }
     if (normalized === 'PENDING_APPROVAL') {
+      return 'Pendiente aprobación';
+    }
+    if (normalized === 'PENDING') {
       return 'Pendiente';
     }
     if (normalized === 'RESOLVED') {
@@ -155,6 +195,9 @@ export class DashboardService {
     }
     if (normalized === 'CLOSED') {
       return 'Cerrado';
+    }
+    if (normalized === 'COMPLETED') {
+      return 'Completada';
     }
     return status;
   }
