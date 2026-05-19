@@ -1,4 +1,4 @@
-import { Component, inject, input, output } from '@angular/core';
+import { Component, HostListener, inject, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -37,6 +37,21 @@ export class TicketAttachmentsSectionComponent {
     }
 
     input.value = '';
+  }
+
+  @HostListener('document:paste', ['$event'])
+  onClipboardPaste(event: ClipboardEvent): void {
+    if (!this.canEdit()) {
+      return;
+    }
+
+    const mediaFiles = this.getMediaFilesFromClipboard(event);
+    if (!mediaFiles.length) {
+      return;
+    }
+
+    event.preventDefault();
+    this.attachmentsSelected.emit(mediaFiles);
   }
 
   removeAttachment(attachmentId: string): void {
@@ -126,5 +141,27 @@ export class TicketAttachmentsSectionComponent {
       maxHeight: '95vh',
       panelClass: 'image-viewer-panel'
     });
+  }
+
+  private getMediaFilesFromClipboard(event: ClipboardEvent): File[] {
+    const clipboardData = event.clipboardData;
+    if (!clipboardData) {
+      return [];
+    }
+
+    const filesFromItems = Array.from(clipboardData.items ?? [])
+      .filter((item) => item.kind === 'file' && this.isSupportedMediaType(item.type))
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => Boolean(file));
+
+    if (filesFromItems.length) {
+      return filesFromItems;
+    }
+
+    return Array.from(clipboardData.files ?? []).filter((file) => this.isSupportedMediaType(file.type));
+  }
+
+  private isSupportedMediaType(type: string | null | undefined): boolean {
+    return Boolean(type?.startsWith('image/') || type?.startsWith('video/'));
   }
 }

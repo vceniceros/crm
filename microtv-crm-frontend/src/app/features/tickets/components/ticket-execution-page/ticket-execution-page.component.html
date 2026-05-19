@@ -112,104 +112,10 @@
     <mat-card class="ticket-execution-page__unified-card">
       <mat-card-header>
         <mat-card-title>Acciones del ticket</mat-card-title>
-        <mat-card-subtitle>Timeline, comentario y operación depósito en una sola sección.</mat-card-subtitle>
+        <mat-card-subtitle>Comentario, timeline y operación depósito en una sola sección.</mat-card-subtitle>
       </mat-card-header>
 
       <mat-card-content class="ticket-execution-page__unified-content">
-        <section class="ticket-execution-page__timeline-panel">
-          <div class="ticket-execution-page__section-head">
-            <h3>Timeline</h3>
-            @if (timelineEvents().length > 1) {
-              <button
-                mat-stroked-button
-                type="button"
-                (click)="toggleTimelineSortDirection()"
-                [matTooltip]="timelineSortDirection() === 'newest' ? 'Ver comentarios más antiguos primero' : 'Ver comentarios más recientes primero'"
-              >
-                <mat-icon>{{ timelineSortDirection() === 'newest' ? 'south' : 'north' }}</mat-icon>
-                <span>{{ timelineSortDirection() === 'newest' ? 'Más recientes primero' : 'Más antiguos primero' }}</span>
-              </button>
-            }
-          </div>
-          @if (displayedTimelineEvents().length) {
-            <div class="ticket-execution-page__timeline-list">
-              @for (event of displayedTimelineEvents(); track timelineTrackBy($index, event)) {
-                <article class="ticket-execution-page__timeline-item" [attr.id]="event.anchorId || null">
-                  <div class="ticket-execution-page__timeline-head">
-                    <div>
-                      <p class="ticket-execution-page__timeline-author">{{ event.title }}</p>
-                      <p class="ticket-execution-page__timeline-meta">{{ event.subtitle }} · {{ event.occurredAt | date: 'dd/MM/yyyy HH:mm' }}</p>
-                    </div>
-                    <div class="ticket-execution-page__timeline-head-actions">
-                      @if (event.isSolutionComment) {
-                        <div class="ticket-execution-page__timeline-solution-chip">
-                          <mat-icon>verified</mat-icon>
-                          <span>Solution</span>
-                        </div>
-                      }
-
-                      @if (event.commentId && canMarkCommentAsSolution(event)) {
-                        <button
-                          mat-icon-button
-                          type="button"
-                          [disabled]="isSaving()"
-                          (click)="markCommentAsSolution(event.commentId)"
-                          matTooltip="Mark as solution"
-                          aria-label="Mark as solution"
-                        >
-                          <mat-icon>check_circle</mat-icon>
-                        </button>
-                      }
-
-                      <app-status-badge [label]="event.subtitle" [tone]="timelineTone(event)" />
-                    </div>
-                  </div>
-
-                  @if (event.isArrivalComment) {
-                    <div class="ticket-execution-page__timeline-arrival-badge">
-                      <mat-icon>place</mat-icon>
-                      <span>Comentario de llegada</span>
-                    </div>
-                  }
-
-                  <p class="ticket-execution-page__timeline-body">{{ event.body }}</p>
-
-                  @if (event.location) {
-                    <div class="ticket-execution-page__timeline-location-badge">
-                      <mat-icon>location_on</mat-icon>
-                      <span>Ubicación adjuntada</span>
-                    </div>
-                  }
-
-                  @if (event.attachments.length) {
-                    <div class="ticket-execution-page__timeline-attachments">
-                      @for (attachment of event.attachments; track attachment.id) {
-                        <div class="ticket-execution-page__timeline-attachment-slide">
-                          @if (timelineAttachmentUrl(attachment); as attachmentUrl) {
-                            @if (attachment.kind === 'image') {
-                              <img [src]="attachmentUrl" [alt]="attachment.fileName" (click)="openAttachmentInNewTab(attachmentUrl)" />
-                            } @else if (attachment.kind === 'video') {
-                              <video controls preload="metadata" (click)="openAttachmentInNewTab(attachmentUrl)">
-                                <source [src]="attachmentUrl" [type]="attachment.fileType || 'video/mp4'" />
-                              </video>
-                            } @else {
-                              <a [href]="attachmentUrl" target="_blank" rel="noopener noreferrer">{{ attachment.fileName }}</a>
-                            }
-                          } @else {
-                            <span>{{ attachment.fileName }}</span>
-                          }
-                        </div>
-                      }
-                    </div>
-                  }
-                </article>
-              }
-            </div>
-          } @else {
-            <p class="ticket-execution-page__empty-text">Aún no hay movimientos para este ticket.</p>
-          }
-        </section>
-
         <section class="ticket-execution-page__composer-panel">
           <h3>Nuevo comentario</h3>
 
@@ -507,6 +413,100 @@
 
           @if (!canOperateTicket() && !blockingRequestForCurrentUser()) {
             <p class="ticket-execution-page__empty-text">Solo lectura. El ticket está asignado a otro usuario o rol operativo.</p>
+          }
+        </section>
+
+        <section class="ticket-execution-page__timeline-panel">
+          <div class="ticket-execution-page__section-head">
+            <h3>Timeline</h3>
+            @if (timelineEvents().length > 1) {
+              <button
+                mat-stroked-button
+                type="button"
+                (click)="toggleTimelineSortDirection()"
+                [matTooltip]="timelineSortDirection() === 'newest' ? 'Ver comentarios más antiguos primero' : 'Ver comentarios más recientes primero'"
+              >
+                <mat-icon>{{ timelineSortDirection() === 'newest' ? 'south' : 'north' }}</mat-icon>
+                <span>{{ timelineSortDirection() === 'newest' ? 'Más recientes primero' : 'Más antiguos primero' }}</span>
+              </button>
+            }
+          </div>
+          @if (displayedTimelineEvents().length) {
+            <div class="ticket-execution-page__timeline-list">
+              @for (event of displayedTimelineEvents(); track timelineTrackBy($index, event)) {
+                <article class="ticket-execution-page__timeline-item" [attr.id]="event.anchorId || null">
+                  <div class="ticket-execution-page__timeline-head">
+                    <div>
+                      <p class="ticket-execution-page__timeline-author">{{ event.title }}</p>
+                      <p class="ticket-execution-page__timeline-meta">{{ event.subtitle }} · {{ event.occurredAt | date: 'dd/MM/yyyy HH:mm' }}</p>
+                    </div>
+                    <div class="ticket-execution-page__timeline-head-actions">
+                      @if (event.isSolutionComment) {
+                        <div class="ticket-execution-page__timeline-solution-chip">
+                          <mat-icon>verified</mat-icon>
+                          <span>Solution</span>
+                        </div>
+                      }
+
+                      @if (event.commentId && canMarkCommentAsSolution(event)) {
+                        <button
+                          mat-icon-button
+                          type="button"
+                          [disabled]="isSaving()"
+                          (click)="markCommentAsSolution(event.commentId)"
+                          matTooltip="Mark as solution"
+                          aria-label="Mark as solution"
+                        >
+                          <mat-icon>check_circle</mat-icon>
+                        </button>
+                      }
+
+                      <app-status-badge [label]="event.subtitle" [tone]="timelineTone(event)" />
+                    </div>
+                  </div>
+
+                  @if (event.isArrivalComment) {
+                    <div class="ticket-execution-page__timeline-arrival-badge">
+                      <mat-icon>place</mat-icon>
+                      <span>Comentario de llegada</span>
+                    </div>
+                  }
+
+                  <p class="ticket-execution-page__timeline-body">{{ event.body }}</p>
+
+                  @if (event.location) {
+                    <div class="ticket-execution-page__timeline-location-badge">
+                      <mat-icon>location_on</mat-icon>
+                      <span>Ubicación adjuntada</span>
+                    </div>
+                  }
+
+                  @if (event.attachments.length) {
+                    <div class="ticket-execution-page__timeline-attachments">
+                      @for (attachment of event.attachments; track attachment.id) {
+                        <div class="ticket-execution-page__timeline-attachment-slide">
+                          @if (timelineAttachmentUrl(attachment); as attachmentUrl) {
+                            @if (attachment.kind === 'image') {
+                              <img [src]="attachmentUrl" [alt]="attachment.fileName" (click)="openAttachmentInNewTab(attachmentUrl)" />
+                            } @else if (attachment.kind === 'video') {
+                              <video controls preload="metadata" (click)="openAttachmentInNewTab(attachmentUrl)">
+                                <source [src]="attachmentUrl" [type]="attachment.fileType || 'video/mp4'" />
+                              </video>
+                            } @else {
+                              <a [href]="attachmentUrl" target="_blank" rel="noopener noreferrer">{{ attachment.fileName }}</a>
+                            }
+                          } @else {
+                            <span>{{ attachment.fileName }}</span>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </article>
+              }
+            </div>
+          } @else {
+            <p class="ticket-execution-page__empty-text">Aún no hay movimientos para este ticket.</p>
           }
         </section>
 
