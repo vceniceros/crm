@@ -27,6 +27,7 @@
 }
 
 .ticket-attachments-section__hint,
+.ticket-attachments-section__paste-hint,
 .ticket-attachments-section__name,
 .ticket-attachments-section__details,
 .ticket-attachments-section__preview-note,
@@ -35,11 +36,16 @@
 }
 
 .ticket-attachments-section__hint,
+.ticket-attachments-section__paste-hint,
 .ticket-attachments-section__details,
 .ticket-attachments-section__preview-note {
   color: var(--text-secondary);
   font-size: 0.8rem;
   line-height: 1.45;
+}
+
+.ticket-attachments-section__paste-hint {
+  display: block;
 }
 
 .ticket-attachments-section__list {
@@ -143,6 +149,10 @@
 }
 
 @media (max-width: 640px) {
+  .ticket-attachments-section__paste-hint {
+    display: none;
+  }
+
   .ticket-attachments-section__actions button {
     justify-self: stretch;
   }
