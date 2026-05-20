@@ -1,11 +1,13 @@
 import { NgClass } from '@angular/common';
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 
+import { AuthSessionService } from '../../core/services/auth-session.service';
 import { RechartsHostComponent } from './components/recharts-host.component';
 import {
+  fallbackReadableLabel,
   formatReportActionType,
   formatReportDateTime,
   formatReportPriority,
@@ -34,6 +36,9 @@ import { ReportsService } from './reports.service';
 })
 export class ReportDetailComponent implements OnDestroy {
   readonly destroy$ = new Subject<void>();
+  private readonly route = inject(ActivatedRoute);
+  private readonly reportsService = inject(ReportsService);
+  private readonly authSessionService = inject(AuthSessionService);
 
   report: ReportCardDefinition | null = null;
   reportId: ReportId | null = null;
@@ -42,8 +47,10 @@ export class ReportDetailComponent implements OnDestroy {
   payload: ReportPayload | null = null;
   filtersLoading = false;
   filtersErrorMessage: string | null = null;
+  exportingPdf = false;
+  pdfGeneratedAtLabel = '';
 
-  quickDate: 'week' | 'month' | 'last-month' | 'custom' = 'month';
+  quickDate: 'today' | 'week' | 'month' | 'last-month' | 'year' | 'custom' = 'month';
   dateFrom = '';
   dateTo = '';
   filterUser = '';
@@ -52,6 +59,8 @@ export class ReportDetailComponent implements OnDestroy {
   filterStatus = '';
   filterPriority = '';
   filterCategory = '';
+  filterLocation = '';
+  filterRole = '';
   filterWarehouse = '';
   filterRequester = '';
   filterApprover = '';
@@ -65,6 +74,8 @@ export class ReportDetailComponent implements OnDestroy {
     users: [],
     clients: [],
     categories: [],
+    locations: [],
+    roles: [],
     warehouses: [],
     technicians: [],
     actionTypes: []
@@ -73,10 +84,7 @@ export class ReportDetailComponent implements OnDestroy {
   readonly statusOptions = STATUS_OPTIONS;
   readonly priorityOptions = PRIORITY_OPTIONS;
 
-  constructor(
-    private readonly route: ActivatedRoute,
-    private readonly reportsService: ReportsService
-  ) {
+  constructor() {
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       const reportId = params.get('reportId') as ReportId | null;
       this.reportId = reportId;
@@ -105,6 +113,116 @@ export class ReportDetailComponent implements OnDestroy {
 
   get series(): ReportSeriesPoint[] {
     return this.payload?.series ?? [];
+  }
+
+  get displayedRows(): Record<string, unknown>[] {
+    return this.exportingPdf ? this.filteredRows : this.pagedRows;
+  }
+
+  get currentUserLabel(): string {
+    const session = this.authSessionService.sessionSnapshot();
+    return session?.user.display_name?.trim() || session?.user.email || 'Usuario CRM';
+  }
+
+  get appliedFilterSummary(): string[] {
+    const items: string[] = [];
+    if (this.dateFrom || this.dateTo) {
+      items.push(`Rango: ${this.dateFrom || 'inicio'} a ${this.dateTo || 'hoy'}`);
+    }
+    if (this.filterStatus) {
+      items.push(`Estado: ${formatReportStatus(this.filterStatus)}`);
+    }
+    if (this.filterPriority) {
+      items.push(`Prioridad: ${formatReportPriority(this.filterPriority)}`);
+    }
+    if (this.filterClient) {
+      items.push(`Cliente: ${this.labelForOption(this.filterCatalogs.clients, this.filterClient)}`);
+    }
+    if (this.filterCategory) {
+      items.push(`Categoría: ${this.labelForOption(this.filterCatalogs.categories, this.filterCategory)}`);
+    }
+    if (this.filterLocation) {
+      items.push(`Ubicación: ${this.labelForOption(this.filterCatalogs.locations, this.filterLocation)}`);
+    }
+    if (this.filterTechnician) {
+      items.push(`Técnico: ${this.labelForOption(this.filterCatalogs.technicians, this.filterTechnician)}`);
+    }
+    if (this.filterUser) {
+      items.push(`Usuario: ${this.labelForOption(this.filterCatalogs.users, this.filterUser)}`);
+    }
+    if (this.filterRole) {
+      items.push(`Rol: ${this.labelForOption(this.filterCatalogs.roles, this.filterRole)}`);
+    }
+    if (this.filterRequester) {
+      items.push(`Solicitante: ${this.labelForOption(this.filterCatalogs.users, this.filterRequester)}`);
+    }
+    if (this.filterApprover) {
+      items.push(`Aprobador: ${this.labelForOption(this.filterCatalogs.users, this.filterApprover)}`);
+    }
+    if (this.filterActionType) {
+      items.push(`Acción: ${this.labelForOption(this.filterCatalogs.actionTypes, this.filterActionType)}`);
+    }
+    return items;
+  }
+
+  get showsStatusFilter(): boolean {
+    return this.reportId === 'tickets-by-priority'
+      || this.reportId === 'tickets-by-status'
+      || this.reportId === 'tickets-by-client'
+      || this.reportId === 'deposit-requests-status'
+      || this.reportId === 'tasks-by-status'
+      || this.reportId === 'tasks-by-technician';
+  }
+
+  get showsPriorityFilter(): boolean {
+    return this.reportId === 'tickets-by-priority'
+      || this.reportId === 'my-tickets'
+      || this.reportId === 'my-tasks'
+      || this.reportId === 'executive-performance'
+      || this.reportId === 'executive-by-category'
+      || this.reportId === 'executive-by-client';
+  }
+
+  get showsClientFilter(): boolean {
+    return this.reportId === 'tickets-by-client'
+      || this.reportId === 'my-tickets'
+      || this.reportId === 'my-tasks'
+      || this.reportId === 'executive-performance'
+      || this.reportId === 'executive-by-category'
+      || this.reportId === 'executive-by-priority'
+      || this.reportId === 'executive-by-client';
+  }
+
+  get showsCategoryFilter(): boolean {
+    return this.reportId === 'my-tickets'
+      || this.reportId === 'my-tasks'
+      || this.reportId === 'executive-performance'
+      || this.reportId === 'executive-by-priority'
+      || this.reportId === 'executive-by-client'
+      || this.reportId === 'stock-critical';
+  }
+
+  get showsLocationFilter(): boolean {
+    return this.reportId === 'my-tickets';
+  }
+
+  get showsTechnicianFilter(): boolean {
+    return this.reportId === 'tasks-by-status' || this.reportId === 'tasks-by-technician';
+  }
+
+  get showsUserFilter(): boolean {
+    return this.reportId === 'activity-by-user'
+      || this.reportId === 'executive-performance'
+      || this.reportId === 'executive-by-category'
+      || this.reportId === 'executive-by-priority'
+      || this.reportId === 'executive-by-client';
+  }
+
+  get showsRoleFilter(): boolean {
+    return this.reportId === 'executive-performance'
+      || this.reportId === 'executive-by-category'
+      || this.reportId === 'executive-by-priority'
+      || this.reportId === 'executive-by-client';
   }
 
   get pagedRows(): Record<string, unknown>[] {
@@ -171,7 +289,7 @@ export class ReportDetailComponent implements OnDestroy {
     this.loadReport();
   }
 
-  applyQuickRange(mode: 'week' | 'month' | 'last-month' | 'custom'): void {
+  applyQuickRange(mode: 'today' | 'week' | 'month' | 'last-month' | 'year' | 'custom'): void {
     this.quickDate = mode;
     const now = new Date();
 
@@ -179,9 +297,16 @@ export class ReportDetailComponent implements OnDestroy {
       return;
     }
 
+    if (mode === 'today') {
+      this.dateFrom = this.toDateInput(now);
+      this.dateTo = this.toDateInput(now);
+      return;
+    }
+
     if (mode === 'week') {
       const first = new Date(now);
-      first.setDate(now.getDate() - 6);
+      const weekDay = (now.getDay() + 6) % 7;
+      first.setDate(now.getDate() - weekDay);
       this.dateFrom = this.toDateInput(first);
       this.dateTo = this.toDateInput(now);
       return;
@@ -191,6 +316,14 @@ export class ReportDetailComponent implements OnDestroy {
       const first = new Date(now.getFullYear(), now.getMonth(), 1);
       this.dateFrom = this.toDateInput(first);
       this.dateTo = this.toDateInput(now);
+      return;
+    }
+
+    if (mode === 'year') {
+      const first = new Date(now.getFullYear(), 0, 1);
+      const last = new Date(now.getFullYear(), 11, 31);
+      this.dateFrom = this.toDateInput(first);
+      this.dateTo = this.toDateInput(last);
       return;
     }
 
@@ -229,6 +362,44 @@ export class ReportDetailComponent implements OnDestroy {
     link.download = `${this.reportId ?? 'report'}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  async exportPdf(): Promise<void> {
+    if (!this.reportId || !this.report || !this.payload || this.exportingPdf || typeof window === 'undefined') {
+      return;
+    }
+
+    this.exportingPdf = true;
+    this.pdfGeneratedAtLabel = new Date().toLocaleString('es-AR');
+
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
+      await this.waitForRender();
+
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+      const sections = [
+        document.getElementById('report-export-header'),
+        document.getElementById('report-export-kpis'),
+        document.getElementById('report-export-chart'),
+        document.getElementById('report-export-table')
+      ].filter((section): section is HTMLElement => section instanceof HTMLElement);
+
+      let isFirstPage = true;
+      for (const section of sections) {
+        const canvas = await html2canvas(section, {
+          backgroundColor: '#ffffff',
+          scale: 2,
+          useCORS: true
+        });
+        isFirstPage = this.appendCanvasToPdf(pdf, canvas, isFirstPage);
+      }
+
+      pdf.save(`${this.reportId}_${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (error) {
+      this.errorMessage = error instanceof Error ? error.message : 'No se pudo generar el PDF del reporte.';
+    } finally {
+      this.exportingPdf = false;
+    }
   }
 
   ngOnDestroy(): void {
@@ -291,6 +462,21 @@ export class ReportDetailComponent implements OnDestroy {
       date_to: this.dateTo || undefined
     };
 
+    if (reportId === 'my-tickets') {
+      filters.group_by = 'status';
+      filters.priority = this.filterPriority || undefined;
+      filters.client_id = this.filterClient || undefined;
+      filters.category_id = this.filterCategory || undefined;
+      filters.location_id = this.filterLocation || undefined;
+    }
+
+    if (reportId === 'my-tasks') {
+      filters.group_by = 'time-series';
+      filters.priority = this.filterPriority || undefined;
+      filters.client_id = this.filterClient || undefined;
+      filters.category_id = this.filterCategory || undefined;
+    }
+
     if (reportId === 'tickets-by-status') {
       filters.group_by = 'status';
       filters.status = this.filterStatus || undefined;
@@ -337,6 +523,39 @@ export class ReportDetailComponent implements OnDestroy {
       filters.action_type = this.filterActionType || undefined;
     }
 
+    if (reportId === 'executive-performance') {
+      filters.group_by = 'user';
+      filters.user_id = this.filterUser || undefined;
+      filters.role_key = this.filterRole || undefined;
+      filters.client_id = this.filterClient || undefined;
+      filters.category_id = this.filterCategory || undefined;
+      filters.priority = this.filterPriority || undefined;
+    }
+
+    if (reportId === 'executive-by-category') {
+      filters.group_by = 'category';
+      filters.user_id = this.filterUser || undefined;
+      filters.role_key = this.filterRole || undefined;
+      filters.client_id = this.filterClient || undefined;
+      filters.priority = this.filterPriority || undefined;
+    }
+
+    if (reportId === 'executive-by-priority') {
+      filters.group_by = 'priority';
+      filters.user_id = this.filterUser || undefined;
+      filters.role_key = this.filterRole || undefined;
+      filters.client_id = this.filterClient || undefined;
+      filters.category_id = this.filterCategory || undefined;
+    }
+
+    if (reportId === 'executive-by-client') {
+      filters.group_by = 'client';
+      filters.user_id = this.filterUser || undefined;
+      filters.role_key = this.filterRole || undefined;
+      filters.category_id = this.filterCategory || undefined;
+      filters.priority = this.filterPriority || undefined;
+    }
+
     return filters;
   }
 
@@ -349,6 +568,8 @@ export class ReportDetailComponent implements OnDestroy {
     this.filterStatus = '';
     this.filterPriority = '';
     this.filterCategory = '';
+    this.filterLocation = '';
+    this.filterRole = '';
     this.filterWarehouse = '';
     this.filterRequester = '';
     this.filterApprover = '';
@@ -362,6 +583,8 @@ export class ReportDetailComponent implements OnDestroy {
       users: [],
       clients: [],
       categories: [],
+      locations: [],
+      roles: [],
       warehouses: [],
       technicians: [],
       actionTypes: []
@@ -387,6 +610,14 @@ export class ReportDetailComponent implements OnDestroy {
       return formatReportDateTime(value);
     }
 
+    if (this.isNumericMetric(columnKey) && typeof value === 'number') {
+      return value.toFixed(2);
+    }
+
+    if (columnKey === 'primary_role' && typeof value === 'string') {
+      return fallbackReadableLabel(value);
+    }
+
     return value === null || value === undefined ? '' : String(value);
   }
 
@@ -398,5 +629,62 @@ export class ReportDetailComponent implements OnDestroy {
     const normalized = value === null || value === undefined ? '' : String(value);
     const escaped = normalized.replaceAll('"', '""');
     return `"${escaped}"`;
+  }
+
+  private labelForOption(options: ReportOption[], id: string): string {
+    return options.find((option) => option.id === id)?.label ?? id;
+  }
+
+  private isNumericMetric(columnKey: string): boolean {
+    return columnKey.includes('hours') || columnKey.includes('rate') || columnKey.includes('comments_per_ticket');
+  }
+
+  private async waitForRender(): Promise<void> {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  }
+
+  private appendCanvasToPdf(pdf: import('jspdf').jsPDF, canvas: HTMLCanvasElement, isFirstPage: boolean): boolean {
+    const margin = 20;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const usableWidth = pageWidth - margin * 2;
+    const usableHeight = pageHeight - margin * 2;
+    const scale = usableWidth / canvas.width;
+    const sliceHeight = Math.max(1, Math.floor(usableHeight / scale));
+
+    let offsetY = 0;
+    let firstPage = isFirstPage;
+    while (offsetY < canvas.height) {
+      if (!firstPage) {
+        pdf.addPage();
+      }
+
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = Math.min(sliceHeight, canvas.height - offsetY);
+      const context = pageCanvas.getContext('2d');
+      if (context) {
+        context.drawImage(
+          canvas,
+          0,
+          offsetY,
+          canvas.width,
+          pageCanvas.height,
+          0,
+          0,
+          canvas.width,
+          pageCanvas.height
+        );
+      }
+
+      const renderedHeight = pageCanvas.height * scale;
+      pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', margin, margin, usableWidth, renderedHeight, undefined, 'FAST');
+
+      offsetY += pageCanvas.height;
+      firstPage = false;
+    }
+
+    return firstPage;
   }
 }

@@ -3,6 +3,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { AsyncPipe } from '@angular/common';
 
+import { AuthSessionService } from '../../core/services/auth-session.service';
 import { REPORT_CARDS, ReportCardDefinition, ReportCategoryKey } from './report.types';
 
 @Component({
@@ -14,11 +15,13 @@ import { REPORT_CARDS, ReportCardDefinition, ReportCategoryKey } from './report.
 })
 export class ReportListComponent {
   private readonly route = inject(ActivatedRoute);
+  private readonly authSessionService = inject(AuthSessionService);
 
   readonly vm$ = this.route.paramMap.pipe(
     map((params) => {
-      const category = (params.get('category') as ReportCategoryKey | null) ?? 'tickets';
-      const cards = REPORT_CARDS.filter((card) => card.category === category);
+      const category = (params.get('category') as ReportCategoryKey | null) ?? 'mis-reportes';
+      const roles = this.authSessionService.sessionSnapshot()?.user.role_keys ?? [];
+      const cards = REPORT_CARDS.filter((card) => card.category === category && (!card.roles || card.roles.some((role) => roles.includes(role))));
       return {
         category,
         cards

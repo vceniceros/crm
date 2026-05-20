@@ -1,23 +1,45 @@
 @if (report; as reportInfo) {
   <section class="report-detail">
-    <header class="report-detail__header">
+    <header class="report-detail__header" id="report-export-header">
       <div>
         <a class="report-detail__back" [routerLink]="['/reports', reportInfo.category]">← Volver a reportes</a>
         <h2>{{ reportInfo.title }}</h2>
         <p>{{ reportInfo.description }}</p>
+
+        <div class="report-detail__meta">
+          <span>Generado por {{ currentUserLabel }}</span>
+          <span>{{ pdfGeneratedAtLabel || 'Listo para exportar PDF' }}</span>
+        </div>
+
+        @if (appliedFilterSummary.length > 0) {
+          <div class="report-detail__chips">
+            @for (filter of appliedFilterSummary; track filter) {
+              <span class="report-detail__chip">{{ filter }}</span>
+            }
+          </div>
+        }
       </div>
 
       <div class="report-detail__actions">
         <button type="button" class="btn btn--ghost" (click)="updateReport()">Actualizar</button>
         <button type="button" class="btn" (click)="exportCsv()">Exportar CSV</button>
+        <button type="button" class="btn" (click)="exportPdf()" [disabled]="exportingPdf">
+          @if (!exportingPdf) {
+            <span>Exportar PDF</span>
+          } @else {
+            <span>Generando...</span>
+          }
+        </button>
       </div>
     </header>
 
     <section class="filters-card">
       <div class="quick-dates">
+        <button type="button" [ngClass]="{ active: quickDate === 'today' }" (click)="applyQuickRange('today')">Hoy</button>
         <button type="button" [ngClass]="{ active: quickDate === 'week' }" (click)="applyQuickRange('week')">Esta semana</button>
         <button type="button" [ngClass]="{ active: quickDate === 'month' }" (click)="applyQuickRange('month')">Este mes</button>
         <button type="button" [ngClass]="{ active: quickDate === 'last-month' }" (click)="applyQuickRange('last-month')">Último mes</button>
+        <button type="button" [ngClass]="{ active: quickDate === 'year' }" (click)="applyQuickRange('year')">Este año</button>
         <button type="button" [ngClass]="{ active: quickDate === 'custom' }" (click)="applyQuickRange('custom')">Personalizado</button>
       </div>
 
@@ -37,7 +59,7 @@
           <input type="date" [(ngModel)]="dateTo" />
         </label>
 
-        @if (reportId === 'tickets-by-priority' || reportId === 'tickets-by-status' || reportId === 'tickets-by-client' || reportId === 'deposit-requests-status' || reportId === 'tasks-by-status' || reportId === 'tasks-by-technician') {
+        @if (showsStatusFilter) {
           <label>
             Estado
             <select [(ngModel)]="filterStatus">
@@ -49,7 +71,7 @@
           </label>
         }
 
-        @if (reportId === 'tickets-by-priority') {
+        @if (showsPriorityFilter) {
           <label>
             Prioridad
             <select [(ngModel)]="filterPriority">
@@ -61,7 +83,7 @@
           </label>
         }
 
-        @if (reportId === 'tickets-by-client') {
+        @if (showsClientFilter) {
           <label>
             Cliente
             <select [(ngModel)]="filterClient">
@@ -73,7 +95,31 @@
           </label>
         }
 
-        @if (reportId === 'tasks-by-status' || reportId === 'tasks-by-technician') {
+        @if (showsCategoryFilter) {
+          <label>
+            Categoría
+            <select [(ngModel)]="filterCategory">
+              <option value="">Todas</option>
+              @for (category of filterCatalogs.categories; track category.id) {
+                <option [value]="category.id">{{ category.label }}</option>
+              }
+            </select>
+          </label>
+        }
+
+        @if (showsLocationFilter) {
+          <label>
+            Ubicación
+            <select [(ngModel)]="filterLocation">
+              <option value="">Todas</option>
+              @for (location of filterCatalogs.locations; track location.id) {
+                <option [value]="location.id">{{ location.label }}</option>
+              }
+            </select>
+          </label>
+        }
+
+        @if (showsTechnicianFilter) {
           <label>
             Técnico
             <select [(ngModel)]="filterTechnician">
@@ -86,15 +132,6 @@
         }
 
         @if (reportId === 'stock-critical') {
-          <label>
-            Categoría
-            <select [(ngModel)]="filterCategory">
-              <option value="">Todas</option>
-              @for (category of filterCatalogs.categories; track category.id) {
-                <option [value]="category.id">{{ category.label }}</option>
-              }
-            </select>
-          </label>
           <label>
             Depósito
             <select [(ngModel)]="filterWarehouse">
@@ -134,7 +171,7 @@
           </label>
         }
 
-        @if (reportId === 'activity-by-user') {
+        @if (showsUserFilter) {
           <label>
             Usuario
             <select [(ngModel)]="filterUser">
@@ -144,6 +181,21 @@
               }
             </select>
           </label>
+        }
+
+        @if (showsRoleFilter) {
+          <label>
+            Rol
+            <select [(ngModel)]="filterRole">
+              <option value="">Todos</option>
+              @for (role of filterCatalogs.roles; track role.id) {
+                <option [value]="role.id">{{ role.label }}</option>
+              }
+            </select>
+          </label>
+        }
+
+        @if (reportId === 'activity-by-user') {
           <label>
             Tipo de acción
             <select [(ngModel)]="filterActionType">
@@ -162,7 +214,7 @@
     } @else if (errorMessage) {
       <section class="report-state report-state--error">{{ errorMessage }}</section>
     } @else if (payload; as data) {
-      <section class="kpis-grid">
+      <section class="kpis-grid" id="report-export-kpis">
         @for (kpi of data.kpis; track kpi.key) {
           <article class="kpi-card">
             <h3>{{ kpi.label }}</h3>
@@ -171,7 +223,7 @@
         }
       </section>
 
-      <section class="chart-card">
+      <section class="chart-card" id="report-export-chart">
         @if (chartHint; as hint) {
           <p class="chart-card__hint">{{ hint }}</p>
         }
@@ -183,7 +235,7 @@
         }
       </section>
 
-      <section class="table-card">
+      <section class="table-card" id="report-export-table">
         <div class="table-card__toolbar">
           <input type="search" [(ngModel)]="tableSearch" placeholder="Buscar en resultados" />
           <span>{{ filteredRows.length }} resultados</span>
@@ -202,7 +254,7 @@
                 </tr>
               </thead>
               <tbody>
-                @for (row of pagedRows; track $index) {
+                @for (row of displayedRows; track $index) {
                   <tr>
                     @for (column of columns; track column.key) {
                       <td>{{ formatCell(row, column.key) }}</td>
@@ -213,11 +265,13 @@
             </table>
           </div>
 
-          <div class="table-pagination">
-            <button type="button" class="btn btn--ghost" (click)="previousPage()" [disabled]="page <= 1">Anterior</button>
-            <span>Página {{ page }} de {{ totalPages }}</span>
-            <button type="button" class="btn btn--ghost" (click)="nextPage()" [disabled]="page >= totalPages">Siguiente</button>
-          </div>
+          @if (!exportingPdf) {
+            <div class="table-pagination">
+              <button type="button" class="btn btn--ghost" (click)="previousPage()" [disabled]="page <= 1">Anterior</button>
+              <span>Página {{ page }} de {{ totalPages }}</span>
+              <button type="button" class="btn btn--ghost" (click)="nextPage()" [disabled]="page >= totalPages">Siguiente</button>
+            </div>
+          }
         }
       </section>
     }

@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
+import { AuthSessionService } from '../../core/services/auth-session.service';
 import { PageTitleComponent } from '../../shared/ui/page-title/page-title.component';
 import { REPORT_TABS } from './report.types';
 
@@ -12,5 +13,10 @@ import { REPORT_TABS } from './report.types';
   styleUrl: './reports.component.scss'
 })
 export class ReportsComponent {
-  readonly tabs = REPORT_TABS;
+  private readonly authSessionService = inject(AuthSessionService);
+
+  get tabs() {
+    const roles = this.authSessionService.sessionSnapshot()?.user.role_keys ?? [];
+    return REPORT_TABS.filter((tab) => !tab.roles || tab.roles.some((role) => roles.includes(role)));
+  }
 }

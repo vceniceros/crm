@@ -1,7 +1,10 @@
-export type ReportCategoryKey = 'saved' | 'tickets' | 'tasks' | 'stock' | 'deposit-requests' | 'activity';
+export type ReportCategoryKey = 'mis-reportes' | 'tickets' | 'tasks' | 'stock' | 'deposit-requests' | 'activity' | 'ejecutivos';
+
+export type ReportRoleKey = 'admin' | 'ejecutivo' | 'deposito' | 'tecnico';
 
 export type ReportId =
-  | 'saved-reports'
+  | 'my-tickets'
+  | 'my-tasks'
   | 'tickets-by-status'
   | 'tickets-by-priority'
   | 'tickets-by-client'
@@ -17,11 +20,16 @@ export type ReportId =
   | 'deposit-requests-dispatched'
   | 'activity-by-user'
   | 'activity-by-action-type'
-  | 'activity-closures-by-user';
+  | 'activity-closures-by-user'
+  | 'executive-performance'
+  | 'executive-by-category'
+  | 'executive-by-priority'
+  | 'executive-by-client';
 
 export interface ReportTabDefinition {
   key: ReportCategoryKey;
   label: string;
+  roles?: ReportRoleKey[];
 }
 
 export interface ReportCardDefinition {
@@ -30,6 +38,7 @@ export interface ReportCardDefinition {
   title: string;
   description: string;
   enabled: boolean;
+  roles?: ReportRoleKey[];
 }
 
 export interface ReportColumn {
@@ -51,7 +60,7 @@ export interface ReportKpi {
 }
 
 export interface ReportPayload {
-  report_kind: 'tickets' | 'tasks' | 'stock_critical' | 'deposit_requests' | 'user_activity';
+  report_kind: 'tickets' | 'tasks' | 'my_tickets' | 'my_tasks' | 'stock_critical' | 'deposit_requests' | 'user_activity' | 'executive_performance';
   chart_kind: 'area' | 'line' | 'bar' | 'horizontal_bar' | 'donut' | 'pie';
   kpis: ReportKpi[];
   series: ReportSeriesPoint[];
@@ -67,6 +76,8 @@ export interface ReportFilterCatalogs {
   users: ReportOption[];
   clients: ReportOption[];
   categories: ReportOption[];
+  locations: ReportOption[];
+  roles: ReportOption[];
   warehouses: ReportOption[];
   technicians: ReportOption[];
   actionTypes: ReportOption[];
@@ -79,6 +90,8 @@ export interface ReportRequestFilters {
   status?: string;
   priority?: string;
   client_id?: string;
+  category_id?: string;
+  location_id?: string;
   technician_id?: string;
   category?: string;
   warehouse_id?: string;
@@ -86,40 +99,67 @@ export interface ReportRequestFilters {
   requester?: string;
   approver?: string;
   user_id?: string;
+  role_key?: string;
   action_type?: string;
 }
 
 export const REPORT_TABS: ReportTabDefinition[] = [
-  { key: 'saved', label: 'Mis Reportes' },
-  { key: 'tickets', label: 'Tickets' },
-  { key: 'tasks', label: 'Tareas' },
-  { key: 'stock', label: 'Depósito / Stock' },
-  { key: 'deposit-requests', label: 'Solicitudes a depósito' },
-  { key: 'activity', label: 'Actividad' }
+  { key: 'mis-reportes', label: 'Mis Reportes' },
+  { key: 'tickets', label: 'Tickets', roles: ['admin', 'ejecutivo'] },
+  { key: 'tasks', label: 'Tareas', roles: ['admin', 'ejecutivo'] },
+  { key: 'stock', label: 'Depósito / Stock', roles: ['admin', 'ejecutivo'] },
+  { key: 'deposit-requests', label: 'Solicitudes a depósito', roles: ['admin', 'ejecutivo'] },
+  { key: 'activity', label: 'Actividad', roles: ['admin', 'ejecutivo'] },
+  { key: 'ejecutivos', label: 'Reportes Ejecutivos', roles: ['admin', 'ejecutivo'] }
 ];
 
 export const REPORT_CARDS: ReportCardDefinition[] = [
-  { id: 'saved-reports', category: 'saved', title: 'Reportes guardados', description: 'Accesos rápidos personales.', enabled: true },
-  { id: 'tickets-by-status', category: 'tickets', title: 'Tickets por estado', description: 'Evolución y distribución por estado.', enabled: true },
-  { id: 'tickets-by-priority', category: 'tickets', title: 'Tickets por prioridad', description: 'Carga por urgencia operativa.', enabled: true },
-  { id: 'tickets-by-client', category: 'tickets', title: 'Tickets por cliente', description: 'Volumen por cartera de clientes.', enabled: true },
-  { id: 'tickets-by-category', category: 'tickets', title: 'Tickets por categoría', description: 'Tiempo de resolución promedio por categoría operacional.', enabled: true },
-  { id: 'tasks-by-status', category: 'tasks', title: 'Tareas por estado', description: 'Seguimiento operativo por etapa.', enabled: true },
-  { id: 'tasks-by-technician', category: 'tasks', title: 'Tareas por técnico', description: 'Distribución por responsable.', enabled: true },
-  { id: 'tasks-overdue-blocked', category: 'tasks', title: 'Tareas vencidas / bloqueadas', description: 'Control de cuellos de botella.', enabled: false },
-  { id: 'stock-critical', category: 'stock', title: 'Stock crítico', description: 'Productos sin stock o bajo mínimo.', enabled: true },
-  { id: 'stock-movements', category: 'stock', title: 'Movimientos de stock', description: 'Entradas y salidas en el período.', enabled: false },
-  { id: 'stock-consumption', category: 'stock', title: 'Consumo por ticket/tarea', description: 'Consumo asociado a operación.', enabled: false },
-  { id: 'deposit-requests-status', category: 'deposit-requests', title: 'Solicitudes por estado', description: 'Pipeline completo de solicitudes.', enabled: true },
-  { id: 'deposit-requests-approved', category: 'deposit-requests', title: 'Solicitudes autorizadas', description: 'Seguimiento de aprobaciones.', enabled: false },
-  { id: 'deposit-requests-dispatched', category: 'deposit-requests', title: 'Solicitudes despachadas', description: 'Tiempos y cumplimiento de despacho.', enabled: false },
-  { id: 'activity-by-user', category: 'activity', title: 'Actividad por usuario', description: 'Auditoría de acciones por operador.', enabled: true },
-  { id: 'activity-by-action-type', category: 'activity', title: 'Acciones por tipo', description: 'Distribución por tipo de evento.', enabled: false },
-  { id: 'activity-closures-by-user', category: 'activity', title: 'Cierres por usuario', description: 'Cierres de tickets/tareas por usuario.', enabled: false }
+  { id: 'my-tickets', category: 'mis-reportes', title: 'Mis Tickets', description: 'Tus tickets creados o asignados con métricas de resolución.', enabled: true },
+  { id: 'my-tasks', category: 'mis-reportes', title: 'Mis Tareas', description: 'Tus tareas activas y cerradas con métricas de cumplimiento.', enabled: true },
+  { id: 'tickets-by-status', category: 'tickets', title: 'Tickets por estado', description: 'Evolución y distribución por estado.', enabled: true, roles: ['admin', 'ejecutivo'] },
+  { id: 'tickets-by-priority', category: 'tickets', title: 'Tickets por prioridad', description: 'Carga por urgencia operativa.', enabled: true, roles: ['admin', 'ejecutivo'] },
+  { id: 'tickets-by-client', category: 'tickets', title: 'Tickets por cliente', description: 'Volumen por cartera de clientes.', enabled: true, roles: ['admin', 'ejecutivo'] },
+  { id: 'tickets-by-category', category: 'tickets', title: 'Tickets por categoría', description: 'Tiempo de resolución promedio por categoría operacional.', enabled: true, roles: ['admin', 'ejecutivo'] },
+  { id: 'tasks-by-status', category: 'tasks', title: 'Tareas por estado', description: 'Seguimiento operativo por etapa.', enabled: true, roles: ['admin', 'ejecutivo'] },
+  { id: 'tasks-by-technician', category: 'tasks', title: 'Tareas por técnico', description: 'Distribución por responsable.', enabled: true, roles: ['admin', 'ejecutivo'] },
+  { id: 'tasks-overdue-blocked', category: 'tasks', title: 'Tareas vencidas / bloqueadas', description: 'Control de cuellos de botella.', enabled: false, roles: ['admin', 'ejecutivo'] },
+  { id: 'stock-critical', category: 'stock', title: 'Stock crítico', description: 'Productos sin stock o bajo mínimo.', enabled: true, roles: ['admin', 'ejecutivo'] },
+  { id: 'stock-movements', category: 'stock', title: 'Movimientos de stock', description: 'Entradas y salidas en el período.', enabled: false, roles: ['admin', 'ejecutivo'] },
+  { id: 'stock-consumption', category: 'stock', title: 'Consumo por ticket/tarea', description: 'Consumo asociado a operación.', enabled: false, roles: ['admin', 'ejecutivo'] },
+  { id: 'deposit-requests-status', category: 'deposit-requests', title: 'Solicitudes por estado', description: 'Pipeline completo de solicitudes.', enabled: true, roles: ['admin', 'ejecutivo'] },
+  { id: 'deposit-requests-approved', category: 'deposit-requests', title: 'Solicitudes autorizadas', description: 'Seguimiento de aprobaciones.', enabled: false, roles: ['admin', 'ejecutivo'] },
+  { id: 'deposit-requests-dispatched', category: 'deposit-requests', title: 'Solicitudes despachadas', description: 'Tiempos y cumplimiento de despacho.', enabled: false, roles: ['admin', 'ejecutivo'] },
+  { id: 'activity-by-user', category: 'activity', title: 'Actividad por usuario', description: 'Auditoría de acciones por operador.', enabled: true, roles: ['admin', 'ejecutivo'] },
+  { id: 'activity-by-action-type', category: 'activity', title: 'Acciones por tipo', description: 'Distribución por tipo de evento.', enabled: false, roles: ['admin', 'ejecutivo'] },
+  { id: 'activity-closures-by-user', category: 'activity', title: 'Cierres por usuario', description: 'Cierres de tickets/tareas por usuario.', enabled: false, roles: ['admin', 'ejecutivo'] },
+  { id: 'executive-performance', category: 'ejecutivos', title: 'Desempeño por empleado', description: 'Performance comparativa por usuario o rol.', enabled: true, roles: ['admin', 'ejecutivo'] },
+  { id: 'executive-by-category', category: 'ejecutivos', title: 'Resolución por categoría', description: 'Comparativa ejecutiva por categoría operativa.', enabled: true, roles: ['admin', 'ejecutivo'] },
+  { id: 'executive-by-priority', category: 'ejecutivos', title: 'Resolución por criticidad', description: 'Comparativa ejecutiva por prioridad.', enabled: true, roles: ['admin', 'ejecutivo'] },
+  { id: 'executive-by-client', category: 'ejecutivos', title: 'Análisis por cliente', description: 'Comparativa ejecutiva por cliente.', enabled: true, roles: ['admin', 'ejecutivo'] }
 ];
 
 export const REPORT_COLUMNS: Record<ReportId, ReportColumn[]> = {
-  'saved-reports': [],
+  'my-tickets': [
+    { key: 'ticket_number', label: 'Ticket' },
+    { key: 'title', label: 'Título' },
+    { key: 'status', label: 'Estado' },
+    { key: 'priority', label: 'Prioridad' },
+    { key: 'category', label: 'Categoría' },
+    { key: 'client', label: 'Cliente' },
+    { key: 'location', label: 'Ubicación' },
+    { key: 'created_at', label: 'Creación' },
+    { key: 'resolution_hours', label: 'Hs resolución' }
+  ],
+  'my-tasks': [
+    { key: 'task_code', label: 'Código' },
+    { key: 'title', label: 'Tarea' },
+    { key: 'status', label: 'Estado' },
+    { key: 'priority', label: 'Prioridad' },
+    { key: 'category', label: 'Categoría' },
+    { key: 'client', label: 'Cliente' },
+    { key: 'created_at', label: 'Inicio' },
+    { key: 'completion_hours', label: 'Hs hasta cierre' }
+  ],
   'tickets-by-status': [
     { key: 'ticket_number', label: 'Ticket' },
     { key: 'title', label: 'Título' },
@@ -149,6 +189,14 @@ export const REPORT_COLUMNS: Record<ReportId, ReportColumn[]> = {
     { key: 'assigned_to', label: 'Asignado' },
     { key: 'created_at', label: 'Creación' },
     { key: 'closed_at', label: 'Cierre' }
+  ],
+  'tickets-by-category': [
+    { key: 'category_name', label: 'Categoría' },
+    { key: 'total_tickets', label: 'Total tickets' },
+    { key: 'closed_tickets', label: 'Cerrados' },
+    { key: 'avg_resolution_hours', label: 'Prom. hs resolución' },
+    { key: 'min_resolution_hours', label: 'Mín. hs resolución' },
+    { key: 'max_resolution_hours', label: 'Máx. hs resolución' }
   ],
   'tasks-by-status': [
     { key: 'task_code', label: 'Código' },
@@ -204,13 +252,50 @@ export const REPORT_COLUMNS: Record<ReportId, ReportColumn[]> = {
   ],
   'activity-by-action-type': [],
   'activity-closures-by-user': [],
-  'tickets-by-category': [
-    { key: 'category_name', label: 'Categoría' },
-    { key: 'total_tickets', label: 'Total tickets' },
-    { key: 'closed_tickets', label: 'Cerrados' },
-    { key: 'avg_resolution_hours', label: 'Prom. hs resolución' },
-    { key: 'min_resolution_hours', label: 'Mín. hs resolución' },
-    { key: 'max_resolution_hours', label: 'Máx. hs resolución' }
+  'executive-performance': [
+    { key: 'group_label', label: 'Empleado' },
+    { key: 'primary_role', label: 'Rol principal' },
+    { key: 'total_assigned', label: 'Asignados' },
+    { key: 'closed_count', label: 'Cerrados' },
+    { key: 'rejected_count', label: 'Rechazos' },
+    { key: 'avg_close_hours', label: 'Prom. cierre (h)' },
+    { key: 'min_close_hours', label: 'Mín. cierre (h)' },
+    { key: 'max_close_hours', label: 'Máx. cierre (h)' },
+    { key: 'total_comments', label: 'Comentarios' },
+    { key: 'avg_comments_per_ticket', label: 'Prom. comentarios/ticket' }
+  ],
+  'executive-by-category': [
+    { key: 'group_label', label: 'Categoría' },
+    { key: 'total_assigned', label: 'Tickets' },
+    { key: 'closed_count', label: 'Cerrados' },
+    { key: 'rejected_count', label: 'Rechazos' },
+    { key: 'avg_close_hours', label: 'Prom. cierre (h)' },
+    { key: 'min_close_hours', label: 'Mín. cierre (h)' },
+    { key: 'max_close_hours', label: 'Máx. cierre (h)' },
+    { key: 'total_comments', label: 'Comentarios' },
+    { key: 'avg_comments_per_ticket', label: 'Prom. comentarios/ticket' }
+  ],
+  'executive-by-priority': [
+    { key: 'group_label', label: 'Prioridad' },
+    { key: 'total_assigned', label: 'Tickets' },
+    { key: 'closed_count', label: 'Cerrados' },
+    { key: 'rejected_count', label: 'Rechazos' },
+    { key: 'avg_close_hours', label: 'Prom. cierre (h)' },
+    { key: 'min_close_hours', label: 'Mín. cierre (h)' },
+    { key: 'max_close_hours', label: 'Máx. cierre (h)' },
+    { key: 'total_comments', label: 'Comentarios' },
+    { key: 'avg_comments_per_ticket', label: 'Prom. comentarios/ticket' }
+  ],
+  'executive-by-client': [
+    { key: 'group_label', label: 'Cliente' },
+    { key: 'total_assigned', label: 'Tickets' },
+    { key: 'closed_count', label: 'Cerrados' },
+    { key: 'rejected_count', label: 'Rechazos' },
+    { key: 'avg_close_hours', label: 'Prom. cierre (h)' },
+    { key: 'min_close_hours', label: 'Mín. cierre (h)' },
+    { key: 'max_close_hours', label: 'Máx. cierre (h)' },
+    { key: 'total_comments', label: 'Comentarios' },
+    { key: 'avg_comments_per_ticket', label: 'Prom. comentarios/ticket' }
   ]
 };
 

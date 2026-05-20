@@ -12,6 +12,9 @@ from crm_backend.schemas import ErrorResponse
 from crm_backend.schemas.reports import (
     CategoryResolutionReportResponse,
     DepositRequestReportResponse,
+    ExecutivePerformanceResponse,
+    MyTaskReportResponse,
+    MyTicketReportResponse,
     ReportOptionItem,
     StockCriticalReportResponse,
     TaskReportResponse,
@@ -47,6 +50,30 @@ def get_report_client_options(
     reports_service: ReportsService = Depends(get_reports_service),
 ) -> list[ReportOptionItem]:
     return reports_service.list_client_options(actor)
+
+
+@router.get(
+    "/options/locations",
+    response_model=list[ReportOptionItem],
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
+)
+def get_report_location_options(
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    reports_service: ReportsService = Depends(get_reports_service),
+) -> list[ReportOptionItem]:
+    return reports_service.list_location_options(actor)
+
+
+@router.get(
+    "/options/roles",
+    response_model=list[ReportOptionItem],
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
+)
+def get_report_role_options(
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    reports_service: ReportsService = Depends(get_reports_service),
+) -> list[ReportOptionItem]:
+    return reports_service.list_role_options(actor)
 
 
 @router.get(
@@ -144,6 +171,90 @@ def get_tasks_report(
         group_by=group_by,
         technician_id=technician_id,
         status=status,
+    )
+
+
+@router.get(
+    "/my-tickets",
+    response_model=MyTicketReportResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
+)
+def get_my_tickets_report(
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    category_id: str | None = Query(default=None),
+    priority: str | None = Query(default=None),
+    client_id: str | None = Query(default=None),
+    location_id: str | None = Query(default=None),
+    group_by: Literal["status", "priority", "category", "client", "location", "time-series"] = Query(default="status"),
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    reports_service: ReportsService = Depends(get_reports_service),
+) -> MyTicketReportResponse:
+    return reports_service.my_tickets_report(
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        category_id=category_id,
+        priority=priority,
+        client_id=client_id,
+        location_id=location_id,
+        group_by=group_by,
+    )
+
+
+@router.get(
+    "/my-tasks",
+    response_model=MyTaskReportResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
+)
+def get_my_tasks_report(
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    category_id: str | None = Query(default=None),
+    priority: str | None = Query(default=None),
+    client_id: str | None = Query(default=None),
+    group_by: Literal["status", "category", "client", "time-series"] = Query(default="status"),
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    reports_service: ReportsService = Depends(get_reports_service),
+) -> MyTaskReportResponse:
+    return reports_service.my_tasks_report(
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        category_id=category_id,
+        priority=priority,
+        client_id=client_id,
+        group_by=group_by,
+    )
+
+
+@router.get(
+    "/executive/performance",
+    response_model=ExecutivePerformanceResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
+)
+def get_executive_performance_report(
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    group_by: Literal["user", "role", "category", "priority", "client"] = Query(default="user"),
+    category_id: str | None = Query(default=None),
+    priority: str | None = Query(default=None),
+    client_id: str | None = Query(default=None),
+    role_key: str | None = Query(default=None),
+    user_id: str | None = Query(default=None),
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    reports_service: ReportsService = Depends(get_reports_service),
+) -> ExecutivePerformanceResponse:
+    return reports_service.executive_performance_report(
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        group_by=group_by,
+        category_id=category_id,
+        priority=priority,
+        client_id=client_id,
+        role_key=role_key,
+        user_id=user_id,
     )
 
 
