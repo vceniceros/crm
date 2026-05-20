@@ -128,6 +128,7 @@ class TicketApplicationService:
             location_id=resolved_location_id,
             status=TicketStatus.IN_PROGRESS.value if user is not None else TicketStatus.OPEN.value,
             priority=payload.priority,
+            category_id=payload.category_id,
             requires_arrival_comment=bool(payload.requires_arrival_comment),
             requires_video_evidence=bool(payload.requires_video_evidence),
             assigned_role_id=role.crm_role_id if role is not None else None,

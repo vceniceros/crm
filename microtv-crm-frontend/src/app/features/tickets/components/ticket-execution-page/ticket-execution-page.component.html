@@ -26,6 +26,8 @@
       <div class="ticket-execution-page__header-side">
         <app-status-badge [label]="formatTicketStatus(ticket.status)" [tone]="toTicketStatusTone(ticket.status)" />
 
+        <app-status-badge [label]="ticket.category_name || 'Sin categoria'" tone="neutral" />
+
         @if (ticket.status === 'CLOSED' && ticket.approved_by_executive) {
           <app-status-badge label="Cerrado y aprobado" tone="success" />
         }

@@ -50,7 +50,7 @@
 
 .tickets-table__table {
   width: 100%;
-  min-width: 980px;
+  min-width: 1060px;
 }
 
 .tickets-table__title {
@@ -123,6 +123,28 @@
 .tickets-table__maps-link--mobile,
 .tickets-table__assign-button--mobile {
   margin-top: 0.45rem;
+}
+
+.tickets-table__category-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 11rem;
+  min-height: 1.6rem;
+  padding: 0.18rem 0.55rem;
+  border: 1px solid rgba(23, 24, 26, 0.1);
+  border-radius: 999px;
+  background: rgba(23, 24, 26, 0.04);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tickets-table__category-chip--mobile {
+  margin-top: 0.3rem;
+  max-width: 100%;
 }
 
 .tickets-table__unassigned-wrap {

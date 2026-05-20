@@ -50,6 +50,16 @@
         </mat-form-field>
 
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Categoría</mat-label>
+          <mat-select formControlName="category_id">
+            <mat-option [value]="null">Sin categoría</mat-option>
+            @for (cat of categories(); track cat.category_id) {
+              <mat-option [value]="cat.category_id">{{ cat.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Rol asignado</mat-label>
           <mat-select formControlName="assigned_role_id">
             <mat-option [value]="null">Sin rol asignado</mat-option>

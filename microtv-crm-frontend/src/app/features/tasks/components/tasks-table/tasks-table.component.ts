@@ -22,10 +22,11 @@ export class TasksTableComponent {
   readonly viewMode = input<ListingViewMode>('table');
   readonly rowActionRequested = input<((rowActionId: string) => void) | null>(null);
 
-  readonly displayedColumns: Array<'id' | 'title' | 'client' | 'subtasks' | 'status' | 'assignedTo'> = [
+  readonly displayedColumns: Array<'id' | 'title' | 'client' | 'category' | 'subtasks' | 'status' | 'assignedTo'> = [
     'id',
     'title',
     'client',
+    'category',
     'subtasks',
     'status',
     'assignedTo'

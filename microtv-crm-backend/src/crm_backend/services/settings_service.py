@@ -128,6 +128,13 @@ class SettingsService:
             category_type=payload.category_type.strip().lower(),
             description=payload.description.strip() if isinstance(payload.description, str) else None,
             is_active=payload.is_active,
+            default_role_id=payload.default_role_id,
+            allows_scheduling=payload.allows_scheduling,
+            schedule_period_type=payload.schedule_period_type,
+            schedule_interval_weeks=payload.schedule_interval_weeks,
+            schedule_weekdays_json=payload.schedule_weekdays_json if payload.allows_scheduling else [],
+            schedule_start_date=payload.schedule_start_date,
+            schedule_end_date=payload.schedule_end_date,
         )
         self._session.add(category)
         self._log_activity("settings.category.updated", actor.crm_user.crm_user_id, {"action": "create", "name": category.name})
@@ -140,11 +147,20 @@ class SettingsService:
         category = self._session.get(CrmCategory, category_id)
         if category is None:
             raise ApplicationError("settings_category_not_found", "La categoría indicada no existe.", 404)
+        if category.is_system:
+            raise ApplicationError("settings_category_system", "La categoría del sistema no puede modificarse.", 403)
 
         category.name = payload.name.strip()
         category.category_type = payload.category_type.strip().lower()
         category.description = payload.description.strip() if isinstance(payload.description, str) else None
         category.is_active = payload.is_active
+        category.default_role_id = payload.default_role_id
+        category.allows_scheduling = payload.allows_scheduling
+        category.schedule_period_type = payload.schedule_period_type
+        category.schedule_interval_weeks = payload.schedule_interval_weeks
+        category.schedule_weekdays_json = payload.schedule_weekdays_json if payload.allows_scheduling else []
+        category.schedule_start_date = payload.schedule_start_date
+        category.schedule_end_date = payload.schedule_end_date
         self._log_activity("settings.category.updated", actor.crm_user.crm_user_id, {"action": "update", "category_id": category_id})
         self._session.commit()
         self._session.refresh(category)

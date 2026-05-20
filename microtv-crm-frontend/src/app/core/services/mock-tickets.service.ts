@@ -34,6 +34,7 @@ export class MockTicketsService {
     })),
     shareReplay({ bufferSize: 1, refCount: true })
   );
+  /** @deprecated Legacy mock-only categories. Runtime screens use SettingsManagementService.listCategories(). */
   readonly categoriesData$ = of(ticketCategoriesData as TicketCategoriesMockData).pipe(
     shareReplay({ bufferSize: 1, refCount: false })
   );
@@ -46,6 +47,7 @@ export class MockTicketsService {
 
   readonly ticketsTable$ = this.select((data) => data.ticketsTable);
   readonly tickets$ = this.select((data) => data.ticketsTable.items);
+  /** @deprecated Legacy mock-only categories. Runtime screens use SettingsManagementService.listCategories(). */
   readonly categories$ = this.categoriesData$.pipe(map((data) => data.categories));
   readonly stockDevices$ = this.stockDevicesData$.pipe(map((data) => data.devices));
   readonly inventoryItems$ = this.inventoryItemsData$.pipe(map((data) => data.items));

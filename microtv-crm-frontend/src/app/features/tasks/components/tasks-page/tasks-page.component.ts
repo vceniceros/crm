@@ -12,6 +12,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTabsModule } from '@angular/material/tabs';
 
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
+import { SettingsCategory } from '../../../../core/models/settings-management.model';
+import { SettingsManagementService } from '../../../../core/services/settings-management.service';
 import { UI_HELP_TEXTS } from '../../../../core/config/ui-help-texts.config';
 import {
   buildInitials,
@@ -26,7 +28,7 @@ import {
 import { TaskListItem, TasksTableData } from '../../../../core/models/task.model';
 import { TaskManagementService } from '../../../../core/services/task-management.service';
 import { ListingViewMode, ListingViewPreferenceService } from '../../../../shared/services/listing-view-preference.service';
-import { ListingControlsComponent, ListingSortDirection, ListingStatusOption } from '../../../../shared/ui/listing-controls/listing-controls.component';
+import { ListingCategoryOption, ListingControlsComponent, ListingSortDirection, ListingStatusOption } from '../../../../shared/ui/listing-controls/listing-controls.component';
 import { ContextHelpCardComponent } from '../../../../shared/ui/context-help-card/context-help-card.component';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 import { StatusBadgeComponent } from '../../../../shared/ui/status-badge/status-badge.component';
@@ -38,6 +40,7 @@ type TaskListContextId = 'assigned' | 'unassigned' | 'tracking' | 'history';
 interface TaskListUiState {
   search: string;
   status: string;
+  category: string;
   sortDirection: ListingSortDirection;
   viewMode: ListingViewMode;
 }
@@ -67,6 +70,7 @@ interface TaskListUiState {
 export class TasksPageComponent {
   private readonly breakpointObserver = inject(BreakpointObserver);
   private readonly taskManagementService = inject(TaskManagementService);
+  private readonly settingsManagementService = inject(SettingsManagementService);
   private readonly authSessionService = inject(AuthSessionService);
   private readonly dialog = inject(MatDialog);
   private readonly listingViewPreferenceService = inject(ListingViewPreferenceService);
@@ -84,6 +88,7 @@ export class TasksPageComponent {
   readonly unassignedSubtasks = signal<UnassignedSubtaskQueueItem[]>([]);
   readonly trackingTasks = signal<TaskDetail[]>([]);
   readonly historyTasks = signal<TaskDetail[]>([]);
+  readonly operationalCategories = signal<SettingsCategory[]>([]);
 
   readonly currentSession = computed(() => this.authSessionService.sessionSnapshot());
   readonly currentUserId = computed(() => this.currentSession()?.user.crm_user_id ?? null);
@@ -108,6 +113,12 @@ export class TasksPageComponent {
     { value: 'rejected', label: 'Rechazada' },
     { value: 'on_hold', label: 'En espera' }
   ];
+  readonly categoryOptions = computed<readonly ListingCategoryOption[]>(() => [
+    { value: 'all', label: 'Todas las categorias' },
+    ...this.operationalCategories()
+      .filter((category) => category.is_active)
+      .map((category) => ({ value: category.category_id, label: category.name }))
+  ]);
   readonly listUiState = signal<Record<TaskListContextId, TaskListUiState>>({
     assigned: this.buildInitialListUiState('assigned'),
     unassigned: this.buildInitialListUiState('unassigned'),
@@ -140,6 +151,7 @@ export class TasksPageComponent {
       this.initialTabIndex.set(3);
     }
 
+    this.loadCategories();
     this.refresh();
 
     if (typeof preselectedTemplateId === 'string' && preselectedTemplateId.trim() && this.isAdminOrExecutive()) {
@@ -181,6 +193,16 @@ export class TasksPageComponent {
       next: (queue) => this.unassignedSubtasks.set(queue),
       error: (error: Error) => this.errorMessage.set(error.message)
     });
+  }
+
+  loadCategories(): void {
+    this.settingsManagementService
+      .listCategories('operational')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (categories) => this.operationalCategories.set(categories),
+        error: () => this.operationalCategories.set([])
+      });
   }
 
   openCreateTaskDialog(preselectedTemplateId?: string): void {
@@ -298,6 +320,10 @@ export class TasksPageComponent {
     this.updateListState(context, { status: value });
   }
 
+  onListCategoryChanged(context: TaskListContextId, value: string): void {
+    this.updateListState(context, { category: value });
+  }
+
   onListSortDirectionChanged(context: TaskListContextId, value: ListingSortDirection): void {
     this.updateListState(context, { sortDirection: value });
   }
@@ -344,11 +370,16 @@ export class TasksPageComponent {
         return false;
       }
 
+      const categoryMatches = state.category === 'all' || task.category_id === state.category;
+      if (!categoryMatches) {
+        return false;
+      }
+
       if (!searchTerm) {
         return true;
       }
 
-      return [task.task_id, task.client_name, task.task_title].some((value) => value.toLowerCase().includes(searchTerm));
+      return [task.task_id, task.client_name, task.task_title, task.category_name ?? ''].some((value) => value.toLowerCase().includes(searchTerm));
     });
 
     const direction = state.sortDirection === 'asc' ? 1 : -1;
@@ -387,6 +418,8 @@ export class TasksPageComponent {
         totalSubtasks: task.subtasks.length,
         status: this.taskStatusLabel(task),
         statusTone: toTaskTone(task.status),
+        categoryId: task.category_id,
+        categoryName: task.category_name,
         assignedToUserId: task.current_assigned_crm_user_id,
         assignedTo: this.assigneeLabel(task),
         assignedInitials: buildInitials(this.assigneeLabel(task), 'SA'),
@@ -402,6 +435,7 @@ export class TasksPageComponent {
         { key: 'id', label: 'ID' },
         { key: 'title', label: 'Titulo' },
         { key: 'client', label: 'Cliente' },
+        { key: 'category', label: 'Categoria' },
         { key: 'subtasks', label: 'Subtareas' },
         { key: 'status', label: 'Estado' },
         { key: 'assignedTo', label: 'Asignado' }
@@ -433,6 +467,7 @@ export class TasksPageComponent {
         { key: 'id', label: 'Subtarea' },
         { key: 'title', label: 'Titulo' },
         { key: 'client', label: 'Cliente' },
+        { key: 'category', label: 'Categoria' },
         { key: 'subtasks', label: 'Progreso' },
         { key: 'status', label: 'Estado' },
         { key: 'assignedTo', label: 'Rol' }
@@ -445,6 +480,7 @@ export class TasksPageComponent {
     return {
       search: '',
       status: 'all',
+      category: 'all',
       sortDirection: 'desc',
       viewMode: this.listingViewPreferenceService.getView(this.buildViewPreferenceKey(context), 'cards')
     };

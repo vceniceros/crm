@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Query
 from crm_backend.api.dependencies import get_authenticated_crm_session, get_reports_service
 from crm_backend.schemas import ErrorResponse
 from crm_backend.schemas.reports import (
+    CategoryResolutionReportResponse,
     DepositRequestReportResponse,
     ReportOptionItem,
     StockCriticalReportResponse,
@@ -209,4 +210,36 @@ def get_user_activity_report(
         date_to=date_to,
         user_id=user_id,
         action_type=action_type,
+    )
+
+
+@router.get(
+    "/options/operational-categories",
+    response_model=list[ReportOptionItem],
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
+)
+def get_operational_category_options(
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    reports_service: ReportsService = Depends(get_reports_service),
+) -> list[ReportOptionItem]:
+    return reports_service.list_operational_category_options(actor)
+
+
+@router.get(
+    "/category-resolution",
+    response_model=CategoryResolutionReportResponse,
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
+)
+def get_category_resolution_report(
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    category_type: str | None = Query(default=None),
+    actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
+    reports_service: ReportsService = Depends(get_reports_service),
+) -> CategoryResolutionReportResponse:
+    return reports_service.category_resolution_time_report(
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        category_type=category_type,
     )

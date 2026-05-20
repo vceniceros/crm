@@ -23,8 +23,10 @@ import {
 } from '../../../../core/models/ticket-management.model';
 import { UI_HELP_TEXTS } from '../../../../core/config/ui-help-texts.config';
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
+import { SettingsCategory } from '../../../../core/models/settings-management.model';
+import { SettingsManagementService } from '../../../../core/services/settings-management.service';
 import { TicketManagementService } from '../../../../core/services/ticket-management.service';
-import { ListingSortDirection, ListingStatusOption, ListingControlsComponent } from '../../../../shared/ui/listing-controls/listing-controls.component';
+import { ListingCategoryOption, ListingSortDirection, ListingStatusOption, ListingControlsComponent } from '../../../../shared/ui/listing-controls/listing-controls.component';
 import { ListingViewMode, ListingViewPreferenceService } from '../../../../shared/services/listing-view-preference.service';
 import { ContextHelpCardComponent } from '../../../../shared/ui/context-help-card/context-help-card.component';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
@@ -37,6 +39,7 @@ type TicketListContextId = 'assigned' | 'unassigned' | 'tracking' | 'history';
 interface TicketListUiState {
   search: string;
   status: string;
+  category: string;
   sortDirection: ListingSortDirection;
   viewMode: ListingViewMode;
 }
@@ -65,6 +68,7 @@ export class TicketsPageComponent {
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
   private readonly authSessionService = inject(AuthSessionService);
+  private readonly settingsManagementService = inject(SettingsManagementService);
   private readonly ticketManagementService = inject(TicketManagementService);
   private readonly listingViewPreferenceService = inject(ListingViewPreferenceService);
   readonly helpText = UI_HELP_TEXTS.tickets;
@@ -84,6 +88,7 @@ export class TicketsPageComponent {
   readonly unassignedTickets = signal<TicketSummary[]>([]);
   readonly trackingTickets = signal<TicketSummary[]>([]);
   readonly historyTickets = signal<TicketSummary[]>([]);
+  readonly operationalCategories = signal<SettingsCategory[]>([]);
 
   readonly currentRoles = computed(() => this.authSessionService.sessionSnapshot()?.user.role_keys ?? []);
   readonly currentUserId = computed(() => this.authSessionService.sessionSnapshot()?.user.crm_user_id ?? null);
@@ -101,6 +106,12 @@ export class TicketsPageComponent {
     { value: 'PENDING_APPROVAL', label: 'Pendiente de aprobacion' },
     { value: 'CLOSED', label: 'Cerrado' }
   ];
+  readonly categoryOptions = computed<readonly ListingCategoryOption[]>(() => [
+    { value: 'all', label: 'Todas las categorias' },
+    ...this.operationalCategories()
+      .filter((category) => category.is_active)
+      .map((category) => ({ value: category.category_id, label: category.name }))
+  ]);
   readonly listUiState = signal<Record<TicketListContextId, TicketListUiState>>({
     assigned: this.buildInitialListUiState('assigned'),
     unassigned: this.buildInitialListUiState('unassigned'),
@@ -116,7 +127,18 @@ export class TicketsPageComponent {
   });
 
   constructor() {
+    this.loadCategories();
     this.refresh();
+  }
+
+  loadCategories(): void {
+    this.settingsManagementService
+      .listCategories('operational')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (categories) => this.operationalCategories.set(categories),
+        error: () => this.operationalCategories.set([])
+      });
   }
 
   refresh(): void {
@@ -265,6 +287,10 @@ export class TicketsPageComponent {
     this.updateListState(context, { status: value });
   }
 
+  onListCategoryChanged(context: TicketListContextId, value: string): void {
+    this.updateListState(context, { category: value });
+  }
+
   onListSortDirectionChanged(context: TicketListContextId, value: ListingSortDirection): void {
     this.updateListState(context, { sortDirection: value });
   }
@@ -291,6 +317,8 @@ export class TicketsPageComponent {
       statusTone: toTicketStatusTone(ticket.status),
       priority: formatTicketPriority(ticket.priority),
       priorityTone: toTicketPriorityTone(ticket.priority),
+      categoryId: ticket.category_id,
+      categoryName: ticket.category_name,
       assignedTo: ticket.assigned_user_display_name || ticket.assigned_role_label || 'Sin asignar',
       assignedUserId: ticket.assigned_user_id,
       assignedRoleId: ticket.assigned_role_id,
@@ -328,11 +356,16 @@ export class TicketsPageComponent {
         return false;
       }
 
+      const categoryMatches = state.category === 'all' || row.categoryId === state.category;
+      if (!categoryMatches) {
+        return false;
+      }
+
       if (!searchTerm) {
         return true;
       }
 
-      return [row.ticketNumber, row.client, row.title].some((value) => value.toLowerCase().includes(searchTerm));
+      return [row.ticketNumber, row.client, row.title, row.categoryName ?? ''].some((value) => value.toLowerCase().includes(searchTerm));
     });
 
     const direction = state.sortDirection === 'asc' ? 1 : -1;
@@ -345,6 +378,7 @@ export class TicketsPageComponent {
     return {
       search: '',
       status: 'all',
+      category: 'all',
       sortDirection: 'desc',
       viewMode: this.listingViewPreferenceService.getView(this.buildViewPreferenceKey(context), fallbackView)
     };

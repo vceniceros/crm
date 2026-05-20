@@ -1,0 +1,50 @@
+<section class="categories-tab">
+  <div class="categories-tab__header">
+    <h3>Categorías operacionales</h3>
+    <button mat-flat-button color="primary" type="button" (click)="openDialog()">
+      <mat-icon>add</mat-icon> Nueva categoría
+    </button>
+  </div>
+
+  @if (error()) {
+    <p class="categories-tab__error">{{ error() }}</p>
+  }
+
+  @if (loading()) {
+    <p class="categories-tab__loading">Cargando…</p>
+  } @else {
+    <table class="categories-tab__table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Descripción</th>
+          <th>Rol por defecto</th>
+          <th>Programación</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (cat of categories(); track cat.category_id) {
+          <tr>
+            <td>
+              {{ cat.name }}
+              @if (cat.is_system) {
+                <span class="categories-tab__badge">sistema</span>
+              }
+            </td>
+            <td>{{ cat.description ?? '—' }}</td>
+            <td>{{ cat.default_role_label ?? '—' }}</td>
+            <td>{{ formatSchedulePeriod(cat) }}</td>
+            <td>{{ cat.is_active ? 'Activo' : 'Inactivo' }}</td>
+            <td class="categories-tab__actions">
+              @if (!cat.is_system) {
+                <button mat-button type="button" (click)="openDialog(cat)">Editar</button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</section>

@@ -175,3 +175,28 @@ class UserActivityReportResponse(BaseModel):
     kpis: list[ReportKpiItem] = Field(default_factory=list)
     series: list[ReportSeriesPoint] = Field(default_factory=list)
     rows: list[UserActivityReportRow] = Field(default_factory=list)
+
+
+class CategoryResolutionRow(BaseModel):
+    category_id: str
+    category_name: str
+    total_tickets: int
+    closed_tickets: int
+    avg_resolution_hours: float | None = None
+    min_resolution_hours: float | None = None
+    max_resolution_hours: float | None = None
+
+
+class CategoryResolutionReportSummary(BaseModel):
+    total_categories: int
+    total_tickets: int
+    overall_avg_resolution_hours: float | None = None
+
+
+class CategoryResolutionReportResponse(BaseModel):
+    report_kind: Literal["category_resolution"] = "category_resolution"
+    chart_kind: ChartKind = "horizontal_bar"
+    summary: CategoryResolutionReportSummary
+    kpis: list[ReportKpiItem] = Field(default_factory=list)
+    series: list[ReportSeriesPoint] = Field(default_factory=list)
+    rows: list[CategoryResolutionRow] = Field(default_factory=list)

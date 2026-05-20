@@ -40,6 +40,7 @@ import {
 } from '../settings-edit-dialog/settings-edit-dialog.component';
 import { PermissionsTabComponent } from '../permissions-tab/permissions-tab.component';
 import { ActivityLogTabComponent } from '../activity-log-tab/activity-log-tab.component';
+import { CategoriesTabComponent } from '../categories-tab/categories-tab.component';
 
 @Component({
   selector: 'app-settings-page',
@@ -54,7 +55,8 @@ import { ActivityLogTabComponent } from '../activity-log-tab/activity-log-tab.co
     ContextHelpCardComponent,
     PageTitleComponent,
     PermissionsTabComponent,
-    ActivityLogTabComponent
+    ActivityLogTabComponent,
+    CategoriesTabComponent
   ],
   templateUrl: './settings-page.component.html',
   styleUrl: './settings-page.component.scss',

@@ -33,11 +33,12 @@ export class TicketsTableComponent {
   readonly generateSurveyRequested = output<string>();
   readonly viewSurveyRequested = output<string>();
 
-  readonly displayedColumns: Array<'ticketNumber' | 'title' | 'client' | 'location' | 'status' | 'priority' | 'updatedAt' | 'assignedTo'> = [
+  readonly displayedColumns: Array<'ticketNumber' | 'title' | 'client' | 'location' | 'category' | 'status' | 'priority' | 'updatedAt' | 'assignedTo'> = [
     'ticketNumber',
     'title',
     'client',
     'location',
+    'category',
     'status',
     'priority',
     'updatedAt',
@@ -49,6 +50,7 @@ export class TicketsTableComponent {
     title: 'Título',
     client: 'Cliente',
     location: 'Ubicación',
+    category: 'Categoria',
     status: 'Estado',
     priority: 'Prioridad',
     updatedAt: 'Actualizado',

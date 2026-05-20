@@ -218,7 +218,7 @@ def list_categories(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     settings_service: SettingsService = Depends(get_settings_service),
 ) -> list[SettingsCategoryResponse]:
-    return [SettingsCategoryResponse.model_validate(item) for item in settings_service.list_categories(actor, type)]
+    return [SettingsCategoryResponse.from_orm_with_role(item) for item in settings_service.list_categories(actor, type)]
 
 
 @router.post("/categories", response_model=SettingsCategoryResponse, responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 422: {"model": ErrorResponse}})
@@ -227,7 +227,7 @@ def create_category(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     settings_service: SettingsService = Depends(get_settings_service),
 ) -> SettingsCategoryResponse:
-    return SettingsCategoryResponse.model_validate(settings_service.create_category(actor, payload))
+    return SettingsCategoryResponse.from_orm_with_role(settings_service.create_category(actor, payload))
 
 
 @router.put("/categories/{category_id}", response_model=SettingsCategoryResponse, responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}})
@@ -237,7 +237,7 @@ def update_category(
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
     settings_service: SettingsService = Depends(get_settings_service),
 ) -> SettingsCategoryResponse:
-    return SettingsCategoryResponse.model_validate(settings_service.update_category(actor, category_id, payload))
+    return SettingsCategoryResponse.from_orm_with_role(settings_service.update_category(actor, category_id, payload))
 
 
 @router.get("/priorities", response_model=list[SettingsPriorityResponse], responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}})

@@ -15,6 +15,7 @@ from crm_backend.db.base import Base
 if TYPE_CHECKING:
     from crm_backend.models.crm_user import CrmUser
     from crm_backend.models.material_flow import InventoryDispatch, InventoryRequest, TaskExtraMaterial, TaskRequiredMaterial
+    from crm_backend.models.settings import CrmCategory
     from crm_backend.models.task_reference import Client, Location
     from crm_backend.models.task_template import TaskTemplate
 
@@ -122,6 +123,7 @@ class Task(Base):
     created_by_crm_user_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id"), index=True)
     finalized_by_crm_user_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), nullable=True)
     finalized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    category_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_categories.category_id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -129,6 +131,7 @@ class Task(Base):
     client: Mapped["Client"] = relationship("Client", lazy="joined")
     template: Mapped["TaskTemplate"] = relationship("TaskTemplate", lazy="joined")
     location: Mapped["Location | None"] = relationship("Location", lazy="selectin")
+    category: Mapped["CrmCategory | None"] = relationship("CrmCategory", foreign_keys=[category_id], lazy="joined")
     current_assigned_user: Mapped["CrmUser | None"] = relationship(
         "CrmUser",
         foreign_keys=[current_assigned_crm_user_id],
@@ -233,6 +236,10 @@ class Task(Base):
     @property
     def client_name(self) -> str:
         return self.client.business_name
+
+    @property
+    def category_name(self) -> str | None:
+        return getattr(self.category, "name", None)
 
     @property
     def template_name(self) -> str:

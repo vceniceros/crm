@@ -12,6 +12,11 @@ export interface ListingStatusOption {
   label: string;
 }
 
+export interface ListingCategoryOption {
+  value: string;
+  label: string;
+}
+
 export type ListingSortDirection = 'asc' | 'desc';
 
 @Component({
@@ -27,11 +32,14 @@ export class ListingControlsComponent {
   readonly searchPlaceholder = input('Buscar');
   readonly selectedStatus = input('all');
   readonly statusOptions = input<readonly ListingStatusOption[]>([{ value: 'all', label: 'Todos los estados' }]);
+  readonly selectedCategory = input('all');
+  readonly categoryOptions = input<readonly ListingCategoryOption[]>([]);
   readonly viewMode = input<ListingViewMode>('table');
   readonly sortDirection = input<ListingSortDirection>('desc');
 
   readonly searchChanged = output<string>();
   readonly statusChanged = output<string>();
+  readonly categoryChanged = output<string>();
   readonly viewModeChanged = output<ListingViewMode>();
   readonly sortDirectionChanged = output<ListingSortDirection>();
 
@@ -41,6 +49,10 @@ export class ListingControlsComponent {
 
   onStatusSelect(value: string): void {
     this.statusChanged.emit(value);
+  }
+
+  onCategorySelect(value: string): void {
+    this.categoryChanged.emit(value);
   }
 
   setViewMode(mode: ListingViewMode): void {

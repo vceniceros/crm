@@ -15,9 +15,11 @@ import { switchMap, take } from 'rxjs';
 import { InventoryProduct } from '../../../../core/models/inventory-product.model';
 import { AppLocation } from '../../../../core/models/location.model';
 import { CrmUserOption } from '../../../../core/models/task-management.model';
+import { SettingsCategory } from '../../../../core/models/settings-management.model';
 import { CreateTicketRequest, TicketClientOption, TicketDetail, TicketPriority, TicketRoleOption } from '../../../../core/models/ticket-management.model';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { TicketManagementService } from '../../../../core/services/ticket-management.service';
+import { SettingsManagementService } from '../../../../core/services/settings-management.service';
 import { LocationLinkService } from '../../../../shared/services/location-link.service';
 import { LocationPickerService } from '../../../../shared/services/location-picker.service';
 
@@ -64,6 +66,7 @@ export class CreateTicketDialogComponent {
   private readonly inventoryService = inject(InventoryService);
   private readonly locationPickerService = inject(LocationPickerService);
   private readonly locationLinkService = inject(LocationLinkService);
+  private readonly settingsManagementService = inject(SettingsManagementService);
 
   readonly isLoading = signal(true);
   readonly isSubmitting = signal(false);
@@ -74,6 +77,7 @@ export class CreateTicketDialogComponent {
   readonly inventoryProducts = signal<InventoryProduct[]>([]);
   readonly requiredMaterials = signal<RequiredMaterialSelection[]>([]);
   readonly customLocation = signal<AppLocation | null>(null);
+  readonly categories = signal<SettingsCategory[]>([]);
   readonly priorities: readonly PriorityOption[] = [
     { id: 'LOW', label: 'Baja' },
     { id: 'MEDIUM', label: 'Media' },
@@ -98,6 +102,7 @@ export class CreateTicketDialogComponent {
       validators: [Validators.required],
       nonNullable: true
     }),
+    category_id: this.formBuilder.control<string | null>(null),
     requires_arrival_comment: this.formBuilder.control(false, { nonNullable: true }),
     requires_video_evidence: this.formBuilder.control(true, { nonNullable: true }),
     assigned_role_id: this.formBuilder.control<string | null>(null),
@@ -282,7 +287,7 @@ export class CreateTicketDialogComponent {
 
   private loadBootstrapData(): void {
     this.isLoading.set(true);
-    let pendingRequests = 3;
+    let pendingRequests = 4;
     const onRequestCompleted = () => {
       pendingRequests -= 1;
       if (pendingRequests <= 0) {
@@ -331,6 +336,19 @@ export class CreateTicketDialogComponent {
         },
         error: (error: Error) => {
           this.errorMessage.set(error.message);
+          onRequestCompleted();
+        }
+      });
+
+    this.settingsManagementService
+      .listCategories('operational')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (cats) => {
+          this.categories.set(cats.filter((c) => c.is_active));
+          onRequestCompleted();
+        },
+        error: () => {
           onRequestCompleted();
         }
       });
@@ -390,6 +408,7 @@ export class CreateTicketDialogComponent {
       client_id: this.form.controls.client_id.getRawValue(),
       location_id: locationId,
       priority: this.form.controls.priority.getRawValue(),
+      category_id: this.form.controls.category_id.getRawValue() || null,
       requires_arrival_comment: this.form.controls.requires_arrival_comment.getRawValue(),
       requires_video_evidence: this.form.controls.requires_video_evidence.getRawValue(),
       assigned_role_id: this.form.controls.assigned_role_id.getRawValue(),

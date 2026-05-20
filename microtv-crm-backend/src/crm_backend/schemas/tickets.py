@@ -27,6 +27,7 @@ class CreateTicketRequest(BaseModel):
     location_id: str | None = None
     description: str = Field(..., min_length=1)
     priority: TicketPriorityLiteral = "MEDIUM"
+    category_id: str | None = None
     requires_arrival_comment: bool = False
     requires_video_evidence: bool = True
     assigned_role_id: str | None = None
@@ -189,6 +190,8 @@ class TicketSummaryResponse(BaseModel):
     location: LocationResponse | None = None
     status: str
     priority: str
+    category_id: str | None = None
+    category_name: str | None = None
     assigned_role_id: str | None
     assigned_role_key: str | None = None
     assigned_role_label: str | None = None

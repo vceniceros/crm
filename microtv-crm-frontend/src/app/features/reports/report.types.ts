@@ -5,6 +5,7 @@ export type ReportId =
   | 'tickets-by-status'
   | 'tickets-by-priority'
   | 'tickets-by-client'
+  | 'tickets-by-category'
   | 'tasks-by-status'
   | 'tasks-by-technician'
   | 'tasks-overdue-blocked'
@@ -102,6 +103,7 @@ export const REPORT_CARDS: ReportCardDefinition[] = [
   { id: 'tickets-by-status', category: 'tickets', title: 'Tickets por estado', description: 'Evolución y distribución por estado.', enabled: true },
   { id: 'tickets-by-priority', category: 'tickets', title: 'Tickets por prioridad', description: 'Carga por urgencia operativa.', enabled: true },
   { id: 'tickets-by-client', category: 'tickets', title: 'Tickets por cliente', description: 'Volumen por cartera de clientes.', enabled: true },
+  { id: 'tickets-by-category', category: 'tickets', title: 'Tickets por categoría', description: 'Tiempo de resolución promedio por categoría operacional.', enabled: true },
   { id: 'tasks-by-status', category: 'tasks', title: 'Tareas por estado', description: 'Seguimiento operativo por etapa.', enabled: true },
   { id: 'tasks-by-technician', category: 'tasks', title: 'Tareas por técnico', description: 'Distribución por responsable.', enabled: true },
   { id: 'tasks-overdue-blocked', category: 'tasks', title: 'Tareas vencidas / bloqueadas', description: 'Control de cuellos de botella.', enabled: false },
@@ -201,7 +203,15 @@ export const REPORT_COLUMNS: Record<ReportId, ReportColumn[]> = {
     { key: 'description', label: 'Descripción' }
   ],
   'activity-by-action-type': [],
-  'activity-closures-by-user': []
+  'activity-closures-by-user': [],
+  'tickets-by-category': [
+    { key: 'category_name', label: 'Categoría' },
+    { key: 'total_tickets', label: 'Total tickets' },
+    { key: 'closed_tickets', label: 'Cerrados' },
+    { key: 'avg_resolution_hours', label: 'Prom. hs resolución' },
+    { key: 'min_resolution_hours', label: 'Mín. hs resolución' },
+    { key: 'max_resolution_hours', label: 'Máx. hs resolución' }
+  ]
 };
 
 export const ACTION_TYPE_LABELS: Record<string, string> = {
