@@ -21,6 +21,33 @@
 
   <app-context-help-card [storageId]="'tickets'" [content]="helpText" [showOnlyFirstVisit]="true" />
 
+  @if (false) {
+  <section class="tickets-page__search-params" aria-label="Parametros de busqueda">
+  <mat-form-field appearance="outline" class="tickets-page__asset-filter">
+    <mat-label>Buscar por activo</mat-label>
+    <mat-select [value]="selectedAssetId() || ''" (selectionChange)="onAssetFilterChanged($event.value)">
+      <mat-option value="">Todos</mat-option>
+      @for (asset of assetOptions(); track asset.asset_id) {
+        <mat-option [value]="asset.asset_id">{{ asset.asset_name }} · {{ asset.client_name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="tickets-page__date-filter">
+    <mat-label>Selector de fecha</mat-label>
+    <input matInput [matDatepicker]="ticketDatePicker" [value]="selectedDateValue()" (dateChange)="onDateFilterChanged($event.value)" readonly />
+    @if (selectedDate()) {
+      <button mat-icon-button matSuffix type="button" aria-label="Limpiar fecha" (click)="clearDateFilter()">
+        <mat-icon>close</mat-icon>
+      </button>
+    }
+    <mat-datepicker-toggle matIconSuffix [for]="ticketDatePicker"></mat-datepicker-toggle>
+    <mat-datepicker #ticketDatePicker></mat-datepicker>
+  </mat-form-field>
+  </section>
+
+  }
+
   @if (errorMessage(); as errorMessage) {
     <div class="tickets-page__alert tickets-page__alert--error">{{ errorMessage }}</div>
   }
@@ -50,11 +77,18 @@
             [statusOptions]="ticketStatusOptions"
             [selectedCategory]="listState('assigned').category"
             [categoryOptions]="categoryOptions()"
+            [selectedAsset]="selectedAssetId() || ''"
+            [assetOptions]="assetFilterOptions()"
+            [showAssetFilter]="true"
+            [selectedDate]="selectedDateValue()"
+            [showDateFilter]="true"
             [sortDirection]="listState('assigned').sortDirection"
             [viewMode]="listState('assigned').viewMode"
             (searchChanged)="onListSearchChanged('assigned', $event)"
             (statusChanged)="onListStatusChanged('assigned', $event)"
             (categoryChanged)="onListCategoryChanged('assigned', $event)"
+            (assetChanged)="onAssetFilterChanged($event)"
+            (dateChanged)="onDateFilterChanged($event)"
             (sortDirectionChanged)="onListSortDirectionChanged('assigned', $event)"
             (viewModeChanged)="onListViewModeChanged('assigned', $event)"
           />
@@ -82,11 +116,18 @@
             [statusOptions]="ticketStatusOptions"
             [selectedCategory]="listState('unassigned').category"
             [categoryOptions]="categoryOptions()"
+            [selectedAsset]="selectedAssetId() || ''"
+            [assetOptions]="assetFilterOptions()"
+            [showAssetFilter]="true"
+            [selectedDate]="selectedDateValue()"
+            [showDateFilter]="true"
             [sortDirection]="listState('unassigned').sortDirection"
             [viewMode]="listState('unassigned').viewMode"
             (searchChanged)="onListSearchChanged('unassigned', $event)"
             (statusChanged)="onListStatusChanged('unassigned', $event)"
             (categoryChanged)="onListCategoryChanged('unassigned', $event)"
+            (assetChanged)="onAssetFilterChanged($event)"
+            (dateChanged)="onDateFilterChanged($event)"
             (sortDirectionChanged)="onListSortDirectionChanged('unassigned', $event)"
             (viewModeChanged)="onListViewModeChanged('unassigned', $event)"
           />
@@ -122,11 +163,18 @@
             [statusOptions]="ticketStatusOptions"
             [selectedCategory]="listState('tracking').category"
             [categoryOptions]="categoryOptions()"
+            [selectedAsset]="selectedAssetId() || ''"
+            [assetOptions]="assetFilterOptions()"
+            [showAssetFilter]="true"
+            [selectedDate]="selectedDateValue()"
+            [showDateFilter]="true"
             [sortDirection]="listState('tracking').sortDirection"
             [viewMode]="listState('tracking').viewMode"
             (searchChanged)="onListSearchChanged('tracking', $event)"
             (statusChanged)="onListStatusChanged('tracking', $event)"
             (categoryChanged)="onListCategoryChanged('tracking', $event)"
+            (assetChanged)="onAssetFilterChanged($event)"
+            (dateChanged)="onDateFilterChanged($event)"
             (sortDirectionChanged)="onListSortDirectionChanged('tracking', $event)"
             (viewModeChanged)="onListViewModeChanged('tracking', $event)"
           />
@@ -155,11 +203,18 @@
               [statusOptions]="ticketStatusOptions"
               [selectedCategory]="listState('history').category"
               [categoryOptions]="categoryOptions()"
+              [selectedAsset]="selectedAssetId() || ''"
+              [assetOptions]="assetFilterOptions()"
+              [showAssetFilter]="true"
+              [selectedDate]="selectedDateValue()"
+              [showDateFilter]="true"
               [sortDirection]="listState('history').sortDirection"
               [viewMode]="listState('history').viewMode"
               (searchChanged)="onListSearchChanged('history', $event)"
               (statusChanged)="onListStatusChanged('history', $event)"
               (categoryChanged)="onListCategoryChanged('history', $event)"
+              (assetChanged)="onAssetFilterChanged($event)"
+              (dateChanged)="onDateFilterChanged($event)"
               (sortDirectionChanged)="onListSortDirectionChanged('history', $event)"
               (viewModeChanged)="onListViewModeChanged('history', $event)"
             />

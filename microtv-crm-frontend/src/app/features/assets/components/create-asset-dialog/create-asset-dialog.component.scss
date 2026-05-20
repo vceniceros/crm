@@ -1,0 +1,23 @@
+.asset-dialog {
+  display: grid;
+  gap: 1rem;
+  min-width: min(44rem, calc(100vw - 3rem));
+}
+
+.asset-form,
+.dynamic-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 720px) {
+  .asset-form,
+  .dynamic-fields {
+    grid-template-columns: 1fr;
+  }
+}

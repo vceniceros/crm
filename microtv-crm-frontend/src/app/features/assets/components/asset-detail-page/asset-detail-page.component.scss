@@ -1,0 +1,48 @@
+.asset-detail {
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+p {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.detail-grid div {
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 8px;
+  padding: 0.85rem;
+}
+
+.detail-grid span {
+  display: block;
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.8rem;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.linked-list {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 0;
+}
+
+@media (max-width: 900px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

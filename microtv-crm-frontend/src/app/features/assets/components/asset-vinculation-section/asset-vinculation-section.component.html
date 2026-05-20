@@ -1,0 +1,39 @@
+<section class="asset-links">
+  <div class="section-header">
+    <h2>Activos</h2>
+    <button mat-stroked-button type="button" (click)="addNewAsset()" [disabled]="disabled">
+      <mat-icon>add</mat-icon>
+      Nuevo activo
+    </button>
+  </div>
+
+  <div class="asset-links__attach-row">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Adjuntar activo existente</mat-label>
+      <mat-select [formControl]="selectedAssetId" [disabled]="disabled">
+        <mat-option value="">Seleccionar activo</mat-option>
+        @for (asset of availableAssets(); track asset.asset_id) {
+          <mat-option [value]="asset.asset_id">{{ assetOptionLabel(asset) }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <button mat-flat-button color="primary" type="button" (click)="attachExistingAsset()" [disabled]="disabled || !selectedAssetId.value">
+      <mat-icon>link</mat-icon>
+      <span>Adjuntar</span>
+    </button>
+  </div>
+
+  <mat-chip-set>
+    @for (asset of linkedAssets; track asset.asset_id) {
+      <mat-chip>
+        {{ asset.asset_name }}
+        <button matChipRemove type="button" (click)="unlink(asset)" [disabled]="disabled" aria-label="Desvincular activo">
+          <mat-icon>cancel</mat-icon>
+        </button>
+      </mat-chip>
+    } @empty {
+      <span class="empty">Sin activos vinculados.</span>
+    }
+  </mat-chip-set>
+</section>

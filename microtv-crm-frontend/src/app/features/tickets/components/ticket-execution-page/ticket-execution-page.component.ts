@@ -19,6 +19,7 @@ import { forkJoin, from, switchMap } from 'rxjs';
 import { crmApiConfig } from '../../../../core/config/crm-api.config';
 import { CrmUserOption } from '../../../../core/models/task-management.model';
 import { InventoryProduct } from '../../../../core/models/inventory-product.model';
+import { AssetSummary } from '../../../../core/models/asset.model';
 import { AppLocation } from '../../../../core/models/location.model';
 import {
   AssignTicketRequest,
@@ -35,6 +36,7 @@ import { InventoryService } from '../../../../core/services/inventory.service';
 import { InventoryFlowService } from '../../../../core/services/inventory-flow.service';
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
 import { TicketManagementService } from '../../../../core/services/ticket-management.service';
+import { AssetManagementService } from '../../../../core/services/asset-management.service';
 import { PermissionService } from '../../../../core/services/permission.service';
 import { TicketInventoryRequest, TicketInventoryRequestItem, TicketInventoryRequestStatus } from '../../../../core/models/ticket-inventory-request.model';
 import { isVideoFile, optimizeImagesForUpload } from '../../../../core/utils/media-upload-optimization';
@@ -48,6 +50,7 @@ import { SurveyLinkDialogComponent } from '../survey-link-dialog/survey-link-dia
 import { MarkSolutionConfirmDialogComponent } from '../mark-solution-confirm-dialog/mark-solution-confirm-dialog.component';
 import { TicketAttachmentsSectionComponent } from '../ticket-attachments-section/ticket-attachments-section.component';
 import { TicketDescriptionSectionComponent } from '../ticket-description-section/ticket-description-section.component';
+import { AssetVinculationSectionComponent } from '../../../assets/components/asset-vinculation-section/asset-vinculation-section.component';
 
 
 const TICKET_ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -107,9 +110,10 @@ interface TicketTimelineEvent {
     ReactiveFormsModule,
     RouterLink,
     StatusBadgeComponent,
-    TicketAttachmentsSectionComponent,
-    TicketDescriptionSectionComponent,
-    UserAvatarComponent
+   TicketAttachmentsSectionComponent,
+   TicketDescriptionSectionComponent,
+   AssetVinculationSectionComponent,
+   UserAvatarComponent
   ],
   templateUrl: './ticket-execution-page.component.html',
   styleUrl: './ticket-execution-page.component.scss',
@@ -127,6 +131,7 @@ export class TicketExecutionPageComponent {
   private readonly inventoryService = inject(InventoryService);
   private readonly inventoryFlowService = inject(InventoryFlowService);
   private readonly ticketManagementService = inject(TicketManagementService);
+  private readonly assetManagementService = inject(AssetManagementService);
   private readonly locationPickerService = inject(LocationPickerService);
   private readonly locationLinkService = inject(LocationLinkService);
   private readonly backendOrigin = this.resolveBackendOrigin();
@@ -134,6 +139,7 @@ export class TicketExecutionPageComponent {
   private commentLocationWatchdogId: ReturnType<typeof setTimeout> | null = null;
 
   readonly ticket = signal<TicketDetail | null>(null);
+  readonly ticketAssets = signal<AssetSummary[]>([]);
   readonly isLoading = signal(true);
   readonly isSaving = signal(false);
   readonly errorMessage = signal<string | null>(null);
@@ -1458,6 +1464,14 @@ export class TicketExecutionPageComponent {
     });
   }
 
+  openAssetVinculationDialog(template: TemplateRef<unknown>): void {
+    this.dialog.open(template, {
+      autoFocus: false,
+      maxWidth: 'calc(100vw - 1.5rem)',
+      width: '42rem'
+    });
+  }
+
   primaryActionIcon(): string {
     const action = this.selectedPrimaryAction();
     if (action === 'transition') {
@@ -1673,6 +1687,7 @@ export class TicketExecutionPageComponent {
       .subscribe({
         next: (ticket) => {
           this.ticket.set(ticket);
+          this.loadTicketAssets(ticket.ticket_id);
           this.availableTransitions.set(buildTicketStatusTransitions(ticket.status));
           this.syncAssignmentForm(ticket);
           this.isLoading.set(false);
@@ -1774,6 +1789,20 @@ export class TicketExecutionPageComponent {
           this.assignmentForm.controls.collaborator_user_ids.setValue([], { emitEvent: false });
         }
       });
+  }
+
+  reloadTicketAssets(): void {
+    const ticketId = this.ticketId();
+    if (ticketId) {
+      this.loadTicketAssets(ticketId);
+    }
+  }
+
+  private loadTicketAssets(ticketId: string): void {
+    this.assetManagementService
+      .getTicketAssets(ticketId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (assets) => this.ticketAssets.set(assets), error: () => this.ticketAssets.set([]) });
   }
 
   private updateTicket(ticket: TicketDetail, message: string): void {

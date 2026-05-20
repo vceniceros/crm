@@ -24,6 +24,7 @@ import {
   InventoryRequestItemWriteRequest,
   RequiredMaterial
 } from '../../../../core/models/inventory-flow.model';
+import { AssetSummary } from '../../../../core/models/asset.model';
 import { InventoryProduct } from '../../../../core/models/inventory-product.model';
 import { InventoryFlowService } from '../../../../core/services/inventory-flow.service';
 import { InventoryService } from '../../../../core/services/inventory.service';
@@ -46,6 +47,7 @@ import {
 } from '../../../../core/models/task-management.model';
 import { TaskAttachment } from '../../../../core/models/task-attachment.model';
 import { TaskManagementService } from '../../../../core/services/task-management.service';
+import { AssetManagementService } from '../../../../core/services/asset-management.service';
 import { AppLocation } from '../../../../core/models/location.model';
 import { LocationLinkService } from '../../../../shared/services/location-link.service';
 import { LocationPickerService } from '../../../../shared/services/location-picker.service';
@@ -55,6 +57,7 @@ import { TaskAttachmentsSectionComponent } from '../task-attachments-section/tas
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 import { StatusBadgeComponent } from '../../../../shared/ui/status-badge/status-badge.component';
 import { UserAvatarComponent } from '../../../../shared/ui/user-avatar/user-avatar.component';
+import { AssetVinculationSectionComponent } from '../../../assets/components/asset-vinculation-section/asset-vinculation-section.component';
 
 type DispatchIdentifierType = 'none' | 'serial' | 'barcode';
 type TaskCommentPrimaryAction = 'comment' | TaskAction;
@@ -110,6 +113,7 @@ type DispatchDraftItem = InventoryDispatchItemWriteRequest & {
     RouterLink,
     StatusBadgeComponent,
     TaskAttachmentsSectionComponent,
+    AssetVinculationSectionComponent,
     UserAvatarComponent
   ],
   templateUrl: './task-execution-page.component.html',
@@ -122,6 +126,7 @@ export class TaskExecutionPageComponent {
   private readonly inventoryFlowService = inject(InventoryFlowService);
   private readonly inventoryService = inject(InventoryService);
   private readonly taskManagementService = inject(TaskManagementService);
+  private readonly assetManagementService = inject(AssetManagementService);
   private readonly authSessionService = inject(AuthSessionService);
   private readonly router = inject(Router);
   private readonly locationLinkService = inject(LocationLinkService);
@@ -133,6 +138,7 @@ export class TaskExecutionPageComponent {
   private commentLocationWatchdogId: ReturnType<typeof setTimeout> | null = null;
 
   readonly task = signal<TaskDetail | null>(null);
+  readonly taskAssets = signal<AssetSummary[]>([]);
   readonly pageError = signal<string | null>(null);
   readonly isLoading = signal(true);
   readonly isSaving = signal(false);
@@ -1257,6 +1263,14 @@ export class TaskExecutionPageComponent {
     });
   }
 
+  openAssetVinculationDialog(template: TemplateRef<unknown>): void {
+    this.dialog.open(template, {
+      autoFocus: false,
+      maxWidth: 'calc(100vw - 1.5rem)',
+      width: '42rem'
+    });
+  }
+
   captureCurrentCommentLocation(): void {
     if (this.isResolvingCommentLocation()) {
       return;
@@ -1477,6 +1491,7 @@ export class TaskExecutionPageComponent {
     this.taskManagementService.getTaskDetail(taskId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (task) => {
         this.task.set(task);
+        this.loadTaskAssets(task.task_id);
         this.selectedCommentLocation.set(this.taskLocation());
         this.pageError.set(null);
         this.selectedSubtaskId.set(task.current_subtask_id ?? task.subtasks[0]?.subtask_id ?? null);
@@ -1492,6 +1507,20 @@ export class TaskExecutionPageComponent {
     });
   }
 
+  reloadTaskAssets(): void {
+    const taskId = this.task()?.task_id;
+    if (taskId) {
+      this.loadTaskAssets(taskId);
+    }
+  }
+
+  private loadTaskAssets(taskId: string): void {
+    this.assetManagementService
+      .getTaskAssets(taskId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (assets) => this.taskAssets.set(assets), error: () => this.taskAssets.set([]) });
+  }
+
   private reloadTask(message: string): void {
     const taskId = this.task()?.task_id;
     if (!taskId) {
@@ -1500,6 +1529,7 @@ export class TaskExecutionPageComponent {
     this.taskManagementService.getTaskDetail(taskId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (task) => {
         this.task.set(task);
+        this.loadTaskAssets(task.task_id);
         this.selectedCommentLocation.set(this.taskLocation());
         this.successMessage.set(message);
         this.errorMessage.set(null);

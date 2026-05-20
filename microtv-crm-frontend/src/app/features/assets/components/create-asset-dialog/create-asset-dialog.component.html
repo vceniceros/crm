@@ -1,0 +1,57 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Editar activo' : 'Nuevo activo' }}</h2>
+<mat-dialog-content class="asset-dialog">
+  <form [formGroup]="form" class="asset-form">
+    <mat-form-field appearance="outline">
+      <mat-label>Categoria</mat-label>
+      <mat-select formControlName="category_id">
+        @for (category of categories(); track category.asset_category_id) {
+          <mat-option [value]="category.asset_category_id">{{ category.category_name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Cliente</mat-label>
+      <mat-select formControlName="client_id">
+        @for (client of clients(); track client.id) {
+          <mat-option [value]="client.id + ''">{{ client.razonSocial }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Nombre</mat-label>
+      <input matInput formControlName="asset_name">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Vinculado a</mat-label>
+      <mat-select formControlName="parent_asset_id">
+        <mat-option value="">Sin vinculo</mat-option>
+        @for (asset of availableParentAssets(); track asset.asset_id) {
+          <mat-option [value]="asset.asset_id">{{ assetOptionLabel(asset) }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="wide">
+      <mat-label>Notas</mat-label>
+      <textarea matInput rows="2" formControlName="notes"></textarea>
+    </mat-form-field>
+  </form>
+
+  @if (selectedCategory()) {
+    <form [formGroup]="fieldValues" class="dynamic-fields">
+      @for (field of selectedCategory()!.fields; track field.field_id) {
+        <mat-form-field appearance="outline">
+          <mat-label>{{ field.field_name }}</mat-label>
+          <input matInput [type]="field.field_type === 'number' ? 'number' : 'text'" [formControlName]="field.field_id">
+        </mat-form-field>
+      }
+    </form>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Cancelar</button>
+  <button mat-flat-button color="primary" (click)="save()">{{ isEdit ? 'Guardar' : 'Crear' }}</button>
+</mat-dialog-actions>

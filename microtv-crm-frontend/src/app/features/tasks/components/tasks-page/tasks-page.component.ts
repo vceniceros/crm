@@ -7,11 +7,14 @@ import { map } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
 
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
+import { AssetSummary } from '../../../../core/models/asset.model';
 import { SettingsCategory } from '../../../../core/models/settings-management.model';
 import { SettingsManagementService } from '../../../../core/services/settings-management.service';
 import { UI_HELP_TEXTS } from '../../../../core/config/ui-help-texts.config';
@@ -27,8 +30,9 @@ import {
 } from '../../../../core/models/task-management.model';
 import { TaskListItem, TasksTableData } from '../../../../core/models/task.model';
 import { TaskManagementService } from '../../../../core/services/task-management.service';
+import { AssetManagementService } from '../../../../core/services/asset-management.service';
 import { ListingViewMode, ListingViewPreferenceService } from '../../../../shared/services/listing-view-preference.service';
-import { ListingCategoryOption, ListingControlsComponent, ListingSortDirection, ListingStatusOption } from '../../../../shared/ui/listing-controls/listing-controls.component';
+import { ListingAssetOption, ListingCategoryOption, ListingControlsComponent, ListingSortDirection, ListingStatusOption } from '../../../../shared/ui/listing-controls/listing-controls.component';
 import { ContextHelpCardComponent } from '../../../../shared/ui/context-help-card/context-help-card.component';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
 import { StatusBadgeComponent } from '../../../../shared/ui/status-badge/status-badge.component';
@@ -53,8 +57,10 @@ interface TaskListUiState {
     MatButtonModule,
     MatCardModule,
     MatDialogModule,
+    MatFormFieldModule,
     MatIconModule,
     MatProgressSpinnerModule,
+    MatSelectModule,
     MatTabsModule,
     ContextHelpCardComponent,
     ListingControlsComponent,
@@ -70,6 +76,7 @@ interface TaskListUiState {
 export class TasksPageComponent {
   private readonly breakpointObserver = inject(BreakpointObserver);
   private readonly taskManagementService = inject(TaskManagementService);
+  private readonly assetManagementService = inject(AssetManagementService);
   private readonly settingsManagementService = inject(SettingsManagementService);
   private readonly authSessionService = inject(AuthSessionService);
   private readonly dialog = inject(MatDialog);
@@ -89,6 +96,9 @@ export class TasksPageComponent {
   readonly trackingTasks = signal<TaskDetail[]>([]);
   readonly historyTasks = signal<TaskDetail[]>([]);
   readonly operationalCategories = signal<SettingsCategory[]>([]);
+  readonly assetOptions = signal<AssetSummary[]>([]);
+  readonly selectedAssetId = signal<string | null>(null);
+  readonly linkedTaskIds = signal<Set<string> | null>(null);
 
   readonly currentSession = computed(() => this.authSessionService.sessionSnapshot());
   readonly currentUserId = computed(() => this.currentSession()?.user.crm_user_id ?? null);
@@ -119,6 +129,9 @@ export class TasksPageComponent {
       .filter((category) => category.is_active)
       .map((category) => ({ value: category.category_id, label: category.name }))
   ]);
+  readonly assetFilterOptions = computed<readonly ListingAssetOption[]>(() =>
+    this.assetOptions().map((asset) => ({ value: asset.asset_id, label: `${asset.asset_name} - ${asset.client_name}` }))
+  );
   readonly listUiState = signal<Record<TaskListContextId, TaskListUiState>>({
     assigned: this.buildInitialListUiState('assigned'),
     unassigned: this.buildInitialListUiState('unassigned'),
@@ -152,6 +165,7 @@ export class TasksPageComponent {
     }
 
     this.loadCategories();
+    this.loadAssetOptions();
     this.refresh();
 
     if (typeof preselectedTemplateId === 'string' && preselectedTemplateId.trim() && this.isAdminOrExecutive()) {
@@ -193,6 +207,13 @@ export class TasksPageComponent {
       next: (queue) => this.unassignedSubtasks.set(queue),
       error: (error: Error) => this.errorMessage.set(error.message)
     });
+  }
+
+  loadAssetOptions(): void {
+    this.assetManagementService
+      .listAssets()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (assets) => this.assetOptions.set(assets), error: () => this.assetOptions.set([]) });
   }
 
   loadCategories(): void {
@@ -333,6 +354,22 @@ export class TasksPageComponent {
     this.updateListState(context, { viewMode: value });
   }
 
+  onAssetFilterChanged(assetId: string): void {
+    const normalized = assetId || null;
+    this.selectedAssetId.set(normalized);
+    if (!normalized) {
+      this.linkedTaskIds.set(null);
+      return;
+    }
+    this.assetManagementService
+      .getLinkedTasksForAsset(normalized)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (tasks) => this.linkedTaskIds.set(new Set(tasks.map((task) => task.task_id))),
+        error: (error: Error) => this.errorMessage.set(error.message)
+      });
+  }
+
   claimSubtaskFromRow(subtaskId: string): void {
     this.claimSubtask(subtaskId);
   }
@@ -363,8 +400,12 @@ export class TasksPageComponent {
   private applyTaskFilters(tasks: readonly TaskDetail[], context: TaskListContextId): TaskDetail[] {
     const state = this.listUiState()[context];
     const searchTerm = state.search.trim().toLowerCase();
+    const linkedTaskIds = this.linkedTaskIds();
 
     const filtered = tasks.filter((task) => {
+      if (linkedTaskIds && !linkedTaskIds.has(task.task_id)) {
+        return false;
+      }
       const statusMatches = state.status === 'all' || task.status === state.status;
       if (!statusMatches) {
         return false;
@@ -389,8 +430,12 @@ export class TasksPageComponent {
   private applySubtaskFilters(queue: readonly UnassignedSubtaskQueueItem[], context: TaskListContextId): UnassignedSubtaskQueueItem[] {
     const state = this.listUiState()[context];
     const searchTerm = state.search.trim().toLowerCase();
+    const linkedTaskIds = this.linkedTaskIds();
 
     const filtered = queue.filter((item) => {
+      if (linkedTaskIds && !linkedTaskIds.has(item.task_id)) {
+        return false;
+      }
       const statusMatches = state.status === 'all' || item.status === state.status;
       if (!statusMatches) {
         return false;

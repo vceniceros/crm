@@ -48,6 +48,19 @@
         </button>
       }
 
+      @if (showAssetButton()) {
+        <button
+          mat-icon-button
+          type="button"
+          matTooltip="Vincular activo"
+          aria-label="Vincular activo"
+          (click)="assetsClick.emit()"
+          [disabled]="isDisabled() || !canLinkAssets()"
+        >
+          <mat-icon>devices_other</mat-icon>
+        </button>
+      }
+
       <div class="operational-comment-composer__indicators" aria-live="polite">
         @if (attachmentCount() > 0) {
           <span class="operational-comment-composer__pill">
@@ -60,6 +73,13 @@
           <span class="operational-comment-composer__pill operational-comment-composer__pill--location">
             <mat-icon>place</mat-icon>
             {{ locationLabel() }}
+          </span>
+        }
+
+        @if (linkedAssetCount() > 0) {
+          <span class="operational-comment-composer__pill">
+            <mat-icon>devices_other</mat-icon>
+            {{ linkedAssetCount() }}
           </span>
         }
       </div>

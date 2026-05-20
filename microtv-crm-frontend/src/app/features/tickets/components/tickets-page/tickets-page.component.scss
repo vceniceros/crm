@@ -56,6 +56,22 @@
   border-color: rgba(23, 24, 26, 0.12);
 }
 
+.tickets-page__search-params {
+  display: grid;
+  grid-template-columns: minmax(16rem, 28rem) minmax(13rem, 18rem);
+  align-items: start;
+  gap: 0.8rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--surface-panel) 86%, var(--surface-soft) 14%);
+}
+
+.tickets-page__asset-filter,
+.tickets-page__date-filter {
+  width: 100%;
+}
+
 .tickets-page__loading {
   display: grid;
   justify-items: center;
@@ -132,6 +148,10 @@
 
   .tickets-page__actions {
     display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .tickets-page__search-params {
     grid-template-columns: 1fr;
   }
 

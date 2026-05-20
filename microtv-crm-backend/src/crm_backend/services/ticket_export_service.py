@@ -8,6 +8,7 @@ import os
 import re
 import zipfile
 from datetime import UTC, datetime
+from html import escape as html_escape
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -190,7 +191,21 @@ class TicketExportService:
         code_style = ParagraphStyle("code", parent=normal, fontName="Courier", fontSize=9, backColor=colors.whitesmoke)
 
         ticket_number = _safe_str(ticket.ticket_number)
+        asset_links = sorted(getattr(ticket, "asset_links", []) or [], key=lambda item: item.linked_at or datetime.min)
         story = []
+
+        def pdf_text(value: object, fallback: str = "-"):
+            text = html_escape(_safe_str(value, fallback)).replace("\n", "<br/>")
+            return Paragraph(text, normal)
+
+        def user_display_name(user: object | None) -> str:
+            if user is None:
+                return "-"
+            return _safe_str(
+                getattr(user, "display_name", None)
+                or getattr(user, "email", None)
+                or f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip()
+            )
 
         # Title
         story.append(Paragraph(f"Historial del Ticket #{ticket_number}", h1))
@@ -229,6 +244,14 @@ class TicketExportService:
             ["Título", _safe_str(ticket.title, "Sin título"), "Cerrado", _format_dt(ticket.closed_at)],
             ["Aprobación", "Cerrado y aprobado" if ticket.approved_by_executive else "Sin aprobación ejecutiva", "Encuesta", _survey_status_for_pdf(ticket)],
         ]
+        header_data.append(
+            [
+                "Activos manipulados",
+                f"{len(asset_links)} activo(s) vinculado(s)",
+                "Detalle",
+                "Ver seccion de activos" if asset_links else "Sin activos",
+            ]
+        )
         col_widths = [3.5 * cm, 7 * cm, 3.5 * cm, 5 * cm]
         tbl = Table(header_data, colWidths=col_widths)
         tbl.setStyle(TableStyle([
@@ -250,6 +273,52 @@ class TicketExportService:
             story.append(Paragraph("Descripción del problema", h2))
             story.append(Paragraph(ticket.description.replace("\n", "<br/>"), normal))
             story.append(Spacer(1, 0.4 * cm))
+
+        if asset_links:
+            story.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey))
+            story.append(Spacer(1, 0.3 * cm))
+            story.append(Paragraph("Activos manipulados", h2))
+
+            for link in asset_links:
+                asset = getattr(link, "asset", None)
+                if asset is None:
+                    continue
+
+                linked_by = user_display_name(getattr(link, "linked_by_user", None))
+                asset_rows = [
+                    ["Activo", pdf_text(getattr(asset, "asset_name", None))],
+                    ["Categoria", pdf_text(getattr(asset, "category_name", None))],
+                    ["Cliente", pdf_text(getattr(asset, "client_name", None))],
+                    ["Vinculado a", pdf_text(getattr(asset, "parent_asset_name", None))],
+                    ["Fecha de vinculacion", pdf_text(_format_dt(getattr(link, "linked_at", None)))],
+                    ["Vinculado por", pdf_text(linked_by)],
+                ]
+
+                field_values = sorted(
+                    getattr(asset, "field_values", []) or [],
+                    key=lambda item: _safe_str(getattr(item, "field_name", None), ""),
+                )
+                for field_value in field_values:
+                    asset_rows.append([
+                        _safe_str(getattr(field_value, "field_name", None), "Campo"),
+                        pdf_text(getattr(field_value, "raw_value", None)),
+                    ])
+
+                if getattr(asset, "notes", None):
+                    asset_rows.append(["Notas", pdf_text(getattr(asset, "notes", None))])
+
+                asset_tbl = Table(asset_rows, colWidths=[4.5 * cm, 14.5 * cm])
+                asset_tbl.setStyle(TableStyle([
+                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 9),
+                    ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+                    ("BACKGROUND", (0, 0), (0, -1), colors.lightgrey),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.lightgrey),
+                    ("ROWBACKGROUNDS", (0, 0), (-1, -1), [colors.white, colors.HexColor("#f8f8f8")]),
+                ]))
+                story.append(asset_tbl)
+                story.append(Spacer(1, 0.35 * cm))
 
         # Timeline: comments
         comments = sorted(ticket.comments or [], key=lambda c: c.created_at or datetime.min)

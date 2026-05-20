@@ -16,6 +16,7 @@ const moduleRules: MockModuleAccessRule[] = [
   { moduleKey: 'inventory', allowedRoles: ['admin', 'ejecutivo', 'deposito'] },
   { moduleKey: 'installations', allowedRoles: ['admin', 'ejecutivo'] },
   { moduleKey: 'clients', allowedRoles: ['admin', 'ejecutivo', 'deposito', 'tecnico'] },
+  { moduleKey: 'assets', allowedRoles: ['admin', 'ejecutivo', 'tecnico'] },
   { moduleKey: 'billing', allowedRoles: ['admin', 'ejecutivo'] },
   { moduleKey: 'reports', allowedRoles: ['admin', 'ejecutivo'] },
   { moduleKey: 'settings', allowedRoles: ['admin', 'ejecutivo', 'deposito', 'tecnico'] },

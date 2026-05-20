@@ -30,6 +30,19 @@
 
   <app-context-help-card [storageId]="'tasks'" [content]="helpText" [showOnlyFirstVisit]="true" />
 
+  @if (false) {
+  <mat-form-field appearance="outline" class="tasks-page__asset-filter">
+    <mat-label>Buscar por activo</mat-label>
+    <mat-select [value]="selectedAssetId() || ''" (selectionChange)="onAssetFilterChanged($event.value)">
+      <mat-option value="">Todos</mat-option>
+      @for (asset of assetOptions(); track asset.asset_id) {
+        <mat-option [value]="asset.asset_id">{{ asset.asset_name }} · {{ asset.client_name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  }
+
   @if (errorMessage(); as errorMessage) {
     <mat-card class="tasks-page__message tasks-page__message--error">
       <mat-card-content>
@@ -66,11 +79,15 @@
             [statusOptions]="taskStatusOptions"
             [selectedCategory]="listState('assigned').category"
             [categoryOptions]="categoryOptions()"
+            [selectedAsset]="selectedAssetId() || ''"
+            [assetOptions]="assetFilterOptions()"
+            [showAssetFilter]="true"
             [sortDirection]="listState('assigned').sortDirection"
             [viewMode]="listState('assigned').viewMode"
             (searchChanged)="onListSearchChanged('assigned', $event)"
             (statusChanged)="onListStatusChanged('assigned', $event)"
             (categoryChanged)="onListCategoryChanged('assigned', $event)"
+            (assetChanged)="onAssetFilterChanged($event)"
             (sortDirectionChanged)="onListSortDirectionChanged('assigned', $event)"
             (viewModeChanged)="onListViewModeChanged('assigned', $event)"
           />
@@ -127,10 +144,14 @@
             searchPlaceholder="Buscar por id, cliente o titulo"
             [selectedStatus]="listState('unassigned').status"
             [statusOptions]="taskStatusOptions"
+            [selectedAsset]="selectedAssetId() || ''"
+            [assetOptions]="assetFilterOptions()"
+            [showAssetFilter]="true"
             [sortDirection]="listState('unassigned').sortDirection"
             [viewMode]="listState('unassigned').viewMode"
             (searchChanged)="onListSearchChanged('unassigned', $event)"
             (statusChanged)="onListStatusChanged('unassigned', $event)"
+            (assetChanged)="onAssetFilterChanged($event)"
             (sortDirectionChanged)="onListSortDirectionChanged('unassigned', $event)"
             (viewModeChanged)="onListViewModeChanged('unassigned', $event)"
           />
@@ -189,11 +210,15 @@
             [statusOptions]="taskStatusOptions"
             [selectedCategory]="listState('tracking').category"
             [categoryOptions]="categoryOptions()"
+            [selectedAsset]="selectedAssetId() || ''"
+            [assetOptions]="assetFilterOptions()"
+            [showAssetFilter]="true"
             [sortDirection]="listState('tracking').sortDirection"
               [viewMode]="listState('tracking').viewMode"
               (searchChanged)="onListSearchChanged('tracking', $event)"
               (statusChanged)="onListStatusChanged('tracking', $event)"
               (categoryChanged)="onListCategoryChanged('tracking', $event)"
+              (assetChanged)="onAssetFilterChanged($event)"
               (sortDirectionChanged)="onListSortDirectionChanged('tracking', $event)"
               (viewModeChanged)="onListViewModeChanged('tracking', $event)"
             />
@@ -254,11 +279,15 @@
               [statusOptions]="taskStatusOptions"
               [selectedCategory]="listState('history').category"
               [categoryOptions]="categoryOptions()"
+              [selectedAsset]="selectedAssetId() || ''"
+              [assetOptions]="assetFilterOptions()"
+              [showAssetFilter]="true"
               [sortDirection]="listState('history').sortDirection"
               [viewMode]="listState('history').viewMode"
               (searchChanged)="onListSearchChanged('history', $event)"
               (statusChanged)="onListStatusChanged('history', $event)"
               (categoryChanged)="onListCategoryChanged('history', $event)"
+              (assetChanged)="onAssetFilterChanged($event)"
               (sortDirectionChanged)="onListSortDirectionChanged('history', $event)"
               (viewModeChanged)="onListViewModeChanged('history', $event)"
             />

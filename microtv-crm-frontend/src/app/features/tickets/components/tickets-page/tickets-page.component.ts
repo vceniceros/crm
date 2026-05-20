@@ -5,9 +5,14 @@ import { Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatNativeDateModule } from '@angular/material/core';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
 
 import {
@@ -24,9 +29,11 @@ import {
 import { UI_HELP_TEXTS } from '../../../../core/config/ui-help-texts.config';
 import { AuthSessionService } from '../../../../core/services/auth-session.service';
 import { SettingsCategory } from '../../../../core/models/settings-management.model';
+import { AssetSummary } from '../../../../core/models/asset.model';
 import { SettingsManagementService } from '../../../../core/services/settings-management.service';
 import { TicketManagementService } from '../../../../core/services/ticket-management.service';
-import { ListingCategoryOption, ListingSortDirection, ListingStatusOption, ListingControlsComponent } from '../../../../shared/ui/listing-controls/listing-controls.component';
+import { AssetManagementService } from '../../../../core/services/asset-management.service';
+import { ListingAssetOption, ListingCategoryOption, ListingSortDirection, ListingStatusOption, ListingControlsComponent } from '../../../../shared/ui/listing-controls/listing-controls.component';
 import { ListingViewMode, ListingViewPreferenceService } from '../../../../shared/services/listing-view-preference.service';
 import { ContextHelpCardComponent } from '../../../../shared/ui/context-help-card/context-help-card.component';
 import { PageTitleComponent } from '../../../../shared/ui/page-title/page-title.component';
@@ -49,9 +56,14 @@ interface TicketListUiState {
   standalone: true,
   imports: [
     MatButtonModule,
+    MatDatepickerModule,
     MatDialogModule,
+    MatFormFieldModule,
     MatIconModule,
+    MatInputModule,
+    MatNativeDateModule,
     MatProgressSpinnerModule,
+    MatSelectModule,
     MatTabsModule,
     ContextHelpCardComponent,
     ListingControlsComponent,
@@ -70,6 +82,7 @@ export class TicketsPageComponent {
   private readonly authSessionService = inject(AuthSessionService);
   private readonly settingsManagementService = inject(SettingsManagementService);
   private readonly ticketManagementService = inject(TicketManagementService);
+  private readonly assetManagementService = inject(AssetManagementService);
   private readonly listingViewPreferenceService = inject(ListingViewPreferenceService);
   readonly helpText = UI_HELP_TEXTS.tickets;
 
@@ -89,6 +102,14 @@ export class TicketsPageComponent {
   readonly trackingTickets = signal<TicketSummary[]>([]);
   readonly historyTickets = signal<TicketSummary[]>([]);
   readonly operationalCategories = signal<SettingsCategory[]>([]);
+  readonly assetOptions = signal<AssetSummary[]>([]);
+  readonly selectedAssetId = signal<string | null>(null);
+  readonly linkedTicketIds = signal<Set<string> | null>(null);
+  readonly selectedDate = signal<string | null>(null);
+  readonly selectedDateValue = computed(() => {
+    const value = this.selectedDate();
+    return value ? this.fromDateInputValue(value) : null;
+  });
 
   readonly currentRoles = computed(() => this.authSessionService.sessionSnapshot()?.user.role_keys ?? []);
   readonly currentUserId = computed(() => this.authSessionService.sessionSnapshot()?.user.crm_user_id ?? null);
@@ -112,6 +133,9 @@ export class TicketsPageComponent {
       .filter((category) => category.is_active)
       .map((category) => ({ value: category.category_id, label: category.name }))
   ]);
+  readonly assetFilterOptions = computed<readonly ListingAssetOption[]>(() =>
+    this.assetOptions().map((asset) => ({ value: asset.asset_id, label: `${asset.asset_name} - ${asset.client_name}` }))
+  );
   readonly listUiState = signal<Record<TicketListContextId, TicketListUiState>>({
     assigned: this.buildInitialListUiState('assigned'),
     unassigned: this.buildInitialListUiState('unassigned'),
@@ -128,6 +152,7 @@ export class TicketsPageComponent {
 
   constructor() {
     this.loadCategories();
+    this.loadAssetOptions();
     this.refresh();
   }
 
@@ -139,6 +164,13 @@ export class TicketsPageComponent {
         next: (categories) => this.operationalCategories.set(categories),
         error: () => this.operationalCategories.set([])
       });
+  }
+
+  loadAssetOptions(): void {
+    this.assetManagementService
+      .listAssets()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (assets) => this.assetOptions.set(assets), error: () => this.assetOptions.set([]) });
   }
 
   refresh(): void {
@@ -300,6 +332,30 @@ export class TicketsPageComponent {
     this.updateListState(context, { viewMode: value });
   }
 
+  onAssetFilterChanged(assetId: string): void {
+    const normalized = assetId || null;
+    this.selectedAssetId.set(normalized);
+    if (!normalized) {
+      this.linkedTicketIds.set(null);
+      return;
+    }
+    this.assetManagementService
+      .getLinkedTicketsForAsset(normalized)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (tickets) => this.linkedTicketIds.set(new Set(tickets.map((ticket) => ticket.ticket_id))),
+        error: (error: Error) => this.errorMessage.set(error.message)
+      });
+  }
+
+  onDateFilterChanged(value: Date | null): void {
+    this.selectedDate.set(value ? this.toDateInputValue(value) : null);
+  }
+
+  clearDateFilter(): void {
+    this.selectedDate.set(null);
+  }
+
   private sortTickets(tickets: TicketSummary[]): TicketSummary[] {
     return [...tickets].sort((left, right) => right.updated_at.localeCompare(left.updated_at));
   }
@@ -349,8 +405,16 @@ export class TicketsPageComponent {
   private applyTicketListState(rows: readonly TicketTableItem[], context: TicketListContextId): TicketTableItem[] {
     const state = this.listUiState()[context];
     const searchTerm = state.search.trim().toLowerCase();
+    const linkedTicketIds = this.linkedTicketIds();
+    const selectedDate = this.selectedDate();
 
     const filteredRows = rows.filter((row) => {
+      if (linkedTicketIds && !linkedTicketIds.has(row.ticketId)) {
+        return false;
+      }
+      if (selectedDate && !this.ticketMatchesDate(row, selectedDate)) {
+        return false;
+      }
       const statusMatches = state.status === 'all' || row.statusKey === state.status;
       if (!statusMatches) {
         return false;
@@ -370,6 +434,10 @@ export class TicketsPageComponent {
 
     const direction = state.sortDirection === 'asc' ? 1 : -1;
     return [...filteredRows].sort((left, right) => left.updatedAtRaw.localeCompare(right.updatedAtRaw) * direction);
+  }
+
+  private ticketMatchesDate(row: TicketTableItem, selectedDate: string): boolean {
+    return [row.createdAtRaw, row.updatedAtRaw].some((value) => this.toDateInputValue(value) === selectedDate);
   }
 
   private buildInitialListUiState(context: TicketListContextId): TicketListUiState {
@@ -401,6 +469,25 @@ export class TicketsPageComponent {
       hour: '2-digit',
       minute: '2-digit'
     });
+  }
+
+  private toDateInputValue(value: string | Date): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private fromDateInputValue(value: string): Date | null {
+    const [year, month, day] = value.split('-').map((part) => Number(part));
+    if (!year || !month || !day) {
+      return null;
+    }
+    return new Date(year, month - 1, day);
   }
 
   // -------------------------------------------------------------------------

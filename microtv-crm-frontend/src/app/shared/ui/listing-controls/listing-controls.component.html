@@ -25,6 +25,32 @@
     </mat-form-field>
   }
 
+  @if (showAssetFilter()) {
+    <mat-form-field appearance="outline" class="listing-controls__status">
+      <mat-label>Buscar por activo</mat-label>
+      <mat-select [value]="selectedAsset()" (valueChange)="onAssetSelect($event)">
+        <mat-option value="">Todos los activos</mat-option>
+        @for (option of assetOptions(); track option.value) {
+          <mat-option [value]="option.value">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  }
+
+  @if (showDateFilter()) {
+    <mat-form-field appearance="outline" class="listing-controls__date">
+      <mat-label>Fecha</mat-label>
+      <input matInput [matDatepicker]="listingDatePicker" [value]="selectedDate()" (dateChange)="onDateSelect($event.value)" readonly />
+      @if (selectedDate()) {
+        <button mat-icon-button matSuffix type="button" aria-label="Limpiar fecha" (click)="clearDate()">
+          <mat-icon>close</mat-icon>
+        </button>
+      }
+      <mat-datepicker-toggle matIconSuffix [for]="listingDatePicker"></mat-datepicker-toggle>
+      <mat-datepicker #listingDatePicker></mat-datepicker>
+    </mat-form-field>
+  }
+
   <div class="listing-controls__actions">
     <button mat-stroked-button type="button" (click)="toggleSortDirection()">
       <mat-icon>{{ sortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>

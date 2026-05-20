@@ -47,6 +47,19 @@ from crm_backend.schemas.stock import (
     UpdateProductLocationRequest,
     UpdateStockProductRequest,
 )
+from crm_backend.schemas.asset_schemas import (
+    AssetCategoryFieldResponse,
+    AssetCategoryResponse,
+    AssetFieldValueRequest,
+    AssetFieldValueResponse,
+    AssetResponse,
+    AssetSummaryResponse,
+    CreateAssetCategoryFieldRequest,
+    CreateAssetCategoryRequest,
+    CreateAssetRequest,
+    LinkAssetRequest,
+    UpdateAssetRequest,
+)
 from crm_backend.schemas.tasks import (
     ApproveTaskRequest,
     AssignSubtaskRequest,
@@ -104,6 +117,17 @@ from crm_backend.schemas.activity_log import (
 
 __all__ = [
     "AccessPendingResponse",
+    "AssetCategoryFieldResponse",
+    "AssetCategoryResponse",
+    "AssetFieldValueRequest",
+    "AssetFieldValueResponse",
+    "AssetResponse",
+    "AssetSummaryResponse",
+    "CreateAssetCategoryFieldRequest",
+    "CreateAssetCategoryRequest",
+    "CreateAssetRequest",
+    "LinkAssetRequest",
+    "UpdateAssetRequest",
     "ActiveMembershipResponse",
     "AuthenticatedUserResponse",
     "ContextSelectionRequiredResponse",

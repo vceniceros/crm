@@ -37,6 +37,10 @@
   border-color: rgba(23, 24, 26, 0.12);
 }
 
+.tasks-page__asset-filter {
+  width: min(100%, 28rem);
+}
+
 .tasks-page__message,
 .tasks-page__create-card,
 .tasks-page__task-card {

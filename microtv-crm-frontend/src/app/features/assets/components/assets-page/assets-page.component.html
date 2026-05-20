@@ -1,0 +1,66 @@
+<section class="assets-page">
+  <header class="page-header">
+    <div>
+      <h1>Activos</h1>
+      <p>Equipos fisicos vinculados a clientes, tickets y pedidos.</p>
+    </div>
+    <div class="actions">
+      @if (isAdmin()) {
+        <button mat-stroked-button type="button" (click)="openCreateCategoryDialog()">
+          <mat-icon>category</mat-icon>
+          Nueva categoria
+        </button>
+      }
+      <button mat-flat-button color="primary" type="button" (click)="openCreateAssetDialog()">
+        <mat-icon>add</mat-icon>
+        Nuevo activo
+      </button>
+    </div>
+  </header>
+
+  <div class="filters">
+    <mat-form-field appearance="outline">
+      <mat-label>Buscar</mat-label>
+      <input matInput [value]="search()" (input)="setSearch($any($event.target).value)">
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Categoria</mat-label>
+      <mat-select [value]="categoryId() || ''" (selectionChange)="setCategory($event.value)">
+        <mat-option value="">Todas</mat-option>
+        @for (category of categories(); track category.asset_category_id) {
+          <mat-option [value]="category.asset_category_id">{{ category.category_name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <table mat-table [dataSource]="assets()" class="asset-table">
+    <ng-container matColumnDef="asset_name">
+      <th mat-header-cell *matHeaderCellDef>Activo</th>
+      <td mat-cell *matCellDef="let asset"><a [routerLink]="['/assets', asset.asset_id]">{{ asset.asset_name }}</a></td>
+    </ng-container>
+    <ng-container matColumnDef="category_name">
+      <th mat-header-cell *matHeaderCellDef>Categoria</th>
+      <td mat-cell *matCellDef="let asset">{{ asset.category_name }}</td>
+    </ng-container>
+    <ng-container matColumnDef="client_name">
+      <th mat-header-cell *matHeaderCellDef>Cliente</th>
+      <td mat-cell *matCellDef="let asset">{{ asset.client_name }}</td>
+    </ng-container>
+    <ng-container matColumnDef="parent_asset_name">
+      <th mat-header-cell *matHeaderCellDef>Padre</th>
+      <td mat-cell *matCellDef="let asset">{{ asset.parent_asset_name || '-' }}</td>
+    </ng-container>
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef></th>
+      <td mat-cell *matCellDef="let asset">
+        @if (isAdmin()) {
+          <button mat-icon-button type="button" (click)="openEditAssetDialog(asset)" aria-label="Editar activo"><mat-icon>edit</mat-icon></button>
+          <button mat-icon-button type="button" (click)="deleteAsset(asset)" aria-label="Eliminar activo"><mat-icon>delete</mat-icon></button>
+        }
+      </td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+  </table>
+</section>

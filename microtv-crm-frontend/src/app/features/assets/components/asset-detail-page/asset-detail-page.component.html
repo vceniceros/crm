@@ -1,0 +1,38 @@
+@if (asset(); as item) {
+  <section class="asset-detail">
+    <a mat-button routerLink="/assets"><mat-icon>arrow_back</mat-icon>Volver</a>
+    <header>
+      <h1>{{ item.asset_name }}</h1>
+      <p>{{ item.category_name }} · {{ item.client_name }}</p>
+    </header>
+
+    <div class="detail-grid">
+      <div><span>Activo padre</span><strong>{{ item.parent_asset_name || '-' }}</strong></div>
+      @for (field of item.field_values; track field.field_id) {
+        <div><span>{{ field.field_name }}</span><strong>{{ field.raw_value || '-' }}</strong></div>
+      }
+      <div class="wide"><span>Notas</span><strong>{{ item.notes || '-' }}</strong></div>
+    </div>
+
+    <mat-tab-group>
+      <mat-tab label="Tickets vinculados">
+        <div class="linked-list">
+          @for (ticket of tickets(); track ticket.ticket_id) {
+            <a [routerLink]="['/tickets', ticket.ticket_id]">{{ ticket.ticket_number }} · {{ ticket.title }} · {{ ticket.status }}</a>
+          } @empty {
+            <p>No hay tickets vinculados.</p>
+          }
+        </div>
+      </mat-tab>
+      <mat-tab label="Pedidos vinculados">
+        <div class="linked-list">
+          @for (task of tasks(); track task.task_id) {
+            <a [routerLink]="['/tasks', task.task_id]">{{ task.task_title }} · {{ task.status }}</a>
+          } @empty {
+            <p>No hay pedidos vinculados.</p>
+          }
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  </section>
+}

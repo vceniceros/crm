@@ -13,6 +13,7 @@ from sqlalchemy.orm import Mapped, foreign, mapped_column, relationship
 from crm_backend.db.base import Base
 
 if TYPE_CHECKING:
+    from crm_backend.models.asset_link import TicketAsset
     from crm_backend.models.crm_role import CrmRole
     from crm_backend.models.crm_user import CrmUser
     from crm_backend.models.material_flow import InventoryDispatch, InventoryRequest, TicketRequiredMaterial
@@ -209,6 +210,13 @@ class Ticket(Base):
         back_populates="ticket",
         cascade="all, delete-orphan",
         order_by="TicketSatisfactionForm.created_at.desc()",
+        lazy="selectin",
+    )
+    asset_links: Mapped[list["TicketAsset"]] = relationship(
+        "TicketAsset",
+        back_populates="ticket",
+        cascade="all, delete-orphan",
+        order_by="TicketAsset.linked_at",
         lazy="selectin",
     )
 

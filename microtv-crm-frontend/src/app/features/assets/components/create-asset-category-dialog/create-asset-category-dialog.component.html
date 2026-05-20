@@ -1,0 +1,44 @@
+<h2 mat-dialog-title>Nueva categoria</h2>
+<mat-dialog-content [formGroup]="form" class="category-dialog">
+  <mat-form-field appearance="outline">
+    <mat-label>Nombre</mat-label>
+    <input matInput formControlName="category_name">
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Descripcion</mat-label>
+    <textarea matInput rows="2" formControlName="description"></textarea>
+  </mat-form-field>
+
+  <div formArrayName="fields" class="fields">
+    @for (field of fields.controls; track $index) {
+      <div [formGroupName]="$index" class="field-row">
+        <mat-form-field appearance="outline">
+          <mat-label>Campo</mat-label>
+          <input matInput formControlName="field_name">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Tipo</mat-label>
+          <mat-select formControlName="field_type">
+            @for (type of fieldTypes; track type.value) {
+              <mat-option [value]="type.value">{{ type.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-checkbox formControlName="is_required">Requerido</mat-checkbox>
+        <button mat-icon-button type="button" (click)="removeField($index)" [disabled]="fields.length === 1" aria-label="Eliminar campo">
+          <mat-icon>delete</mat-icon>
+        </button>
+      </div>
+    }
+  </div>
+
+  <button mat-stroked-button type="button" (click)="addField()">
+    <mat-icon>add</mat-icon>
+    Agregar campo
+  </button>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Cancelar</button>
+  <button mat-flat-button color="primary" (click)="save()">Crear</button>
+</mat-dialog-actions>

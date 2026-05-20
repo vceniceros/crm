@@ -1,6 +1,7 @@
 """Repository exports for the CRM backend."""
 
 from crm_backend.repositories.client_repository import ClientRepository
+from crm_backend.repositories.asset_repository import AssetRepository
 from crm_backend.repositories.crm_role_repository import CrmRoleRepository
 from crm_backend.repositories.crm_user_repository import CrmUserRepository
 from crm_backend.repositories.inventory_flow_repository import InventoryFlowRepository
@@ -17,6 +18,7 @@ from crm_backend.repositories.ticket_repository import TicketRepository
 
 __all__ = [
 	"ClientRepository",
+	"AssetRepository",
 	"CrmRoleRepository",
 	"CrmUserRepository",
 	"InventoryFlowRepository",

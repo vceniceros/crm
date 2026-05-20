@@ -5,6 +5,9 @@ from crm_backend.models.crm_user import CrmUser
 from crm_backend.models.crm_user_role import CrmUserRole
 from crm_backend.models.permission import RolePermission, UserPermission
 from crm_backend.models.activity_log import ActivityLog, ActivityLogArchive
+from crm_backend.models.asset import Asset, AssetFieldValue
+from crm_backend.models.asset_category import AssetCategory, AssetCategoryField
+from crm_backend.models.asset_link import TaskAsset, TicketAsset
 from crm_backend.models.stock_category import StockCategory
 from crm_backend.models.stock_level import StockLevel
 from crm_backend.models.stock_movement import StockMovement, StockMovementType
@@ -81,6 +84,12 @@ __all__ = [
 	"UserPermission",
 	"ActivityLog",
 	"ActivityLogArchive",
+	"Asset",
+	"AssetFieldValue",
+	"AssetCategory",
+	"AssetCategoryField",
+	"TaskAsset",
+	"TicketAsset",
 	"StockCategory",
 	"StockLevel",
 	"StockMovement",
