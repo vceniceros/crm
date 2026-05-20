@@ -22,10 +22,12 @@ export class ReportsService {
   loadFilterCatalogs(reportId: ReportId): Observable<ReportFilterCatalogs> {
     return forkJoin({
       users: this.requiresUserOptions(reportId) ? this.loadOptions('/api/reports/options/users') : of([]),
-      clients: reportId === 'tickets-by-client' ? this.loadOptions('/api/reports/options/clients') : of([]),
-      categories: reportId === 'stock-critical' || reportId === 'tickets-by-category'
-        ? this.loadOptions(reportId === 'tickets-by-category' ? '/api/reports/options/operational-categories' : '/api/reports/options/categories')
+      clients: this.requiresClientOptions(reportId) ? this.loadOptions('/api/reports/options/clients') : of([]),
+      categories: this.requiresCategoryOptions(reportId)
+        ? this.loadOptions(this.usesOperationalCategories(reportId) ? '/api/reports/options/operational-categories' : '/api/reports/options/categories')
         : of([]),
+      locations: reportId === 'my-tickets' ? this.loadOptions('/api/reports/options/locations') : of([]),
+      roles: this.requiresRoleOptions(reportId) ? this.loadOptions('/api/reports/options/roles') : of([]),
       warehouses: reportId === 'stock-critical' ? this.loadOptions('/api/reports/options/warehouses') : of([]),
       technicians: reportId === 'tasks-by-status' || reportId === 'tasks-by-technician' ? this.loadOptions('/api/reports/options/technicians') : of([]),
       actionTypes: reportId === 'activity-by-user' ? this.loadOptions('/api/reports/options/action-types') : of([])
@@ -58,6 +60,10 @@ export class ReportsService {
 
   private resolveEndpoint(reportId: ReportId): string | null {
     switch (reportId) {
+      case 'my-tickets':
+        return '/api/reports/my-tickets';
+      case 'my-tasks':
+        return '/api/reports/my-tasks';
       case 'tickets-by-status':
       case 'tickets-by-priority':
       case 'tickets-by-client':
@@ -73,13 +79,61 @@ export class ReportsService {
         return '/api/reports/deposit-requests';
       case 'activity-by-user':
         return '/api/reports/user-activity';
+      case 'executive-performance':
+      case 'executive-by-category':
+      case 'executive-by-priority':
+      case 'executive-by-client':
+        return '/api/reports/executive/performance';
       default:
         return null;
     }
   }
 
   private requiresUserOptions(reportId: ReportId): boolean {
-    return reportId === 'activity-by-user' || reportId === 'deposit-requests-status';
+    return reportId === 'activity-by-user'
+      || reportId === 'deposit-requests-status'
+      || reportId === 'executive-performance'
+      || reportId === 'executive-by-category'
+      || reportId === 'executive-by-priority'
+      || reportId === 'executive-by-client';
+  }
+
+  private requiresClientOptions(reportId: ReportId): boolean {
+    return reportId === 'tickets-by-client'
+      || reportId === 'my-tickets'
+      || reportId === 'my-tasks'
+      || reportId === 'executive-performance'
+      || reportId === 'executive-by-category'
+      || reportId === 'executive-by-priority'
+      || reportId === 'executive-by-client';
+  }
+
+  private requiresCategoryOptions(reportId: ReportId): boolean {
+    return reportId === 'stock-critical'
+      || reportId === 'tickets-by-category'
+      || reportId === 'my-tickets'
+      || reportId === 'my-tasks'
+      || reportId === 'executive-performance'
+      || reportId === 'executive-by-category'
+      || reportId === 'executive-by-priority'
+      || reportId === 'executive-by-client';
+  }
+
+  private requiresRoleOptions(reportId: ReportId): boolean {
+    return reportId === 'executive-performance'
+      || reportId === 'executive-by-category'
+      || reportId === 'executive-by-priority'
+      || reportId === 'executive-by-client';
+  }
+
+  private usesOperationalCategories(reportId: ReportId): boolean {
+    return reportId === 'tickets-by-category'
+      || reportId === 'my-tickets'
+      || reportId === 'my-tasks'
+      || reportId === 'executive-performance'
+      || reportId === 'executive-by-category'
+      || reportId === 'executive-by-priority'
+      || reportId === 'executive-by-client';
   }
 
   private loadOptions(path: string): Observable<ReportOption[]> {

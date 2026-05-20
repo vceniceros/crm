@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -11,9 +11,12 @@ from pydantic import BaseModel, Field
 ReportKind = Literal[
     "tickets",
     "tasks",
+    "my_tickets",
+    "my_tasks",
     "stock_critical",
     "deposit_requests",
     "user_activity",
+    "executive_performance",
 ]
 
 ChartKind = Literal["area", "line", "bar", "horizontal_bar", "donut", "pie"]
@@ -35,6 +38,36 @@ class ReportKpiItem(BaseModel):
     key: str
     label: str
     value: float | int | str
+
+
+class MyTicketReportParams(BaseModel):
+    date_from: date | None = None
+    date_to: date | None = None
+    category_id: str | None = None
+    priority: str | None = None
+    client_id: str | None = None
+    location_id: str | None = None
+    group_by: str = "status"
+
+
+class MyTaskReportParams(BaseModel):
+    date_from: date | None = None
+    date_to: date | None = None
+    category_id: str | None = None
+    priority: str | None = None
+    client_id: str | None = None
+    group_by: str = "status"
+
+
+class ExecutivePerformanceParams(BaseModel):
+    date_from: date | None = None
+    date_to: date | None = None
+    group_by: str = "user"
+    category_id: str | None = None
+    priority: str | None = None
+    client_id: str | None = None
+    role_key: str | None = None
+    user_id: str | None = None
 
 
 class ReportSummaryBase(BaseModel):
@@ -132,6 +165,70 @@ class UserActivityReportRow(BaseModel):
     description: str
 
 
+class MyTicketReportSummary(ReportSummaryBase):
+    resolved: int
+    closed: int
+    open: int
+    avg_resolution_hours: float | None = None
+    min_resolution_hours: float | None = None
+    max_resolution_hours: float | None = None
+    resolution_rate: float = 0
+
+
+class MyTaskReportSummary(ReportSummaryBase):
+    completed: int
+    pending: int
+    blocked: int
+    avg_completion_hours: float | None = None
+    min_completion_hours: float | None = None
+    max_completion_hours: float | None = None
+    completion_rate: float = 0
+
+
+class ExecutivePerformanceSummary(ReportSummaryBase):
+    total_groups: int
+    overall_avg_close_hours: float | None = None
+    best_performer: str | None = None
+    worst_performer: str | None = None
+
+
+class MyTicketReportRow(BaseModel):
+    ticket_number: str
+    title: str
+    status: str
+    priority: str
+    category: str | None = None
+    client: str
+    location: str | None = None
+    created_at: datetime
+    resolution_hours: float | None = None
+
+
+class MyTaskReportRow(BaseModel):
+    task_code: str
+    title: str
+    status: str
+    priority: str
+    category: str | None = None
+    client: str
+    created_at: datetime
+    completion_hours: float | None = None
+
+
+class ExecutivePerformanceRow(BaseModel):
+    group_key: str
+    group_label: str
+    primary_role: str | None = None
+    total_assigned: int
+    closed_count: int
+    rejected_count: int
+    avg_close_hours: float | None = None
+    min_close_hours: float | None = None
+    max_close_hours: float | None = None
+    total_comments: int
+    avg_comments_per_ticket: float | None = None
+
+
 class TicketReportResponse(BaseModel):
     report_kind: Literal["tickets"] = "tickets"
     chart_kind: ChartKind
@@ -175,6 +272,33 @@ class UserActivityReportResponse(BaseModel):
     kpis: list[ReportKpiItem] = Field(default_factory=list)
     series: list[ReportSeriesPoint] = Field(default_factory=list)
     rows: list[UserActivityReportRow] = Field(default_factory=list)
+
+
+class MyTicketReportResponse(BaseModel):
+    report_kind: Literal["my_tickets"] = "my_tickets"
+    chart_kind: ChartKind
+    summary: MyTicketReportSummary
+    kpis: list[ReportKpiItem] = Field(default_factory=list)
+    series: list[ReportSeriesPoint] = Field(default_factory=list)
+    rows: list[MyTicketReportRow] = Field(default_factory=list)
+
+
+class MyTaskReportResponse(BaseModel):
+    report_kind: Literal["my_tasks"] = "my_tasks"
+    chart_kind: ChartKind
+    summary: MyTaskReportSummary
+    kpis: list[ReportKpiItem] = Field(default_factory=list)
+    series: list[ReportSeriesPoint] = Field(default_factory=list)
+    rows: list[MyTaskReportRow] = Field(default_factory=list)
+
+
+class ExecutivePerformanceResponse(BaseModel):
+    report_kind: Literal["executive_performance"] = "executive_performance"
+    chart_kind: ChartKind = "horizontal_bar"
+    summary: ExecutivePerformanceSummary
+    kpis: list[ReportKpiItem] = Field(default_factory=list)
+    series: list[ReportSeriesPoint] = Field(default_factory=list)
+    rows: list[ExecutivePerformanceRow] = Field(default_factory=list)
 
 
 class CategoryResolutionRow(BaseModel):

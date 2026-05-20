@@ -75,5 +75,3 @@ o
 - estadisticas por tickets y por tecnicos, para poder medir tiempos de respuesta, tiempos de cierre, cantidad de tickets por tecnico, etc
 
 - opcion generar reportes
-
-- elefante en el placard: categorias por tipo de ticket, para poder categorizar mejor los tickets y luego poder hacer reportes o reglas de asignacion basados en ese campo

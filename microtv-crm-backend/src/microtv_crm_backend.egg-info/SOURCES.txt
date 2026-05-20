@@ -10,6 +10,7 @@ src/crm_backend/api/error_handlers.py
 src/crm_backend/api/router.py
 src/crm_backend/api/endpoints/__init__.py
 src/crm_backend/api/endpoints/activity_log.py
+src/crm_backend/api/endpoints/assets.py
 src/crm_backend/api/endpoints/auth.py
 src/crm_backend/api/endpoints/clients.py
 src/crm_backend/api/endpoints/crm_users.py
@@ -38,6 +39,10 @@ src/crm_backend/infrastructure/product_image_storage.py
 src/crm_backend/infrastructure/task_media_storage.py
 src/crm_backend/models/__init__.py
 src/crm_backend/models/activity_log.py
+src/crm_backend/models/asset.py
+src/crm_backend/models/asset_category.py
+src/crm_backend/models/asset_category_field.py
+src/crm_backend/models/asset_link.py
 src/crm_backend/models/crm_role.py
 src/crm_backend/models/crm_user.py
 src/crm_backend/models/crm_user_role.py
@@ -58,6 +63,7 @@ src/crm_backend/models/ticket.py
 src/crm_backend/models/warehouse.py
 src/crm_backend/repositories/__init__.py
 src/crm_backend/repositories/activity_log_repository.py
+src/crm_backend/repositories/asset_repository.py
 src/crm_backend/repositories/client_repository.py
 src/crm_backend/repositories/crm_role_repository.py
 src/crm_backend/repositories/crm_user_repository.py
@@ -73,6 +79,7 @@ src/crm_backend/repositories/task_template_repository.py
 src/crm_backend/repositories/ticket_repository.py
 src/crm_backend/schemas/__init__.py
 src/crm_backend/schemas/activity_log.py
+src/crm_backend/schemas/asset_schemas.py
 src/crm_backend/schemas/auth.py
 src/crm_backend/schemas/clients.py
 src/crm_backend/schemas/common.py
@@ -108,6 +115,11 @@ src/crm_backend/services/task_pre_form_service.py
 src/crm_backend/services/task_satisfaction_form_service.py
 src/crm_backend/services/ticket_export_service.py
 src/crm_backend/services/ticket_service.py
+src/crm_backend/services/assets/__init__.py
+src/crm_backend/services/assets/application.py
+src/crm_backend/services/assets/builder.py
+src/crm_backend/services/assets/exceptions.py
+src/crm_backend/services/assets/strategies.py
 src/crm_backend/services/tasks/__init__.py
 src/crm_backend/services/tasks/action_execution.py
 src/crm_backend/services/tasks/application.py

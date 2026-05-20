@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from statistics import mean
 
@@ -17,6 +17,7 @@ from crm_backend.models import (
     CrmUserRole,
     InventoryDispatch,
     InventoryRequest,
+    Location,
     StockLevel,
     StockCategory,
     StockProduct,
@@ -36,6 +37,15 @@ from crm_backend.schemas.reports import (
     DepositRequestReportResponse,
     DepositRequestReportRow,
     DepositRequestReportSummary,
+    ExecutivePerformanceResponse,
+    ExecutivePerformanceRow,
+    ExecutivePerformanceSummary,
+    MyTaskReportResponse,
+    MyTaskReportRow,
+    MyTaskReportSummary,
+    MyTicketReportResponse,
+    MyTicketReportRow,
+    MyTicketReportSummary,
     ReportKpiItem,
     ReportOptionItem,
     ReportSeriesPoint,
@@ -59,6 +69,18 @@ from crm_backend.services.auth_service import ResolvedCrmSession
 class DateRange:
     start: datetime | None
     end: datetime | None
+
+
+@dataclass(slots=True)
+class ExecutiveAggregate:
+    group_key: str
+    group_label: str
+    primary_role: str | None = None
+    total_assigned: int = 0
+    closed_count: int = 0
+    rejected_count: int = 0
+    close_hours: list[float] = field(default_factory=list)
+    total_comments: int = 0
 
 
 class ReportsService:
@@ -140,6 +162,41 @@ class ReportsService:
             ).all()
         )
         return [ReportOptionItem(id=client.client_id, label=client.business_name) for client in clients]
+
+    def list_location_options(self, actor: ResolvedCrmSession) -> list[ReportOptionItem]:
+        _ = actor
+        locations = list(
+            self._session.scalars(
+                select(Location)
+                .order_by(Location.address_label.asc(), Location.formatted_address.asc(), Location.location_id.asc())
+            ).all()
+        )
+        return [
+            ReportOptionItem(id=location.location_id, label=self._location_label(location) or location.location_id)
+            for location in locations
+        ]
+
+    def list_role_options(self, actor: ResolvedCrmSession) -> list[ReportOptionItem]:
+        self._ensure_can_view_executive(actor)
+        roles = list(
+            self._session.scalars(
+                select(CrmRole)
+                .where(CrmRole.is_active.is_(True))
+                .order_by(CrmRole.role_label.asc(), CrmRole.role_key.asc())
+            ).all()
+        )
+        options: dict[str, ReportOptionItem] = {}
+        for role in roles:
+            normalized = self._normalize_role_key(role.role_key)
+            if normalized is None:
+                continue
+            if normalized not in {"admin", "ejecutivo", "tecnico", "deposito"}:
+                continue
+            options.setdefault(
+                normalized,
+                ReportOptionItem(id=normalized, label=role.role_label or normalized.title()),
+            )
+        return sorted(options.values(), key=lambda option: option.label)
 
     def list_category_options(self, actor: ResolvedCrmSession) -> list[ReportOptionItem]:
         self._ensure_can_view_stock(actor)
@@ -302,6 +359,250 @@ class ReportsService:
             summary=summary,
             kpis=self._task_kpis(summary),
             series=self._build_task_series(tasks, group_by),
+            rows=rows,
+        )
+
+    def my_tickets_report(
+        self,
+        actor: ResolvedCrmSession,
+        *,
+        date_from: date | None,
+        date_to: date | None,
+        category_id: str | None,
+        priority: str | None,
+        client_id: str | None,
+        location_id: str | None,
+        group_by: str,
+    ) -> MyTicketReportResponse:
+        query = (
+            select(Ticket)
+            .where(Ticket.deleted_at.is_(None))
+            .where(
+                or_(
+                    Ticket.assigned_user_id == actor.crm_user.crm_user_id,
+                    Ticket.created_by_crm_user_id == actor.crm_user.crm_user_id,
+                )
+            )
+        )
+        range_filter = self._to_datetime_range(date_from, date_to)
+        if range_filter.start is not None:
+            query = query.where(Ticket.created_at >= range_filter.start)
+        if range_filter.end is not None:
+            query = query.where(Ticket.created_at <= range_filter.end)
+        if category_id:
+            query = query.where(Ticket.category_id == category_id)
+        if priority:
+            query = query.where(Ticket.priority == priority)
+        if client_id:
+            query = query.where(Ticket.client_id == client_id)
+        if location_id:
+            query = query.where(Ticket.location_id == location_id)
+
+        tickets = list(self._session.scalars(query.order_by(Ticket.created_at.desc())).all())
+        resolution_hours = [
+            self._ticket_resolution_hours(ticket)
+            for ticket in tickets
+            if self._ticket_resolution_hours(ticket) is not None
+        ]
+        resolved_count = sum(1 for ticket in tickets if ticket.status in {"RESOLVED", "CLOSED"})
+        closed_count = sum(1 for ticket in tickets if ticket.status == "CLOSED")
+        open_count = sum(1 for ticket in tickets if ticket.status in {"OPEN", "IN_PROGRESS", "ON_HOLD", "PENDING_APPROVAL"})
+
+        summary = MyTicketReportSummary(
+            total=len(tickets),
+            resolved=resolved_count,
+            closed=closed_count,
+            open=open_count,
+            avg_resolution_hours=round(mean(resolution_hours), 2) if resolution_hours else None,
+            min_resolution_hours=round(min(resolution_hours), 2) if resolution_hours else None,
+            max_resolution_hours=round(max(resolution_hours), 2) if resolution_hours else None,
+            resolution_rate=round((resolved_count / len(tickets)) * 100, 2) if tickets else 0,
+        )
+        rows = [
+            MyTicketReportRow(
+                ticket_number=ticket.ticket_number,
+                title=ticket.title,
+                status=ticket.status,
+                priority=ticket.priority,
+                category=ticket.category_name,
+                client=ticket.client_name,
+                location=self._location_label(ticket.location),
+                created_at=ticket.created_at,
+                resolution_hours=self._ticket_resolution_hours(ticket),
+            )
+            for ticket in tickets
+        ]
+
+        return MyTicketReportResponse(
+            chart_kind=self._my_ticket_chart_kind(group_by),
+            summary=summary,
+            kpis=self._my_ticket_kpis(summary),
+            series=self._build_my_ticket_series(tickets, group_by),
+            rows=rows,
+        )
+
+    def my_tasks_report(
+        self,
+        actor: ResolvedCrmSession,
+        *,
+        date_from: date | None,
+        date_to: date | None,
+        category_id: str | None,
+        priority: str | None,
+        client_id: str | None,
+        group_by: str,
+    ) -> MyTaskReportResponse:
+        query = (
+            select(Task)
+            .where(Task.deleted_at.is_(None))
+            .where(Task.current_assigned_crm_user_id == actor.crm_user.crm_user_id)
+        )
+        range_filter = self._to_datetime_range(date_from, date_to)
+        if range_filter.start is not None:
+            query = query.where(Task.created_at >= range_filter.start)
+        if range_filter.end is not None:
+            query = query.where(Task.created_at <= range_filter.end)
+        if category_id:
+            query = query.where(Task.category_id == category_id)
+        if priority:
+            query = query.where(Task.priority == priority)
+        if client_id:
+            query = query.where(Task.client_id == client_id)
+
+        tasks = list(self._session.scalars(query.order_by(Task.created_at.desc())).all())
+        completion_hours = [
+            self._task_completion_hours(task)
+            for task in tasks
+            if self._task_completion_hours(task) is not None
+        ]
+        completed_count = sum(1 for task in tasks if task.status == TaskStatus.COMPLETED.value)
+        blocked_count = sum(1 for task in tasks if task.status == TaskStatus.BLOCKED.value)
+        pending_count = len(tasks) - completed_count - blocked_count
+
+        summary = MyTaskReportSummary(
+            total=len(tasks),
+            completed=completed_count,
+            pending=pending_count,
+            blocked=blocked_count,
+            avg_completion_hours=round(mean(completion_hours), 2) if completion_hours else None,
+            min_completion_hours=round(min(completion_hours), 2) if completion_hours else None,
+            max_completion_hours=round(max(completion_hours), 2) if completion_hours else None,
+            completion_rate=round((completed_count / len(tasks)) * 100, 2) if tasks else 0,
+        )
+        rows = [
+            MyTaskReportRow(
+                task_code=self._visible_task_code(task.task_id),
+                title=task.task_title,
+                status=task.status,
+                priority=task.priority,
+                category=task.category_name,
+                client=task.client_name,
+                created_at=task.created_at,
+                completion_hours=self._task_completion_hours(task),
+            )
+            for task in tasks
+        ]
+
+        return MyTaskReportResponse(
+            chart_kind=self._my_task_chart_kind(group_by),
+            summary=summary,
+            kpis=self._my_task_kpis(summary),
+            series=self._build_my_task_series(tasks, group_by),
+            rows=rows,
+        )
+
+    def executive_performance_report(
+        self,
+        actor: ResolvedCrmSession,
+        *,
+        date_from: date | None,
+        date_to: date | None,
+        group_by: str,
+        category_id: str | None,
+        priority: str | None,
+        client_id: str | None,
+        role_key: str | None,
+        user_id: str | None,
+    ) -> ExecutivePerformanceResponse:
+        self._ensure_can_view_executive(actor)
+
+        query = select(Ticket).where(Ticket.deleted_at.is_(None))
+        range_filter = self._to_datetime_range(date_from, date_to)
+        if range_filter.start is not None:
+            query = query.where(Ticket.created_at >= range_filter.start)
+        if range_filter.end is not None:
+            query = query.where(Ticket.created_at <= range_filter.end)
+        if category_id:
+            query = query.where(Ticket.category_id == category_id)
+        if priority:
+            query = query.where(Ticket.priority == priority)
+        if client_id:
+            query = query.where(Ticket.client_id == client_id)
+        if user_id:
+            query = query.where(Ticket.assigned_user_id == user_id)
+
+        tickets = list(self._session.scalars(query.order_by(Ticket.created_at.desc())).all())
+        normalized_role = self._normalize_role_key(role_key)
+        if normalized_role:
+            tickets = [ticket for ticket in tickets if self._ticket_matches_role_filter(ticket, normalized_role)]
+
+        aggregates: dict[str, ExecutiveAggregate] = {}
+        all_close_hours: list[float] = []
+        for ticket in tickets:
+            group_key, group_label, primary_role = self._executive_grouping(ticket, group_by)
+            aggregate = aggregates.setdefault(
+                group_key,
+                ExecutiveAggregate(group_key=group_key, group_label=group_label, primary_role=primary_role),
+            )
+            aggregate.total_assigned += 1
+            aggregate.primary_role = aggregate.primary_role or primary_role
+            if ticket.closed_at is not None:
+                aggregate.closed_count += 1
+                close_hours = (ticket.closed_at - ticket.created_at).total_seconds() / 3600
+                aggregate.close_hours.append(close_hours)
+                all_close_hours.append(close_hours)
+            aggregate.total_comments += len(ticket.comments)
+            aggregate.rejected_count += self._ticket_rejection_count(ticket)
+
+        rows = [
+            ExecutivePerformanceRow(
+                group_key=aggregate.group_key,
+                group_label=aggregate.group_label,
+                primary_role=aggregate.primary_role,
+                total_assigned=aggregate.total_assigned,
+                closed_count=aggregate.closed_count,
+                rejected_count=aggregate.rejected_count,
+                avg_close_hours=round(mean(aggregate.close_hours), 2) if aggregate.close_hours else None,
+                min_close_hours=round(min(aggregate.close_hours), 2) if aggregate.close_hours else None,
+                max_close_hours=round(max(aggregate.close_hours), 2) if aggregate.close_hours else None,
+                total_comments=aggregate.total_comments,
+                avg_comments_per_ticket=round(aggregate.total_comments / aggregate.total_assigned, 2)
+                if aggregate.total_assigned
+                else None,
+            )
+            for aggregate in aggregates.values()
+        ]
+        rows.sort(
+            key=lambda row: (
+                row.avg_close_hours is None,
+                row.avg_close_hours if row.avg_close_hours is not None else float("inf"),
+                row.group_label,
+            )
+        )
+
+        performers = [row for row in rows if row.avg_close_hours is not None]
+        summary = ExecutivePerformanceSummary(
+            total=len(tickets),
+            total_groups=len(rows),
+            overall_avg_close_hours=round(mean(all_close_hours), 2) if all_close_hours else None,
+            best_performer=performers[0].group_label if performers else None,
+            worst_performer=performers[-1].group_label if performers else None,
+        )
+
+        return ExecutivePerformanceResponse(
+            summary=summary,
+            kpis=self._executive_kpis(summary),
+            series=self._build_executive_series(rows),
             rows=rows,
         )
 
@@ -802,6 +1103,220 @@ class ReportsService:
         start = datetime.combine(date_from, datetime.min.time(), tzinfo=UTC) if date_from else None
         end = datetime.combine(date_to, datetime.max.time(), tzinfo=UTC) if date_to else None
         return DateRange(start=start, end=end)
+
+    def _ticket_resolution_hours(self, ticket: Ticket) -> float | None:
+        finished_at = ticket.resolved_at or ticket.closed_at
+        if finished_at is None:
+            return None
+        return round((finished_at - ticket.created_at).total_seconds() / 3600, 2)
+
+    def _task_completion_hours(self, task: Task) -> float | None:
+        if task.finalized_at is None:
+            return None
+        return round((task.finalized_at - task.created_at).total_seconds() / 3600, 2)
+
+    def _my_ticket_chart_kind(self, group_by: str) -> str:
+        if group_by == "priority":
+            return "donut"
+        if group_by == "time-series":
+            return "area"
+        if group_by == "status":
+            return "bar"
+        return "horizontal_bar"
+
+    def _my_task_chart_kind(self, group_by: str) -> str:
+        if group_by == "time-series":
+            return "area"
+        if group_by == "status":
+            return "bar"
+        return "horizontal_bar"
+
+    def _build_my_ticket_series(self, tickets: list[Ticket], group_by: str) -> list[ReportSeriesPoint]:
+        if group_by == "time-series":
+            bucket: dict[str, int] = defaultdict(int)
+            for ticket in tickets:
+                bucket[ticket.created_at.date().isoformat()] += 1
+            return [ReportSeriesPoint(label="Tickets", date=day, value=value) for day, value in sorted(bucket.items())]
+
+        bucket: dict[str, int] = defaultdict(int)
+        for ticket in tickets:
+            if group_by == "status":
+                key = ticket.status
+                label = self._status_label(key)
+            elif group_by == "priority":
+                key = ticket.priority
+                label = self._priority_label(key)
+            elif group_by == "category":
+                key = ticket.category_id or "__uncategorized__"
+                label = ticket.category_name or "Sin categoría"
+            elif group_by == "client":
+                key = ticket.client_id
+                label = ticket.client_name
+            elif group_by == "location":
+                key = ticket.location_id
+                label = self._location_label(ticket.location) or "Sin ubicación"
+            else:
+                key = ticket.status
+                label = self._status_label(ticket.status)
+            bucket[f"{key}::{label}"] += 1
+
+        ordered = sorted(bucket.items(), key=lambda item: (-item[1], item[0]))
+        return [
+            ReportSeriesPoint(label=item.split("::", 1)[1], date=item.split("::", 1)[1], value=value)
+            for item, value in ordered
+        ]
+
+    def _build_my_task_series(self, tasks: list[Task], group_by: str) -> list[ReportSeriesPoint]:
+        if group_by == "time-series":
+            bucket: dict[str, int] = defaultdict(int)
+            for task in tasks:
+                bucket[task.created_at.date().isoformat()] += 1
+            return [ReportSeriesPoint(label="Tareas", date=day, value=value) for day, value in sorted(bucket.items())]
+
+        bucket: dict[str, int] = defaultdict(int)
+        for task in tasks:
+            if group_by == "status":
+                key = task.status
+                label = self._status_label(key)
+            elif group_by == "category":
+                key = task.category_id or "__uncategorized__"
+                label = task.category_name or "Sin categoría"
+            elif group_by == "client":
+                key = task.client_id
+                label = task.client_name
+            else:
+                key = task.status
+                label = self._status_label(task.status)
+            bucket[f"{key}::{label}"] += 1
+
+        ordered = sorted(bucket.items(), key=lambda item: (-item[1], item[0]))
+        return [
+            ReportSeriesPoint(label=item.split("::", 1)[1], date=item.split("::", 1)[1], value=value)
+            for item, value in ordered
+        ]
+
+    def _my_ticket_kpis(self, summary: MyTicketReportSummary) -> list[ReportKpiItem]:
+        return [
+            ReportKpiItem(key="total", label="Total", value=summary.total),
+            ReportKpiItem(key="resolved", label="Resueltos", value=summary.resolved),
+            ReportKpiItem(key="closed", label="Cerrados", value=summary.closed),
+            ReportKpiItem(key="open", label="Abiertos", value=summary.open),
+            ReportKpiItem(key="avg_resolution_hours", label="Promedio resolución (h)", value=summary.avg_resolution_hours if summary.avg_resolution_hours is not None else "N/D"),
+            ReportKpiItem(key="min_resolution_hours", label="Mínimo resolución (h)", value=summary.min_resolution_hours if summary.min_resolution_hours is not None else "N/D"),
+            ReportKpiItem(key="max_resolution_hours", label="Máximo resolución (h)", value=summary.max_resolution_hours if summary.max_resolution_hours is not None else "N/D"),
+            ReportKpiItem(key="resolution_rate", label="Tasa resolución (%)", value=summary.resolution_rate),
+        ]
+
+    def _my_task_kpis(self, summary: MyTaskReportSummary) -> list[ReportKpiItem]:
+        return [
+            ReportKpiItem(key="total", label="Total", value=summary.total),
+            ReportKpiItem(key="completed", label="Completadas", value=summary.completed),
+            ReportKpiItem(key="pending", label="Pendientes", value=summary.pending),
+            ReportKpiItem(key="blocked", label="Bloqueadas", value=summary.blocked),
+            ReportKpiItem(key="avg_completion_hours", label="Promedio cierre (h)", value=summary.avg_completion_hours if summary.avg_completion_hours is not None else "N/D"),
+            ReportKpiItem(key="min_completion_hours", label="Mínimo cierre (h)", value=summary.min_completion_hours if summary.min_completion_hours is not None else "N/D"),
+            ReportKpiItem(key="max_completion_hours", label="Máximo cierre (h)", value=summary.max_completion_hours if summary.max_completion_hours is not None else "N/D"),
+            ReportKpiItem(key="completion_rate", label="Tasa cierre (%)", value=summary.completion_rate),
+        ]
+
+    def _executive_kpis(self, summary: ExecutivePerformanceSummary) -> list[ReportKpiItem]:
+        return [
+            ReportKpiItem(key="total_groups", label="Grupos analizados", value=summary.total_groups),
+            ReportKpiItem(key="overall_avg_close_hours", label="Promedio global cierre (h)", value=summary.overall_avg_close_hours if summary.overall_avg_close_hours is not None else "N/D"),
+            ReportKpiItem(key="best_performer", label="Mejor desempeño", value=summary.best_performer or "N/D"),
+            ReportKpiItem(key="worst_performer", label="Peor desempeño", value=summary.worst_performer or "N/D"),
+        ]
+
+    def _executive_grouping(self, ticket: Ticket, group_by: str) -> tuple[str, str, str | None]:
+        primary_role = self._ticket_primary_role(ticket)
+        if group_by == "role":
+            key = primary_role or self._normalize_role_key(ticket.assigned_role_key) or "__unassigned__"
+            return key, self._role_label_from_key(key), primary_role
+        if group_by == "category":
+            key = ticket.category_id or "__uncategorized__"
+            return key, ticket.category_name or "Sin categoría", primary_role
+        if group_by == "priority":
+            key = ticket.priority or "__no_priority__"
+            return key, self._priority_label(key), primary_role
+        if group_by == "client":
+            key = ticket.client_id or "__no_client__"
+            return key, ticket.client_name or "Sin cliente", primary_role
+        user_key = ticket.assigned_user_id or "__unassigned__"
+        return user_key, ticket.assigned_user_display_name or "Sin asignar", primary_role
+
+    def _build_executive_series(self, rows: list[ExecutivePerformanceRow]) -> list[ReportSeriesPoint]:
+        return [
+            ReportSeriesPoint(label=row.group_label, date=row.group_label, value=row.avg_close_hours or 0)
+            for row in rows
+        ]
+
+    def _ticket_rejection_count(self, ticket: Ticket) -> int:
+        total = 0
+        for event in ticket.audit_events:
+            if event.event_type == "ticket.rejected_by_executive":
+                total += 1
+                continue
+            from_status = str(event.payload_json.get("from_status") or "")
+            to_status = str(event.payload_json.get("to_status") or "")
+            if from_status == "PENDING_APPROVAL" and to_status in {"OPEN", "IN_PROGRESS"}:
+                total += 1
+        return total
+
+    def _ticket_primary_role(self, ticket: Ticket) -> str | None:
+        if ticket.assigned_user and ticket.assigned_user.assigned_roles:
+            for assignment in ticket.assigned_user.assigned_roles:
+                normalized = self._normalize_role_key(getattr(getattr(assignment, "role", None), "role_key", None))
+                if normalized in {"admin", "ejecutivo", "tecnico", "deposito"}:
+                    return normalized
+        return self._normalize_role_key(ticket.assigned_role_key)
+
+    def _ticket_matches_role_filter(self, ticket: Ticket, role_key: str) -> bool:
+        if self._ticket_primary_role(ticket) == role_key:
+            return True
+        if ticket.assigned_user is None:
+            return False
+        return any(
+            self._normalize_role_key(getattr(getattr(assignment, "role", None), "role_key", None)) == role_key
+            for assignment in ticket.assigned_user.assigned_roles
+        )
+
+    def _ensure_can_view_executive(self, actor: ResolvedCrmSession) -> None:
+        if not {"admin", "ejecutivo"}.intersection(actor.role_keys):
+            raise PermissionError("La operación requiere rol administrador o ejecutivo.")
+
+    def _normalize_role_key(self, role_key: str | None) -> str | None:
+        if not isinstance(role_key, str):
+            return None
+        normalized = role_key.strip()
+        if normalized == "admin_crm":
+            return "admin"
+        if normalized == "tecnico_campo":
+            return "tecnico"
+        if normalized == "encargado_deposito":
+            return "deposito"
+        return normalized or None
+
+    def _role_label_from_key(self, role_key: str) -> str:
+        if role_key == "admin":
+            return "Administrador"
+        if role_key == "ejecutivo":
+            return "Ejecutivo"
+        if role_key == "tecnico":
+            return "Técnico"
+        if role_key == "deposito":
+            return "Depósito"
+        if role_key == "__unassigned__":
+            return "Sin asignar"
+        return role_key
+
+    def _location_label(self, location: Location | None) -> str | None:
+        if location is None:
+            return None
+        if location.address_label:
+            return location.address_label
+        if location.formatted_address:
+            return location.formatted_address
+        return None
 
     def _ticket_kpis(self, summary: TicketReportSummary) -> list[ReportKpiItem]:
         return [

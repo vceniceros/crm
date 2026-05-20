@@ -138,7 +138,7 @@ export const routes: Routes = [
 			},
 			{
 				path: 'reports',
-				canActivate: [adminOrExecutiveGuard],
+				canActivate: [authGuard],
 				loadChildren: () => import('./features/reports/reports-routing.module').then((module) => module.REPORTS_ROUTES),
 				data: { title: 'Reportes' }
 			},
