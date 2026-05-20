@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, Integer, JSON, String, Text, Uuid, UniqueConstraint, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, JSON, String, Text, Uuid, UniqueConstraint, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from crm_backend.db.base import Base
 
+if TYPE_CHECKING:
+    from crm_backend.models.crm_role import CrmRole
+
 
 class CrmCategory(Base):
-    """Configurable category used across CRM entities."""
+    """Configurable category used across CRM entities (tickets, tasks)."""
 
     __tablename__ = "crm_categories"
 
@@ -21,7 +25,25 @@ class CrmCategory(Base):
     category_type: Mapped[str] = mapped_column(String(50), index=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+
+    # Default role assigned when creating a ticket/task with this category
+    default_role_id: Mapped[str | None] = mapped_column(
+        Uuid(as_uuid=False), ForeignKey("crm_roles.crm_role_id"), nullable=True, index=True
+    )
+
+    # Automatic scheduling settings (only for categories that allow it)
+    allows_scheduling: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # Period type: 'daily', 'weekly', 'biweekly', 'monthly', 'custom'
+    schedule_period_type: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    schedule_interval_weeks: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    schedule_weekdays_json: Mapped[list[int]] = mapped_column(JSON, default=list)
+    schedule_start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    schedule_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    default_role: Mapped["CrmRole | None"] = relationship("CrmRole", foreign_keys=[default_role_id], lazy="joined")
 
 
 class CrmPriority(Base):

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class SettingsRoleResponse(BaseModel):
@@ -75,7 +75,26 @@ class SettingsCategoryResponse(BaseModel):
     category_type: str
     description: str | None
     is_active: bool
+    is_system: bool = False
+    default_role_id: str | None = None
+    default_role_key: str | None = None
+    default_role_label: str | None = None
+    allows_scheduling: bool = False
+    schedule_period_type: str | None = None
+    schedule_interval_weeks: int | None = None
+    schedule_weekdays_json: list[int] = Field(default_factory=list)
+    schedule_start_date: date | None = None
+    schedule_end_date: date | None = None
     created_at: datetime
+
+    @classmethod
+    def from_orm_with_role(cls, obj: object) -> "SettingsCategoryResponse":
+        instance = cls.model_validate(obj)
+        role = getattr(obj, "default_role", None)
+        if role is not None:
+            instance.default_role_key = getattr(role, "role_key", None)
+            instance.default_role_label = getattr(role, "role_label", None)
+        return instance
 
 
 class SettingsCategoryWriteRequest(BaseModel):
@@ -83,6 +102,26 @@ class SettingsCategoryWriteRequest(BaseModel):
     category_type: str = Field(..., min_length=1, max_length=50)
     description: str | None = None
     is_active: bool = True
+    default_role_id: str | None = None
+    allows_scheduling: bool = False
+    schedule_period_type: str | None = Field(default=None, pattern=r"^(daily|weekly|biweekly|monthly|custom)$")
+    schedule_interval_weeks: int | None = Field(default=None, ge=1, le=52)
+    schedule_weekdays_json: list[int] = Field(default_factory=list)
+    schedule_start_date: date | None = None
+    schedule_end_date: date | None = None
+
+    @field_validator("schedule_weekdays_json")
+    @classmethod
+    def validate_weekdays(cls, value: list[int]) -> list[int]:
+        weekdays: set[int] = set()
+        for day in value:
+            try:
+                normalized = int(day)
+            except (TypeError, ValueError):
+                continue
+            if 1 <= normalized <= 7:
+                weekdays.add(normalized)
+        return sorted(weekdays)
 
 
 class SettingsPriorityResponse(BaseModel):

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from crm_backend.db import Base
 from crm_backend.models import CrmRole, CrmUser, CrmUserRole, RolePermission, StockCategory, StockProduct, Warehouse
+from crm_backend.models.settings import CrmCategory
 
 
 _logger = logging.getLogger(__name__)
@@ -209,6 +210,7 @@ def _initialize_database_inner(session: Session) -> None:
 
     _ensure_seed_tech_user(session)
     _ensure_seed_role_permissions(session)
+    _ensure_crm_category_seeds(session)
     session.commit()
 
 
@@ -261,6 +263,35 @@ def _ensure_seed_tech_user(session: Session) -> None:
         )
 
 
+CRM_CATEGORY_SEEDS = (
+    {
+        "name": "Incidente",
+        "category_type": "operational",
+        "description": "Categoría general de incidentes (default del sistema).",
+        "is_system": True,
+        "allows_scheduling": False,
+    },
+)
+
+
+def _ensure_crm_category_seeds(session: Session) -> None:
+    """Seed default CRM operational categories. Idempotent."""
+    existing_names = {cat.name.lower() for cat in session.query(CrmCategory).all()}
+    for seed in CRM_CATEGORY_SEEDS:
+        if seed["name"].lower() in existing_names:
+            continue
+        session.add(
+            CrmCategory(
+                name=seed["name"],
+                category_type=seed["category_type"],
+                description=seed.get("description"),
+                is_active=True,
+                is_system=seed.get("is_system", False),
+                allows_scheduling=seed.get("allows_scheduling", False),
+            )
+        )
+
+
 def _ensure_extension_tables(session: Session) -> None:
     table_names = [
         "crm_role_permissions",
@@ -294,6 +325,7 @@ def _ensure_extension_tables(session: Session) -> None:
         "ticket_status_transitions",
         "ticket_assignment_history",
         "ticket_audit_events",
+        "crm_categories",
         "crm_notifications",
         "push_subscriptions",
         "ticket_satisfaction_forms",
@@ -317,6 +349,8 @@ def _ensure_extension_tables(session: Session) -> None:
     _ensure_ticket_attachment_columns(session, inspector)
     _ensure_ticket_comment_columns(session)
     _ensure_ticket_columns(session, inspector)
+    _ensure_tasks_category_column(session, inspector)
+    _ensure_crm_category_columns(session, inspector)
     _ensure_crm_user_columns(session, inspector)
     _ensure_crm_role_columns(session, inspector)
     _ensure_satisfaction_columns(session, inspector)
@@ -636,6 +670,104 @@ def _ensure_ticket_comment_columns(session: Session) -> None:
 
     session.execute(text("CREATE INDEX IF NOT EXISTS idx_ticket_comments_location ON ticket_comments(location_id)"))
     session.commit()
+
+
+def _ensure_tasks_category_column(session: Session, inspector=None) -> None:
+    """Add category_id FK column to tasks and tickets tables if missing (idempotent)."""
+    bind = session.get_bind()
+    if bind.dialect.name != "postgresql":
+        return
+
+    table_names = set(inspect(bind).get_table_names())
+    if "crm_categories" not in table_names:
+        _logger.warning("Skipping task/ticket category columns because crm_categories table is not visible yet")
+        return
+
+    if "tasks" not in table_names and "tickets" not in table_names:
+        return
+
+    # Use ADD COLUMN IF NOT EXISTS: bypasses inspector cache issues, fully idempotent.
+    if "tasks" in table_names:
+        session.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS category_id UUID"))
+        session.execute(text("CREATE INDEX IF NOT EXISTS idx_tasks_category_id ON tasks(category_id)"))
+        _ensure_crm_category_fk(session, "tasks", "fk_tasks_category_crm_categories")
+
+    if "tickets" in table_names:
+        session.execute(text("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS category_id UUID"))
+        session.execute(text("CREATE INDEX IF NOT EXISTS idx_tickets_category_id ON tickets(category_id)"))
+        _ensure_crm_category_fk(session, "tickets", "fk_tickets_category_crm_categories")
+
+    session.commit()
+
+
+def _ensure_crm_category_fk(session: Session, table_name: str, constraint_name: str) -> None:
+    session.execute(
+        text(
+            f"""
+            DO $$
+            DECLARE
+                fk_record RECORD;
+            BEGIN
+                FOR fk_record IN
+                    SELECT con.conname
+                    FROM pg_constraint con
+                    JOIN pg_attribute att
+                      ON att.attrelid = con.conrelid
+                     AND att.attnum = ANY(con.conkey)
+                    WHERE con.contype = 'f'
+                      AND con.conrelid = 'public.{table_name}'::regclass
+                      AND att.attname = 'category_id'
+                      AND con.confrelid <> 'public.crm_categories'::regclass
+                LOOP
+                    EXECUTE format('ALTER TABLE public.{table_name} DROP CONSTRAINT IF EXISTS %I', fk_record.conname);
+                END LOOP;
+
+                UPDATE public.{table_name} table_row
+                SET category_id = NULL
+                WHERE category_id IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM public.crm_categories category_row
+                      WHERE category_row.category_id = table_row.category_id
+                  );
+
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint con
+                    JOIN pg_attribute att
+                      ON att.attrelid = con.conrelid
+                     AND att.attnum = ANY(con.conkey)
+                    WHERE con.contype = 'f'
+                      AND con.conrelid = 'public.{table_name}'::regclass
+                      AND att.attname = 'category_id'
+                      AND con.confrelid = 'public.crm_categories'::regclass
+                ) THEN
+                    ALTER TABLE public.{table_name}
+                        ADD CONSTRAINT {constraint_name}
+                        FOREIGN KEY (category_id) REFERENCES public.crm_categories(category_id);
+                END IF;
+            END $$;
+            """
+        )
+    )
+
+
+def _ensure_crm_category_columns(session: Session, inspector=None) -> None:
+    bind = session.get_bind()
+    if bind.dialect.name != "postgresql":
+        return
+
+    active_inspector = inspector or inspect(bind)
+    table_names = set(active_inspector.get_table_names())
+    if "crm_categories" not in table_names:
+        return
+
+    category_columns = {column["name"] for column in inspect(bind).get_columns("crm_categories")}
+    if "schedule_weekdays_json" not in category_columns:
+        session.execute(
+            text("ALTER TABLE crm_categories ADD COLUMN schedule_weekdays_json JSONB NOT NULL DEFAULT '[]'::jsonb")
+        )
+        session.commit()
 
 
 def _ensure_ticket_columns(session: Session, inspector=None) -> None:

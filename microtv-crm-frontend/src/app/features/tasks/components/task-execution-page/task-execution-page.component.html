@@ -33,6 +33,8 @@
       <div class="task-execution-page__header-side">
         <app-status-badge [label]="taskExecutionStatusLabel(task)" [tone]="toTaskTone(task.status)" />
 
+        <app-status-badge [label]="task.category_name || 'Sin categoria'" tone="neutral" />
+
         <div
           class="task-execution-page__assignee"
           [class.task-execution-page__assignee--action]="canOpenHeaderAssigneeMenu()"

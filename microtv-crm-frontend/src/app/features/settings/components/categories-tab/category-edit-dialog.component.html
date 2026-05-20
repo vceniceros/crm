@@ -1,0 +1,75 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Editar categoría' : 'Nueva categoría' }}</h2>
+
+<mat-dialog-content [formGroup]="form">
+  <mat-form-field appearance="outline">
+    <mat-label>Nombre</mat-label>
+    <input matInput formControlName="name" />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Descripción</mat-label>
+    <textarea matInput rows="2" formControlName="description"></textarea>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Rol por defecto</mat-label>
+    <mat-select formControlName="default_role_id">
+      <mat-option [value]="null">Sin rol específico (cualquiera)</mat-option>
+      @for (role of data.roles; track role.crm_role_id) {
+        <mat-option [value]="role.crm_role_id">{{ role.role_label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <div class="category-edit-dialog__toggle-row">
+    <mat-slide-toggle formControlName="allows_scheduling">Permite programación automática</mat-slide-toggle>
+    <mat-slide-toggle formControlName="is_active">Activo</mat-slide-toggle>
+  </div>
+
+  @if (allowsScheduling) {
+    <mat-form-field appearance="outline">
+      <mat-label>Tipo de período</mat-label>
+      <mat-select formControlName="schedule_period_type">
+        <mat-option [value]="null">—</mat-option>
+        @for (opt of periodOptions; track opt.value) {
+          <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    @if (isCustomPeriod) {
+      <mat-form-field appearance="outline">
+        <mat-label>Intervalo (semanas)</mat-label>
+        <input matInput type="number" min="1" max="52" formControlName="schedule_interval_weeks" />
+      </mat-form-field>
+    }
+
+    @if (usesWeekdays) {
+      <mat-form-field appearance="outline">
+        <mat-label>Dias de ejecucion</mat-label>
+        <mat-select formControlName="schedule_weekdays_json" multiple>
+          @for (day of weekdayOptions; track day.value) {
+            <mat-option [value]="day.value">{{ day.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
+
+    <mat-form-field appearance="outline">
+      <mat-label>Fecha inicio (YYYY-MM-DD)</mat-label>
+      <input matInput placeholder="2024-01-01" formControlName="schedule_start_date" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Fecha fin (YYYY-MM-DD, opcional)</mat-label>
+      <input matInput placeholder="2024-12-31" formControlName="schedule_end_date" />
+    </mat-form-field>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button [mat-dialog-close]="undefined">Cancelar</button>
+  <button mat-flat-button color="primary" type="button" [disabled]="form.invalid" (click)="submit()">
+    {{ isEdit ? 'Guardar' : 'Crear' }}
+  </button>
+</mat-dialog-actions>

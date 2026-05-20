@@ -116,6 +116,16 @@ export interface SettingsCategory {
   category_type: string;
   description: string | null;
   is_active: boolean;
+  is_system: boolean;
+  default_role_id: string | null;
+  default_role_key: string | null;
+  default_role_label: string | null;
+  allows_scheduling: boolean;
+  schedule_period_type: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'custom' | null;
+  schedule_interval_weeks: number | null;
+  schedule_weekdays_json: number[];
+  schedule_start_date: string | null;
+  schedule_end_date: string | null;
   created_at: string;
 }
 
@@ -124,6 +134,13 @@ export interface SettingsCategoryWriteRequest {
   category_type: string;
   description?: string | null;
   is_active: boolean;
+  default_role_id?: string | null;
+  allows_scheduling: boolean;
+  schedule_period_type?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'custom' | null;
+  schedule_interval_weeks?: number | null;
+  schedule_weekdays_json?: number[];
+  schedule_start_date?: string | null;
+  schedule_end_date?: string | null;
 }
 
 export interface SettingsPriority {

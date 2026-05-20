@@ -41,6 +41,13 @@
           <td mat-cell *matCellDef="let task">{{ task.client }}</td>
         </ng-container>
 
+        <ng-container matColumnDef="category">
+          <th mat-header-cell *matHeaderCellDef>{{ labelFor('category') }}</th>
+          <td mat-cell *matCellDef="let task">
+            <span class="tasks-table__category-chip">{{ task.categoryName || 'Sin categoria' }}</span>
+          </td>
+        </ng-container>
+
         <ng-container matColumnDef="subtasks">
           <th mat-header-cell *matHeaderCellDef>{{ labelFor('subtasks') }}</th>
           <td mat-cell *matCellDef="let task">
@@ -103,6 +110,11 @@
                 <span>{{ completionRatio(task.completedSubtasks, task.totalSubtasks) }}% completo</span>
               </div>
             </div>
+          </div>
+
+          <div class="tasks-table__mobile-block">
+            <p class="tasks-table__mobile-label">{{ labelFor('category') }}</p>
+            <span class="tasks-table__category-chip tasks-table__category-chip--mobile">{{ task.categoryName || 'Sin categoria' }}</span>
           </div>
 
           <div class="tasks-table__mobile-block">

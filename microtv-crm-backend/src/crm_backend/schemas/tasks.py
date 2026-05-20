@@ -86,6 +86,7 @@ class CreateTaskFromTemplateRequest(BaseModel):
     location_id: str | None = None
     task_title: str | None = Field(default=None, min_length=1, max_length=255)
     task_description: str | None = None
+    category_id: str | None = None
     requires_arrival_comment: bool | None = None
     requires_video_evidence: bool | None = None
     extra_materials: list[RequiredMaterialItem] = Field(default_factory=list)
@@ -232,6 +233,8 @@ class TaskSummaryResponse(BaseModel):
     task_title: str
     task_description: str | None
     status: str
+    category_id: str | None = None
+    category_name: str | None = None
     requires_arrival_comment: bool = False
     requires_video_evidence: bool = False
     arrival_registered_at: datetime | None = None

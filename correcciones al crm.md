@@ -55,11 +55,9 @@ o
 - agregar categorias a despachos reales/ productos requeridos (ejemplo si son 5 camaras marcar ccamaras 5 entoncers cualquier producto de tipo camara ya cumpliria esa categoria)
 - agregar el boton de camara al adjuntaar multimedia
 
-- poder pegar capturas en multimedia
 
-- unificar las funciones en un panel
 - poder buscar tickets por comentarios
-- poder asignar a mas de un tecncio a un ticket
+
 - agregar un campo de "tipo de solicitud" a los tickets, para poder categorizar mejor los tickets y luego poder hacer reportes o reglas de asignacion basados en ese campo
 
 - base de conocimientos: 
@@ -68,3 +66,14 @@ o
 
 - agregar herramientas de trabajo (autos, herramientas, etc) para poder asociar a los tickets y llevar un control de su uso   
 
+- agregar tareas programadas , opoder configurar dias semanales y hroas donde el ticket o se asigna a un usuario o se asigna a un rol
+
+- temas buses amarillo y rojo, ver si darles acceso, si hacer informes generales para ellos, por cada unidad, etc
+
+
+
+- estadisticas por tickets y por tecnicos, para poder medir tiempos de respuesta, tiempos de cierre, cantidad de tickets por tecnico, etc
+
+- opcion generar reportes
+
+- elefante en el placard: categorias por tipo de ticket, para poder categorizar mejor los tickets y luego poder hacer reportes o reglas de asignacion basados en ese campo

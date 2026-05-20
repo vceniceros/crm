@@ -87,6 +87,7 @@ export interface CreateTaskFromTemplateRequest {
   location_id: string | null;
   task_title: string | null;
   task_description: string | null;
+  category_id?: string | null;
   requires_arrival_comment?: boolean | null;
   requires_video_evidence?: boolean | null;
   extra_materials?: TaskExtraMaterialWrite[];
@@ -221,6 +222,8 @@ export interface TaskSummary {
   task_title: string;
   task_description: string | null;
   status: TaskStatus;
+  category_id: string | null;
+  category_name: string | null;
   requires_arrival_comment: boolean;
   requires_video_evidence: boolean;
   arrival_registered_at: string | null;
@@ -345,6 +348,8 @@ export interface TaskDetail {
   task_title: string;
   task_description: string | null;
   status: TaskStatus;
+  category_id: string | null;
+  category_name: string | null;
   requires_arrival_comment: boolean;
   requires_video_evidence: boolean;
   arrival_registered_at: string | null;

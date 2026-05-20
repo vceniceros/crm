@@ -14,6 +14,17 @@
     </mat-select>
   </mat-form-field>
 
+  @if (categoryOptions().length) {
+    <mat-form-field appearance="outline" class="listing-controls__status">
+      <mat-label>CategorÃ­a</mat-label>
+      <mat-select [value]="selectedCategory()" (valueChange)="onCategorySelect($event)">
+        @for (option of categoryOptions(); track option.value) {
+          <mat-option [value]="option.value">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  }
+
   <div class="listing-controls__actions">
     <button mat-stroked-button type="button" (click)="toggleSortDirection()">
       <mat-icon>{{ sortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>

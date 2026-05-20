@@ -15,8 +15,10 @@ import { switchMap, take } from 'rxjs';
 import { InventoryProduct } from '../../../../core/models/inventory-product.model';
 import { AppLocation } from '../../../../core/models/location.model';
 import { ClientSummary, TaskDetail, TaskTemplate } from '../../../../core/models/task-management.model';
+import { SettingsCategory } from '../../../../core/models/settings-management.model';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { TaskManagementService } from '../../../../core/services/task-management.service';
+import { SettingsManagementService } from '../../../../core/services/settings-management.service';
 import { LocationLinkService } from '../../../../shared/services/location-link.service';
 import { LocationPickerService } from '../../../../shared/services/location-picker.service';
 import { LocationMapComponent } from '../../../../shared/ui/location-map/location-map.component';
@@ -58,6 +60,7 @@ export class CreateTaskDialogComponent {
   private readonly inventoryService = inject(InventoryService);
   private readonly locationPickerService = inject(LocationPickerService);
   private readonly locationLinkService = inject(LocationLinkService);
+  private readonly settingsManagementService = inject(SettingsManagementService);
 
   readonly isLoading = signal(true);
   readonly isSubmitting = signal(false);
@@ -67,12 +70,14 @@ export class CreateTaskDialogComponent {
   readonly inventoryProducts = signal<InventoryProduct[]>([]);
   readonly extraMaterials = signal<ExtraMaterialSelection[]>([]);
   readonly selectedLocation = signal<AppLocation | null>(null);
+  readonly categories = signal<SettingsCategory[]>([]);
 
   readonly form = this.formBuilder.group({
     template_id: this.formBuilder.control('', { validators: [Validators.required], nonNullable: true }),
     client_id: this.formBuilder.control('', { validators: [Validators.required], nonNullable: true }),
     task_title: this.formBuilder.control<string | null>(null),
     task_description: this.formBuilder.control<string | null>(null),
+    category_id: this.formBuilder.control<string | null>(null),
     requires_arrival_comment: this.formBuilder.control(false, { nonNullable: true }),
     requires_video_evidence: this.formBuilder.control(false, { nonNullable: true })
   });
@@ -204,7 +209,7 @@ export class CreateTaskDialogComponent {
   private loadBootstrapData(): void {
     this.isLoading.set(true);
 
-    let pendingRequests = 3;
+    let pendingRequests = 4;
     const onRequestCompleted = () => {
       pendingRequests -= 1;
       if (pendingRequests <= 0) {
@@ -256,6 +261,19 @@ export class CreateTaskDialogComponent {
           onRequestCompleted();
         }
       });
+
+    this.settingsManagementService
+      .listCategories('operational')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (cats) => {
+          this.categories.set(cats.filter((c) => c.is_active));
+          onRequestCompleted();
+        },
+        error: () => {
+          onRequestCompleted();
+        }
+      });
   }
 
   private submitTaskCreation(locationId: string | null): void {
@@ -266,6 +284,7 @@ export class CreateTaskDialogComponent {
         location_id: locationId,
         task_title: this.form.controls.task_title.getRawValue()?.trim() || null,
         task_description: this.form.controls.task_description.getRawValue()?.trim() || null,
+        category_id: this.form.controls.category_id.getRawValue() || null,
         requires_arrival_comment: this.form.controls.requires_arrival_comment.getRawValue(),
         requires_video_evidence: this.form.controls.requires_video_evidence.getRawValue(),
         extra_materials: this.buildExtraMaterialsPayload()

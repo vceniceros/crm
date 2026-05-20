@@ -15,6 +15,8 @@ export interface TaskListItem {
   totalSubtasks: number;
   status: string;
   statusTone: TicketStatusTone;
+  categoryId?: string | null;
+  categoryName?: string | null;
   assignedToUserId: number | string | null;
   assignedTo: string;
   assignedInitials: string;
@@ -25,7 +27,7 @@ export interface TaskListItem {
 }
 
 export interface TasksTableColumn {
-  key: 'id' | 'title' | 'client' | 'subtasks' | 'status' | 'assignedTo';
+  key: 'id' | 'title' | 'client' | 'category' | 'subtasks' | 'status' | 'assignedTo';
   label: string;
 }
 

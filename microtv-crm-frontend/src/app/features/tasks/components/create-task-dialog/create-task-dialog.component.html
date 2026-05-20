@@ -52,6 +52,16 @@
           <textarea matInput rows="3" formControlName="task_description" placeholder="Contexto para el equipo técnico"></textarea>
         </mat-form-field>
 
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Categoría</mat-label>
+          <mat-select formControlName="category_id">
+            <mat-option [value]="null">Sin categoría</mat-option>
+            @for (cat of categories(); track cat.category_id) {
+              <mat-option [value]="cat.category_id">{{ cat.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
         <mat-checkbox formControlName="requires_arrival_comment" class="create-task-dialog__description-field">
           Requiere registro de llegada
         </mat-checkbox>

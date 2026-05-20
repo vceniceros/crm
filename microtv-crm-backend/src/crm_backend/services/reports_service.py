@@ -28,7 +28,11 @@ from crm_backend.models import (
     TicketAuditEvent,
     Warehouse,
 )
+from crm_backend.models.settings import CrmCategory
 from crm_backend.schemas.reports import (
+    CategoryResolutionReportResponse,
+    CategoryResolutionReportSummary,
+    CategoryResolutionRow,
     DepositRequestReportResponse,
     DepositRequestReportRow,
     DepositRequestReportSummary,
@@ -878,3 +882,148 @@ class ReportsService:
 
     def _visible_dispatch_code(self, dispatch_id: str) -> str:
         return f"DSP-{dispatch_id[:8].upper()}"
+
+    def category_resolution_time_report(
+        self,
+        actor: ResolvedCrmSession,
+        date_from: date | None = None,
+        date_to: date | None = None,
+        category_type: str | None = None,
+    ) -> CategoryResolutionReportResponse:
+        """Returns average ticket resolution time grouped by operational category."""
+        if not {"admin", "ejecutivo"}.intersection(actor.role_keys):
+            raise PermissionError("La operación requiere rol administrador o ejecutivo.")
+
+        dr = self._to_datetime_range(date_from, date_to)
+
+        # Load all operational categories
+        cat_query = select(CrmCategory).where(CrmCategory.is_active.is_(True))
+        if category_type:
+            cat_query = cat_query.where(CrmCategory.category_type == category_type)
+        categories = list(self._session.scalars(cat_query.order_by(CrmCategory.name.asc())).all())
+
+        # Load closed tickets with a category in the date range
+        ticket_query = (
+            select(Ticket)
+            .where(Ticket.deleted_at.is_(None))
+            .where(Ticket.closed_at.isnot(None))
+            .where(Ticket.category_id.isnot(None))
+        )
+        if dr.start:
+            ticket_query = ticket_query.where(Ticket.created_at >= dr.start)
+        if dr.end:
+            ticket_query = ticket_query.where(Ticket.created_at <= dr.end)
+        tickets = list(self._session.scalars(ticket_query).all())
+
+        # Also count ALL tickets (open/closed) per category for the total
+        all_ticket_query = (
+            select(Ticket)
+            .where(Ticket.deleted_at.is_(None))
+            .where(Ticket.category_id.isnot(None))
+        )
+        if dr.start:
+            all_ticket_query = all_ticket_query.where(Ticket.created_at >= dr.start)
+        if dr.end:
+            all_ticket_query = all_ticket_query.where(Ticket.created_at <= dr.end)
+        all_tickets = list(self._session.scalars(all_ticket_query).all())
+
+        # Index by category_id
+        cat_map = {cat.category_id: cat for cat in categories}
+        closed_per_cat: dict[str, list[float]] = defaultdict(list)
+        total_per_cat: dict[str, int] = defaultdict(int)
+
+        for ticket in tickets:
+            if ticket.category_id and ticket.closed_at and ticket.created_at:
+                delta = ticket.closed_at - ticket.created_at
+                hours = delta.total_seconds() / 3600
+                closed_per_cat[ticket.category_id].append(hours)
+
+        for ticket in all_tickets:
+            if ticket.category_id:
+                total_per_cat[ticket.category_id] += 1
+
+        rows: list[CategoryResolutionRow] = []
+        all_resolution_hours: list[float] = []
+        for cat in categories:
+            cid = cat.category_id
+            resolution_hours = closed_per_cat.get(cid, [])
+            all_resolution_hours.extend(resolution_hours)
+            avg = mean(resolution_hours) if resolution_hours else None
+            rows.append(
+                CategoryResolutionRow(
+                    category_id=cid,
+                    category_name=cat.name,
+                    total_tickets=total_per_cat.get(cid, 0),
+                    closed_tickets=len(resolution_hours),
+                    avg_resolution_hours=round(avg, 2) if avg is not None else None,
+                    min_resolution_hours=round(min(resolution_hours), 2) if resolution_hours else None,
+                    max_resolution_hours=round(max(resolution_hours), 2) if resolution_hours else None,
+                )
+            )
+
+        # Add unassigned category row if there are tickets without category
+        uncategorized = [t for t in all_tickets if t.category_id is None or t.category_id not in cat_map]
+        if uncategorized:
+            unc_closed = [t for t in uncategorized if t.closed_at and t.created_at]
+            unc_hours = [(t.closed_at - t.created_at).total_seconds() / 3600 for t in unc_closed]  # type: ignore[operator]
+            all_resolution_hours.extend(unc_hours)
+            avg_unc = mean(unc_hours) if unc_hours else None
+            rows.append(
+                CategoryResolutionRow(
+                    category_id="__uncategorized__",
+                    category_name="Sin categoría",
+                    total_tickets=len(uncategorized),
+                    closed_tickets=len(unc_closed),
+                    avg_resolution_hours=round(avg_unc, 2) if avg_unc is not None else None,
+                    min_resolution_hours=round(min(unc_hours), 2) if unc_hours else None,
+                    max_resolution_hours=round(max(unc_hours), 2) if unc_hours else None,
+                )
+            )
+
+        rows.sort(key=lambda r: (r.avg_resolution_hours is None, r.avg_resolution_hours or 0))
+
+        overall_avg = round(mean(all_resolution_hours), 2) if all_resolution_hours else None
+        summary = CategoryResolutionReportSummary(
+            total_categories=len(categories),
+            total_tickets=sum(r.total_tickets for r in rows),
+            overall_avg_resolution_hours=overall_avg,
+        )
+
+        series = [
+            ReportSeriesPoint(
+                label=row.category_name,
+                date=row.category_name,
+                value=row.avg_resolution_hours or 0,
+                meta={"total": row.total_tickets, "closed": row.closed_tickets},
+            )
+            for row in rows
+            if row.avg_resolution_hours is not None
+        ]
+
+        return CategoryResolutionReportResponse(
+            chart_kind="horizontal_bar",
+            summary=summary,
+            kpis=[
+                ReportKpiItem(key="total_categories", label="Categorías", value=summary.total_categories),
+                ReportKpiItem(key="total_tickets", label="Tickets totales", value=summary.total_tickets),
+                ReportKpiItem(
+                    key="overall_avg_hours",
+                    label="Prom. resolución global (hs)",
+                    value=overall_avg if overall_avg is not None else "N/D",
+                ),
+            ],
+            series=series,
+            rows=rows,
+        )
+
+    def list_operational_category_options(self, actor: ResolvedCrmSession) -> list[ReportOptionItem]:
+        """Returns active CRM operational categories for report filters."""
+        _ = actor
+        categories = list(
+            self._session.scalars(
+                select(CrmCategory)
+                .where(CrmCategory.is_active.is_(True))
+                .order_by(CrmCategory.name.asc())
+            ).all()
+        )
+        return [ReportOptionItem(id=cat.category_id, label=cat.name) for cat in categories]

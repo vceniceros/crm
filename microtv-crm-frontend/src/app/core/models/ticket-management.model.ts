@@ -128,6 +128,8 @@ export interface TicketSummary {
   location: TicketLocation | null;
   status: TicketStatus;
   priority: TicketPriority;
+  category_id: string | null;
+  category_name: string | null;
   assigned_role_id: string | null;
   assigned_role_key: string | null;
   assigned_role_label: string | null;
@@ -188,6 +190,7 @@ export interface CreateTicketRequest {
   location_id: string | null;
   description: string;
   priority: TicketPriority;
+  category_id?: string | null;
   requires_arrival_comment?: boolean;
   requires_video_evidence?: boolean;
   assigned_role_id: string | null;
@@ -318,6 +321,8 @@ export interface TicketTableItem {
   statusTone: TicketStatusTone;
   priority: string;
   priorityTone: TicketPriorityTone;
+  categoryId: string | null;
+  categoryName: string | null;
   assignedTo: string;
   assignedUserId: string | null;
   assignedRoleId: string | null;

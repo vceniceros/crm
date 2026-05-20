@@ -90,6 +90,7 @@ class TaskBuilder:
             task_title=(payload.task_title or template.template_name).strip(),
             task_description=payload.task_description if payload.task_description is not None else template.description,
             status=TaskStatus.PENDING.value,
+            category_id=payload.category_id,
             requires_arrival_comment=(
                 template.requires_arrival_comment if payload.requires_arrival_comment is None else bool(payload.requires_arrival_comment)
             ),

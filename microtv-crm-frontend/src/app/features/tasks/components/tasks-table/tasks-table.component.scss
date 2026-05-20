@@ -50,7 +50,7 @@
 
 .tasks-table__table {
   width: 100%;
-  min-width: 860px;
+  min-width: 940px;
 }
 
 .tasks-table__title {
@@ -98,6 +98,28 @@
   align-items: center;
   gap: 0.7rem;
   font-weight: 600;
+}
+
+.tasks-table__category-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 11rem;
+  min-height: 1.6rem;
+  padding: 0.18rem 0.55rem;
+  border: 1px solid rgba(23, 24, 26, 0.1);
+  border-radius: 999px;
+  background: rgba(23, 24, 26, 0.04);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tasks-table__category-chip--mobile {
+  margin-top: 0.3rem;
+  max-width: 100%;
 }
 
 .mdc-data-table__header-cell,

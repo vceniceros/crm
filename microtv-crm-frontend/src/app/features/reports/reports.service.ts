@@ -23,7 +23,9 @@ export class ReportsService {
     return forkJoin({
       users: this.requiresUserOptions(reportId) ? this.loadOptions('/api/reports/options/users') : of([]),
       clients: reportId === 'tickets-by-client' ? this.loadOptions('/api/reports/options/clients') : of([]),
-      categories: reportId === 'stock-critical' ? this.loadOptions('/api/reports/options/categories') : of([]),
+      categories: reportId === 'stock-critical' || reportId === 'tickets-by-category'
+        ? this.loadOptions(reportId === 'tickets-by-category' ? '/api/reports/options/operational-categories' : '/api/reports/options/categories')
+        : of([]),
       warehouses: reportId === 'stock-critical' ? this.loadOptions('/api/reports/options/warehouses') : of([]),
       technicians: reportId === 'tasks-by-status' || reportId === 'tasks-by-technician' ? this.loadOptions('/api/reports/options/technicians') : of([]),
       actionTypes: reportId === 'activity-by-user' ? this.loadOptions('/api/reports/options/action-types') : of([])
@@ -60,6 +62,8 @@ export class ReportsService {
       case 'tickets-by-priority':
       case 'tickets-by-client':
         return '/api/reports/tickets';
+      case 'tickets-by-category':
+        return '/api/reports/category-resolution';
       case 'tasks-by-status':
       case 'tasks-by-technician':
         return '/api/reports/tasks';
