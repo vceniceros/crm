@@ -757,17 +757,66 @@ def _ensure_crm_category_columns(session: Session, inspector=None) -> None:
     if bind.dialect.name != "postgresql":
         return
 
-    active_inspector = inspector or inspect(bind)
-    table_names = set(active_inspector.get_table_names())
+    table_names = set(inspect(bind).get_table_names())
     if "crm_categories" not in table_names:
         return
 
     category_columns = {column["name"] for column in inspect(bind).get_columns("crm_categories")}
-    if "schedule_weekdays_json" not in category_columns:
-        session.execute(
-            text("ALTER TABLE crm_categories ADD COLUMN schedule_weekdays_json JSONB NOT NULL DEFAULT '[]'::jsonb")
+    column_statements = [
+        ("description", "ALTER TABLE crm_categories ADD COLUMN description TEXT"),
+        ("is_active", "ALTER TABLE crm_categories ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE"),
+        ("is_system", "ALTER TABLE crm_categories ADD COLUMN is_system BOOLEAN NOT NULL DEFAULT FALSE"),
+        ("default_role_id", "ALTER TABLE crm_categories ADD COLUMN default_role_id UUID"),
+        ("allows_scheduling", "ALTER TABLE crm_categories ADD COLUMN allows_scheduling BOOLEAN NOT NULL DEFAULT FALSE"),
+        ("schedule_period_type", "ALTER TABLE crm_categories ADD COLUMN schedule_period_type VARCHAR(30)"),
+        ("schedule_interval_weeks", "ALTER TABLE crm_categories ADD COLUMN schedule_interval_weeks INTEGER"),
+        ("schedule_weekdays_json", "ALTER TABLE crm_categories ADD COLUMN schedule_weekdays_json JSONB NOT NULL DEFAULT '[]'::jsonb"),
+        ("schedule_start_date", "ALTER TABLE crm_categories ADD COLUMN schedule_start_date DATE"),
+        ("schedule_end_date", "ALTER TABLE crm_categories ADD COLUMN schedule_end_date DATE"),
+        ("created_at", "ALTER TABLE crm_categories ADD COLUMN created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"),
+    ]
+    for column_name, statement in column_statements:
+        if column_name not in category_columns:
+            session.execute(text(statement))
+            category_columns.add(column_name)
+
+    session.execute(
+        text(
+            """
+            DO $$
+            BEGIN
+                UPDATE public.crm_categories category_row
+                SET default_role_id = NULL
+                WHERE default_role_id IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM public.crm_roles role_row
+                      WHERE role_row.crm_role_id = category_row.default_role_id
+                  );
+
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint con
+                    JOIN pg_attribute att
+                      ON att.attrelid = con.conrelid
+                     AND att.attnum = ANY(con.conkey)
+                    WHERE con.contype = 'f'
+                      AND con.conrelid = 'public.crm_categories'::regclass
+                      AND att.attname = 'default_role_id'
+                      AND con.confrelid = 'public.crm_roles'::regclass
+                ) THEN
+                    ALTER TABLE public.crm_categories
+                        ADD CONSTRAINT fk_crm_categories_default_role
+                        FOREIGN KEY (default_role_id) REFERENCES public.crm_roles(crm_role_id);
+                END IF;
+            END $$;
+            """
         )
-        session.commit()
+    )
+    session.execute(text("CREATE INDEX IF NOT EXISTS ix_crm_categories_name ON crm_categories(name)"))
+    session.execute(text("CREATE INDEX IF NOT EXISTS ix_crm_categories_category_type ON crm_categories(category_type)"))
+    session.execute(text("CREATE INDEX IF NOT EXISTS ix_crm_categories_default_role_id ON crm_categories(default_role_id)"))
+    session.commit()
 
 
 def _ensure_ticket_columns(session: Session, inspector=None) -> None:
