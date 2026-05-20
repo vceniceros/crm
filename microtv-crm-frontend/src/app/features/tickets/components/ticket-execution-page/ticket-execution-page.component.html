@@ -185,6 +185,9 @@
               [canAttach]="canOperateTicket()"
               [canPickLocation]="canOperateTicket()"
               [canRequestInventory]="canCreateInventoryRequest()"
+              [showAssetButton]="true"
+              [canLinkAssets]="canOperateTicket()"
+              [linkedAssetCount]="ticketAssets().length"
               [primaryActionLabel]="primaryActionLabel()"
               [primaryActionIcon]="primaryActionIcon()"
               [primaryActionDisabled]="!canExecutePrimaryAction()"
@@ -192,6 +195,7 @@
               (attachmentsClick)="openAttachmentsDialog(ticketAttachmentsDialog)"
               (locationClick)="openLocationDialog(ticketLocationDialog)"
               (inventoryClick)="openInventoryRequestDialog(ticketInventoryRequestDialog)"
+              (assetsClick)="openAssetVinculationDialog(ticketAssetVinculationDialog)"
               (primaryActionClick)="executePrimaryAction()"
               (mentionedUserIdsChange)="commentMentionedUserIds.set($event)"
             >
@@ -407,6 +411,22 @@
                   <button mat-flat-button color="primary" type="button" (click)="submitInventoryRequestFromDrawer()" [disabled]="isSaving()">Enviar solicitud</button>
                 </div>
               </section>
+            </mat-dialog-content>
+            <mat-dialog-actions align="end">
+              <button mat-stroked-button type="button" mat-dialog-close>Cerrar</button>
+            </mat-dialog-actions>
+          </ng-template>
+
+          <ng-template #ticketAssetVinculationDialog>
+            <h2 mat-dialog-title>Activos del ticket</h2>
+            <mat-dialog-content>
+              <app-asset-vinculation-section
+                [ticketId]="ticket.ticket_id"
+                [clientId]="ticket.client_id"
+                [linkedAssets]="ticketAssets()"
+                [disabled]="!canOperateTicket()"
+                (assetsChanged)="reloadTicketAssets()"
+              />
             </mat-dialog-content>
             <mat-dialog-actions align="end">
               <button mat-stroked-button type="button" mat-dialog-close>Cerrar</button>

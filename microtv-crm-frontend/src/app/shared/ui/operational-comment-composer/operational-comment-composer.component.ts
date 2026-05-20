@@ -38,7 +38,10 @@ export class OperationalCommentComposerComponent implements ControlValueAccessor
   readonly canAttach = input(true);
   readonly canPickLocation = input(true);
   readonly canRequestInventory = input(true);
+  readonly canLinkAssets = input(true);
   readonly showInventoryButton = input(true);
+  readonly showAssetButton = input(false);
+  readonly linkedAssetCount = input(0);
   readonly primaryActionLabel = input('Publicar');
   readonly primaryActionIcon = input('send');
   readonly primaryActionDisabled = input(false);
@@ -47,6 +50,7 @@ export class OperationalCommentComposerComponent implements ControlValueAccessor
   readonly attachmentsClick = output<void>();
   readonly locationClick = output<void>();
   readonly inventoryClick = output<void>();
+  readonly assetsClick = output<void>();
   readonly primaryActionClick = output<void>();
   readonly mentionedUserIdsChange = output<string[]>();
 

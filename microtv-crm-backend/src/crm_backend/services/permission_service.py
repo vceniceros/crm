@@ -14,6 +14,11 @@ PERMISSION_TICKET_REASSIGN = "ticket.reassign"
 PERMISSION_ORDER_REASSIGN = "order.reassign"
 PERMISSION_COMMENT_DELETE = "comment.delete"
 PERMISSION_AUTH_USER_CREATE_NON_ADMIN = "auth_user.create_non_admin"
+PERMISSION_ASSETS_MANAGE_CATEGORIES = "assets.manage_categories"
+PERMISSION_ASSETS_CREATE = "assets.create"
+PERMISSION_ASSETS_LINK = "assets.link"
+PERMISSION_ASSETS_EDIT = "assets.edit"
+PERMISSION_ASSETS_DELETE = "assets.delete"
 
 KNOWN_PERMISSION_CODES = [
     PERMISSION_STOCK_MANAGE,
@@ -22,6 +27,11 @@ KNOWN_PERMISSION_CODES = [
     PERMISSION_ORDER_REASSIGN,
     PERMISSION_COMMENT_DELETE,
     PERMISSION_AUTH_USER_CREATE_NON_ADMIN,
+    PERMISSION_ASSETS_MANAGE_CATEGORIES,
+    PERMISSION_ASSETS_CREATE,
+    PERMISSION_ASSETS_LINK,
+    PERMISSION_ASSETS_EDIT,
+    PERMISSION_ASSETS_DELETE,
 ]
 
 DEFAULT_ROLE_PERMISSIONS = [
@@ -38,6 +48,19 @@ DEFAULT_ROLE_PERMISSIONS = [
     ("ejecutivo", "ticket.reassign", True),
     ("ejecutivo", "order.reassign", True),
     ("ejecutivo", "auth_user.create_non_admin", True),
+    ("admin", "assets.manage_categories", True),
+    ("admin", "assets.create", True),
+    ("tecnico", "assets.create", True),
+    ("ejecutivo", "assets.create", True),
+    ("admin", "assets.link", True),
+    ("tecnico", "assets.link", True),
+    ("ejecutivo", "assets.link", True),
+    ("admin", "assets.edit", True),
+    ("tecnico", "assets.edit", True),
+    ("ejecutivo", "assets.edit", True),
+    ("admin", "assets.delete", True),
+    ("tecnico", "assets.delete", False),
+    ("ejecutivo", "assets.delete", False),
 ]
 
 

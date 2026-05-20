@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from crm_backend.api.endpoints.auth import router as auth_router
+from crm_backend.api.endpoints.assets import router as assets_router
 from crm_backend.api.endpoints.clients import router as clients_router
 from crm_backend.api.endpoints.crm_users import router as crm_users_router
 from crm_backend.api.endpoints.dashboard import router as dashboard_router
@@ -25,6 +26,7 @@ from crm_backend.api.endpoints.public_tasks import router as public_tasks_router
 api_router = APIRouter()
 api_router.include_router(health_router)
 api_router.include_router(auth_router)
+api_router.include_router(assets_router)
 api_router.include_router(dashboard_router)
 api_router.include_router(clients_router)
 api_router.include_router(crm_users_router)

@@ -1,0 +1,23 @@
+.category-dialog {
+  display: grid;
+  gap: 1rem;
+  min-width: min(42rem, calc(100vw - 3rem));
+}
+
+.fields {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: minmax(9rem, 1fr) 10rem auto 2.5rem;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+@media (max-width: 720px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+}

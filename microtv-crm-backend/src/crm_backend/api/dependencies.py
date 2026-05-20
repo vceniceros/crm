@@ -11,6 +11,7 @@ from crm_backend.infrastructure.product_image_storage import ProductImageStorage
 from crm_backend.infrastructure.task_media_storage import TaskMediaStorageFacade
 from crm_backend.repositories import (
     ActivityLogRepository,
+    AssetRepository,
     ClientRepository,
     CrmRoleRepository,
     CrmUserRepository,
@@ -27,6 +28,7 @@ from crm_backend.repositories import (
 )
 from crm_backend.services import (
     ActivityLogService,
+    AssetApplicationService,
     AuthApplicationService,
     ClientApplicationService,
     InventoryRequestFacade,
@@ -236,6 +238,12 @@ def get_ticket_repository(session: Session = Depends(get_db_session)) -> TicketR
     return TicketRepository(session)
 
 
+def get_asset_repository(session: Session = Depends(get_db_session)) -> AssetRepository:
+    """Provide the asset repository."""
+
+    return AssetRepository(session)
+
+
 def get_notification_repository(session: Session = Depends(get_db_session)) -> NotificationRepository:
     """Provide the notification repository."""
 
@@ -429,6 +437,26 @@ def get_ticket_application_service(
         role_repository=role_repository,
         media_storage=task_media_storage,
         notification_service=notification_service,
+        permission_service=permission_service,
+        activity_log_service=activity_log_service,
+    )
+
+
+def get_asset_application_service(
+    asset_repository: AssetRepository = Depends(get_asset_repository),
+    client_repository: ClientRepository = Depends(get_client_repository),
+    ticket_repository: TicketRepository = Depends(get_ticket_repository),
+    task_repository: TaskRepository = Depends(get_task_repository),
+    permission_service: PermissionService = Depends(get_permission_service),
+    activity_log_service: ActivityLogService = Depends(get_activity_log_service),
+) -> AssetApplicationService:
+    """Provide the asset application service."""
+
+    return AssetApplicationService(
+        asset_repository=asset_repository,
+        client_repository=client_repository,
+        ticket_repository=ticket_repository,
+        task_repository=task_repository,
         permission_service=permission_service,
         activity_log_service=activity_log_service,
     )

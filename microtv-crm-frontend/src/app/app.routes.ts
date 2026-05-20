@@ -69,6 +69,16 @@ export const routes: Routes = [
 				data: { title: 'Clientes' }
 			},
 			{
+				path: 'assets',
+				loadComponent: () => import('./features/assets/components/assets-page/assets-page.component').then((module) => module.AssetsPageComponent),
+				data: { title: 'Activos' }
+			},
+			{
+				path: 'assets/:assetId',
+				loadComponent: () => import('./features/assets/components/asset-detail-page/asset-detail-page.component').then((module) => module.AssetDetailPageComponent),
+				data: { title: 'Activo' }
+			},
+			{
 				path: 'tickets',
 				loadComponent: () => import('./features/tickets/components/tickets-page/tickets-page.component').then((module) => module.TicketsPageComponent),
 				data: { title: 'Tickets' }

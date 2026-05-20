@@ -4,6 +4,8 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from crm_backend.models import (
+    Asset,
+    AssetFieldValue,
     InventoryDispatch,
     InventoryDispatchItem,
     InventoryRequest,
@@ -19,6 +21,7 @@ from crm_backend.models import (
     TicketSatisfactionResponse,
     TicketStatus,
     TicketStatusTransition,
+    TicketAsset,
     TicketRequiredMaterial,
 )
 
@@ -70,6 +73,10 @@ class TicketRepository:
             selectinload(Ticket.dispatches)
             .selectinload(InventoryDispatch.items)
             .selectinload(InventoryDispatchItem.product),
+            selectinload(Ticket.asset_links)
+            .selectinload(TicketAsset.asset)
+            .selectinload(Asset.field_values)
+            .selectinload(AssetFieldValue.field),
         )
 
     def get_ticket_detail(self, ticket_id: str) -> Ticket | None:

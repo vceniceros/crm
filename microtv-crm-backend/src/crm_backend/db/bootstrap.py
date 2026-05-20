@@ -98,6 +98,19 @@ ROLE_PERMISSION_SEEDS = (
     ("ejecutivo", "ticket.reassign", True),
     ("ejecutivo", "order.reassign", True),
     ("ejecutivo", "auth_user.create_non_admin", True),
+    ("admin", "assets.manage_categories", True),
+    ("admin", "assets.create", True),
+    ("tecnico", "assets.create", True),
+    ("ejecutivo", "assets.create", True),
+    ("admin", "assets.link", True),
+    ("tecnico", "assets.link", True),
+    ("ejecutivo", "assets.link", True),
+    ("admin", "assets.edit", True),
+    ("tecnico", "assets.edit", True),
+    ("ejecutivo", "assets.edit", True),
+    ("admin", "assets.delete", True),
+    ("tecnico", "assets.delete", False),
+    ("ejecutivo", "assets.delete", False),
 )
 
 
@@ -331,6 +344,12 @@ def _ensure_extension_tables(session: Session) -> None:
         "ticket_satisfaction_forms",
         "ticket_satisfaction_responses",
         "ticket_satisfaction_media",
+        "asset_categories",
+        "asset_category_fields",
+        "assets",
+        "asset_field_values",
+        "ticket_assets",
+        "task_assets",
     ]
     bind = session.get_bind()
     inspector = inspect(bind)

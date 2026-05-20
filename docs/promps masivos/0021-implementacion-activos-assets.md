@@ -102,6 +102,12 @@ Sembrar los nuevos permisos en `_initialize_database_inner` (ver Paso 7).
 ("admin",    "assets.link",              True),
 ("tecnico",  "assets.link",              True),
 ("ejecutivo","assets.link",              True),
+("admin",    "assets.edit",              True),
+("tecnico",  "assets.edit",              True),   # solo activos propios (ver Step 11)
+("ejecutivo","assets.edit",              True),
+("admin",    "assets.delete",            True),
+("tecnico",  "assets.delete",            False),
+("ejecutivo","assets.delete",            False),
 ```
 
 ### Paso 8 — Crear `repositories/asset_repository.py`
@@ -225,6 +231,8 @@ Métodos principales:
 - `list_assets(actor, filters)` → `list[Asset]`
 - `get_asset(actor, asset_id)` → `Asset`
 - `create_asset(actor, request)` → verifica `assets.create`, usa `AssetBuilder` + registry
+- `update_asset(actor, asset_id, request: UpdateAssetRequest)` → verifica `assets.edit`; si el actor tiene rol `tecnico`, además valida que `asset.created_by_crm_user_id == actor.crm_user_id` (solo puede editar los que él creó); admin y ejecutivo pueden editar cualquiera; actualiza campos no-nulos del request y re-valida los `field_values` modificados usando el strategy registry
+- `delete_asset(actor, asset_id)` → verifica `assets.delete` (solo admin); aplica soft delete (`deleted_at = now()`); desvincula automáticamente de tickets y tareas antes de marcar como eliminado
 - `link_asset_to_ticket(actor, ticket_id, asset_id)` → verifica `assets.link`
 - `link_asset_to_task(actor, task_id, asset_id)` → verifica `assets.link`
 - `unlink_asset_from_ticket(actor, ticket_id, asset_id)`
@@ -244,13 +252,14 @@ Métodos principales:
 - `CreateAssetCategoryRequest`: category_name, description, fields: list[CreateAssetCategoryFieldRequest]
 - `AssetFieldValueRequest`: field_id, value
 - `CreateAssetRequest`: category_id, client_id, asset_name, notes, parent_asset_id (optional), field_values: list[AssetFieldValueRequest]
+- `UpdateAssetRequest`: asset_name (optional), notes (optional), parent_asset_id (optional), field_values (optional, lista parcial — solo se actualizan los field_ids presentes)
 - `LinkAssetRequest`: asset_id
 
 **Responses:**
 - `AssetCategoryFieldResponse`: field_id, field_name, field_type, is_required, order_index
 - `AssetCategoryResponse`: asset_category_id, category_name, description, is_active, fields: list[AssetCategoryFieldResponse]
 - `AssetFieldValueResponse`: field_id, field_name, field_type, raw_value
-- `AssetSummaryResponse`: asset_id, asset_name, category_name, client_name, parent_asset_id, parent_asset_name
+- `AssetSummaryResponse`: asset_id, asset_name, category_name, client_name, parent_asset_id, parent_asset_name, created_by_crm_user_id
 - `AssetResponse`: todos los campos de Summary + field_values: list[AssetFieldValueResponse]
 
 ### Paso 13 — Crear `api/endpoints/assets.py`
@@ -266,6 +275,8 @@ Todas las rutas usan `actor: ResolvedCrmSession = Depends(get_authenticated_crm_
 | GET | `/assets` | Listar activos (query: client_id, category_id, search) | autenticado |
 | POST | `/assets` | Crear activo | assets.create |
 | GET | `/assets/{id}` | Detalle de activo | autenticado |
+| PATCH | `/assets/{id}` | Editar activo | assets.edit + regla de propiedad para tecnico |
+| DELETE | `/assets/{id}` | Eliminar activo (soft delete) | assets.delete (solo admin) |
 | GET | `/assets/{id}/tickets` | Tickets vinculados (buscar por activo) | autenticado |
 | GET | `/assets/{id}/tasks` | Pedidos vinculados (buscar por activo) | autenticado |
 | GET | `/tickets/{ticket_id}/assets` | Activos de un ticket | autenticado |
@@ -330,6 +341,7 @@ export interface AssetSummary {
   client_name: string;
   parent_asset_id: string | null;
   parent_asset_name: string | null;
+  created_by_crm_user_id: string;  // necesario para que el frontend determine si el tecnico puede editar
 }
 
 export interface Asset extends AssetSummary {
@@ -349,6 +361,8 @@ Métodos:
 - `listAssets(filters?: { clientId?, categoryId?, search? }): Observable<AssetSummary[]>`
 - `getAsset(assetId): Observable<Asset>`
 - `createAsset(payload): Observable<Asset>`
+- `updateAsset(assetId: string, payload: UpdateAssetPayload): Observable<Asset>`
+- `deleteAsset(assetId: string): Observable<void>`
 - `getTicketAssets(ticketId): Observable<AssetSummary[]>`
 - `linkAssetToTicket(ticketId, assetId): Observable<void>`
 - `unlinkAssetFromTicket(ticketId, assetId): Observable<void>`
@@ -379,6 +393,10 @@ features/assets/
 - Tabla/cards de activos: nombre, categoría, cliente, cantidad de tickets/pedidos vinculados
 - Botón "Nuevo activo" (visible según permiso `assets.create`)
 - Botón "Nueva categoría" solo visible para admin (permiso `assets.manage_categories`)
+- En cada fila/card, acciones para **admin**:
+  - Ícono ✏️ **Editar** → abre `create-asset-dialog` en modo edición con los datos del activo pre-cargados
+  - Ícono 🗑️ **Eliminar** → abre un `MatDialog` de confirmación; al confirmar llama `deleteAsset()`; recarga la lista
+- Los técnicos **no** ven botones de edición ni eliminación en esta página
 
 ### Paso 19 — `asset-detail-page`
 - Card con: nombre, categoría, cliente, activo padre, campo por campo (label: valor)
@@ -386,11 +404,23 @@ features/assets/
 - Cada tab lista los ítems con: número, título, estado, fecha — click navega a ejecución
 
 ### Paso 20 — `create-asset-dialog`
-Dialog en dos pasos:
+Dialog reutilizable para **creación y edición**. Acepta un input opcional `existingAsset: Asset | null`.
+
+**Modo creación** (`existingAsset === null`):
 1. Seleccionar categoría (dropdown carga `listCategories()`) → el form dinámico se genera a partir de los campos de la categoría seleccionada
 2. Campos dinámicos: `field_type === 'string'` → `<input matInput type="text">`, `field_type === 'number'` → `<input matInput type="number">`; más: nombre del activo, cliente (requerido), activo padre (opcional, mismo cliente)
 
 Al confirmar: llama `createAsset()`. Si viene de una sección de vinculación con contexto de ticket/tarea, vincula automáticamente tras la creación.
+
+**Modo edición** (`existingAsset !== null`):
+- El selector de categoría queda **deshabilitado** (no se puede cambiar la categoría de un activo existente)
+- El form se pre-carga con los valores actuales del activo
+- El selector de cliente queda **deshabilitado** (no se cambia el cliente del activo)
+- Se pueden editar: nombre, notas, activo padre, y todos los `field_values`
+- Al confirmar: llama `updateAsset(existingAsset.asset_id, payload)`
+- El título del dialog cambia a "Editar activo"
+
+**Control de acceso en el dialog**: si el actor es técnico y `existingAsset.created_by_crm_user_id !== actor.crm_user_id`, el dialog no se abre (la lógica la controla el componente padre antes de abrir el dialog).
 
 ### Paso 21 — `create-asset-category-dialog`
 Solo accesible para admin.
@@ -413,9 +443,12 @@ Componente reutilizable para ticket-execution-page y task-execution-page.
 
 **Comportamiento:**
 - Lista los activos vinculados como chips/tarjetas con botón de desvincular
+- En cada activo vinculado: si `currentUserId === asset.created_by_crm_user_id` **o** el actor es admin, se muestra un ícono ✏️ **Editar** que abre `create-asset-dialog` en modo edición
 - Botón **"Vincular activo existente"** → abre dialog de búsqueda/selección de activos existentes (filtra por cliente del ticket/tarea)
 - Botón **"Agregar nuevo activo"** → abre `create-asset-dialog` con cliente pre-cargado; al crear, vincula automáticamente
 - Emite evento para que el padre recargue los activos
+
+> **Nota técnica:** el `currentUserId` se obtiene de `AuthSessionService.currentUser()` o equivalente. La sección pasa el `asset.created_by_crm_user_id` de cada ítem para comparar sin necesitar una llamada extra.
 
 ---
 
@@ -505,7 +538,7 @@ El dialog de creación de categorías se controla por el permiso `assets.manage_
 | `services/assets/strategies.py` | Strategy pattern (validación de campos) |
 | `services/assets/builder.py` | Builder pattern (construcción de activos) |
 | `services/assets/application.py` | Servicio de aplicación principal |
-| `schemas/asset_schemas.py` | Schemas Pydantic request/response |
+| `schemas/asset_schemas.py` | Schemas Pydantic request/response (incluye `UpdateAssetRequest`) |
 | `api/endpoints/assets.py` | Router FastAPI con todos los endpoints |
 
 ### Backend — modificados
@@ -567,4 +600,4 @@ El dialog de creación de categorías se controla por el permiso `assets.manage_
 | **Builder en backend** | Centraliza la lógica de construcción y validación de activos; desacopla el servicio de los detalles de construcción |
 | **Filtro "buscar por activo" en backend** | Preferido sobre filtrado en frontend por escalabilidad |
 
-**Fuera del alcance (MVP):** edición/eliminación de activos en UI, historial de cambios de activos, importación masiva, códigos QR para activos.
+**Fuera del alcance (MVP):** historial de cambios de activos (audit trail de ediciones), importación masiva, códigos QR para activos, edición de categorías/campos ya existentes (solo creación).

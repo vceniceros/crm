@@ -1,6 +1,7 @@
 """Service exports for the CRM backend."""
 
 from crm_backend.services.auth_service import AuthApplicationService
+from crm_backend.services.assets import AssetApplicationService
 from crm_backend.services.client_service import (
 	ClientApplicationService,
 	ClientLocationCommand,
@@ -25,6 +26,7 @@ from crm_backend.services.tasks import TaskApplicationService
 
 __all__ = [
 	"AuthApplicationService",
+	"AssetApplicationService",
 	"ClientApplicationService",
 	"ClientLocationCommand",
 	"CreateClientCommand",

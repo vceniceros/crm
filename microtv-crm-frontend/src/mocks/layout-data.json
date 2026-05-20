@@ -32,7 +32,8 @@
     {
       "section": "CRM",
       "items": [
-        { "id": "clients", "moduleKey": "clients", "label": "Clientes", "icon": "people", "route": "/clients" }
+        { "id": "clients", "moduleKey": "clients", "label": "Clientes", "icon": "people", "route": "/clients" },
+        { "id": "assets", "moduleKey": "assets", "label": "Activos", "icon": "devices", "route": "/assets" }
       ]
     },
     {

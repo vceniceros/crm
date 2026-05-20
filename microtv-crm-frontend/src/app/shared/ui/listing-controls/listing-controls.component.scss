@@ -1,12 +1,13 @@
 .listing-controls {
   display: grid;
-  grid-template-columns: minmax(14rem, 1.6fr) minmax(12rem, 1fr) auto;
+  grid-template-columns: minmax(14rem, 1.6fr) repeat(auto-fit, minmax(12rem, 1fr)) auto;
   gap: 0.8rem;
   align-items: start;
 }
 
 .listing-controls__search,
-.listing-controls__status {
+.listing-controls__status,
+.listing-controls__date {
   min-width: 0;
 }
 
