@@ -93,6 +93,7 @@ class Settings(BaseSettings):
         "default_admin_auth_roles",
         "default_deposito_auth_roles",
         "default_tech_auth_roles",
+        "video_allowed_mime_types",
         mode="before",
     )
     @classmethod
