@@ -12,6 +12,8 @@ from crm_backend.core.config import Settings
 from crm_backend.db.session import SessionLocal
 from crm_backend.infrastructure.video_job_repository import VideoJobRepository
 from crm_backend.infrastructure.video_processor import VideoProcessingError, VideoProcessor
+from crm_backend.models.task_execution import TaskAttachment
+from crm_backend.models.ticket import TicketAttachment, TicketSatisfactionMedia
 from crm_backend.models.video_processing import VideoProcessingStatus
 
 _logger = logging.getLogger(__name__)
@@ -47,6 +49,7 @@ class BackgroundTaskVideoProcessingService(VideoProcessingPort):
                 return
 
             self._processor.compress(input_path, output_path, self._settings)
+            self._mark_referencing_media_ready(session, job_id, optimized_url, output_path)
             repo.update_status(
                 job_id,
                 VideoProcessingStatus.READY.value,
@@ -69,3 +72,27 @@ class BackgroundTaskVideoProcessingService(VideoProcessingPort):
             input_path.unlink(missing_ok=True)
         except OSError:
             _logger.warning("Could not delete raw video file %s", input_path, exc_info=True)
+
+    def _mark_referencing_media_ready(
+        self,
+        session,
+        job_id: str,
+        optimized_url: str,
+        output_path: Path,
+    ) -> None:
+        file_name = output_path.name
+
+        for attachment_model in (TaskAttachment, TicketAttachment):
+            attachments = session.query(attachment_model).filter(attachment_model.video_job_id == job_id).all()
+            for attachment in attachments:
+                attachment.file_name = file_name
+                attachment.file_url = optimized_url
+                attachment.mime_type = "video/mp4"
+
+        satisfaction_media = session.query(TicketSatisfactionMedia).filter(TicketSatisfactionMedia.video_job_id == job_id).all()
+        for media in satisfaction_media:
+            media.file_name = file_name
+            media.file_path = optimized_url
+            media.mime_type = "video/mp4"
+
+        session.commit()
