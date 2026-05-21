@@ -393,6 +393,7 @@ def get_inventory_request_facade(
 
 
 def get_task_application_service(
+    settings: Settings = Depends(get_settings),
     template_repository: TaskTemplateRepository = Depends(get_task_template_repository),
     task_repository: TaskRepository = Depends(get_task_repository),
     user_repository: CrmUserRepository = Depends(get_crm_user_repository),
@@ -441,6 +442,7 @@ def get_ticket_application_service(
         notification_service=notification_service,
         permission_service=permission_service,
         activity_log_service=activity_log_service,
+        settings=settings,
     )
 
 
@@ -461,7 +463,6 @@ def get_asset_application_service(
         task_repository=task_repository,
         permission_service=permission_service,
         activity_log_service=activity_log_service,
-        settings=settings,
     )
 
 
