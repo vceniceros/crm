@@ -58,6 +58,10 @@
       />
     }
 
+    @if (isSaving()) {
+      <mat-progress-bar mode="indeterminate" class="ticket-attachments-section__progress" />
+    }
+
     @if (attachments().length) {
       <div class="ticket-attachments-section__list">
         @for (attachment of attachments(); track trackByAttachmentId($index, attachment)) {

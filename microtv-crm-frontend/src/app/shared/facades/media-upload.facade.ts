@@ -34,6 +34,10 @@ export class MediaUploadFacade implements MediaUploadPort {
     }
 
     return from(this.prepareFilesForUpload(files, context)).pipe(
+      tap(() => {
+        this.uploadProgress.set(0);
+        this.mediaStatus.set('uploading');
+      }),
       switchMap((preparedFiles) => this.taskManagementService.uploadTaskAttachmentsWithProgress(context.taskId, preparedFiles, context.subtaskId ?? null)),
       tap((event) => {
         if (event.type === HttpEventType.UploadProgress) {

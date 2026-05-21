@@ -1,9 +1,14 @@
 """Application error handlers."""
 
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from crm_backend.core.exceptions import ApplicationError
+
+
+_logger = logging.getLogger(__name__)
 
 
 def register_error_handlers(app: FastAPI) -> None:
@@ -24,6 +29,8 @@ def register_error_handlers(app: FastAPI) -> None:
         Returns:
             JSONResponse: Serialized error response.
         """
+
+        _logger.warning("Application error [%s]: %s", exc.code, exc.message)
 
         return JSONResponse(
             status_code=exc.status_code,

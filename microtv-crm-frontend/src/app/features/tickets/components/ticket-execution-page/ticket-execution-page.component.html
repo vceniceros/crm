@@ -246,6 +246,7 @@
           <app-ticket-attachments-section
             [attachments]="pendingAttachments()"
             [canEdit]="canOperateTicket()"
+            [isSaving]="isSaving()"
             (attachmentsSelected)="addAttachments($event)"
             (attachmentRemoved)="removeAttachment($event)"
           />
@@ -347,6 +348,7 @@
               <app-ticket-attachments-section
                 [attachments]="pendingAttachments()"
                 [canEdit]="canOperateTicket()"
+                [isSaving]="isSaving()"
                 (attachmentsSelected)="addAttachments($event)"
                 (attachmentRemoved)="removeAttachment($event)"
               />

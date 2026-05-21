@@ -48,6 +48,10 @@
   display: block;
 }
 
+.ticket-attachments-section__progress {
+  margin-top: 1rem;
+}
+
 .ticket-attachments-section__list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
