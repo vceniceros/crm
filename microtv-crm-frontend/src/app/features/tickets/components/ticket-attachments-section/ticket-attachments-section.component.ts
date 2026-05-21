@@ -1,4 +1,4 @@
-import { Component, HostListener, inject, input, output } from '@angular/core';
+import { Component, HostListener, inject, input, output, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -6,11 +6,12 @@ import { MatIconModule } from '@angular/material/icon';
 
 import { TicketAttachment } from '../../../../core/models/ticket-attachment.model';
 import { ImageViewerDialogComponent } from '../../../../shared/ui/image-viewer-dialog/image-viewer-dialog.component';
+import { VideoRecorderComponent } from '../../../../shared/ui/video-recorder/video-recorder.component';
 
 @Component({
   selector: 'app-ticket-attachments-section',
   standalone: true,
-  imports: [MatButtonModule, MatCardModule, MatDialogModule, MatIconModule],
+  imports: [MatButtonModule, MatCardModule, MatDialogModule, MatIconModule, VideoRecorderComponent],
   templateUrl: './ticket-attachments-section.component.html',
   styleUrl: './ticket-attachments-section.component.scss'
 })
@@ -27,6 +28,7 @@ export class TicketAttachmentsSectionComponent {
   readonly emptyMessage = input('No hay adjuntos cargados todavía para este ticket.');
   readonly attachmentsSelected = output<readonly File[]>();
   readonly attachmentRemoved = output<string>();
+  readonly isRecorderOpen = signal(false);
 
   onFileSelection(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -56,6 +58,21 @@ export class TicketAttachmentsSectionComponent {
 
   removeAttachment(attachmentId: string): void {
     this.attachmentRemoved.emit(attachmentId);
+  }
+
+  openVideoRecorder(): void {
+    this.isRecorderOpen.set(true);
+  }
+
+  closeVideoRecorder(): void {
+    this.isRecorderOpen.set(false);
+  }
+
+  onRecordingComplete(blob: Blob): void {
+    this.isRecorderOpen.set(false);
+    this.attachmentsSelected.emit([
+      new File([blob], `recording-${Date.now()}.webm`, { type: blob.type || 'video/webm' })
+    ]);
   }
 
   trackByAttachmentId(_: number, attachment: TicketAttachment): string {

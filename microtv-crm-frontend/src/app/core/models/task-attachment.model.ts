@@ -10,4 +10,5 @@ export interface TaskAttachment {
   publicUrl?: string | null;
   storagePath?: string | null;
   size?: number | null;
+  media_id?: string | null;
 }

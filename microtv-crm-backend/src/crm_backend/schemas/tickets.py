@@ -85,6 +85,7 @@ class TicketAttachmentResponse(BaseModel):
     publicUrl: str
     storagePath: str
     size: int | None
+    media_id: str | None = None
 
 
 class TicketCommentMentionResponse(BaseModel):
@@ -316,6 +317,7 @@ class SatisfactionMediaFileResponse(BaseModel):
     file_type: str
     file_name: str | None = None
     size_bytes: int | None = None
+    media_id: str | None = None
 
     @classmethod
     def from_orm_media(cls, media: Any) -> "SatisfactionMediaFileResponse":
@@ -328,6 +330,7 @@ class SatisfactionMediaFileResponse(BaseModel):
             file_type=str(getattr(media, "mime_type", "application/octet-stream")),
             file_name=getattr(media, "file_name", None),
             size_bytes=getattr(media, "size_bytes", None),
+            media_id=getattr(media, "video_job_id", None),
         )
 
 

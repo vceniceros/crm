@@ -8,11 +8,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { crmApiConfig } from '../../../../core/config/crm-api.config';
 import { TaskAttachment } from '../../../../core/models/task-attachment.model';
 import { MediaUploadFacade } from '../../../../shared/facades/media-upload.facade';
+import { UploadProgressComponent } from '../../../../shared/ui/upload-progress/upload-progress.component';
+import { VideoRecorderComponent } from '../../../../shared/ui/video-recorder/video-recorder.component';
 
 @Component({
   selector: 'app-task-attachments-section',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatCardModule, MatIconModule],
+  imports: [CommonModule, MatButtonModule, MatCardModule, MatIconModule, UploadProgressComponent, VideoRecorderComponent],
   templateUrl: './task-attachments-section.component.html',
   styleUrl: './task-attachments-section.component.scss'
 })
@@ -29,6 +31,9 @@ export class TaskAttachmentsSectionComponent {
   readonly attachmentRemoved = output<string>();
   readonly uploadError = signal<string | null>(null);
   readonly isUploading = signal(false);
+  readonly isRecorderOpen = signal(false);
+  readonly uploadProgress = this.mediaUploadFacade.uploadProgress;
+  readonly mediaStatus = this.mediaUploadFacade.mediaStatus;
 
   readonly acceptAttribute = this.mediaUploadFacade.acceptAttribute('task');
 
@@ -37,26 +42,7 @@ export class TaskAttachmentsSectionComponent {
     const files = Array.from(input.files ?? []);
 
     if (files.length) {
-      try {
-        this.uploadError.set(null);
-        this.isUploading.set(true);
-        this.mediaUploadFacade
-          .upload(files, {
-            kind: 'task',
-            taskId: this.taskId(),
-            subtaskId: this.subtaskId()
-          })
-          .pipe(finalize(() => this.isUploading.set(false)))
-          .subscribe({
-            next: (attachments) => this.attachmentsSelected.emit(attachments),
-            error: (error: Error) => {
-              this.uploadError.set(error instanceof Error ? error.message : 'No se pudo subir la multimedia seleccionada.');
-            }
-          });
-      } catch (error) {
-        this.uploadError.set(error instanceof Error ? error.message : 'No se pudo preparar la multimedia seleccionada.');
-        this.isUploading.set(false);
-      }
+      this.uploadFiles(files);
     }
 
     input.value = '';
@@ -69,6 +55,20 @@ export class TaskAttachmentsSectionComponent {
 
     input.value = '';
     input.click();
+  }
+
+  openVideoRecorder(): void {
+    this.isRecorderOpen.set(true);
+  }
+
+  closeVideoRecorder(): void {
+    this.isRecorderOpen.set(false);
+  }
+
+  onRecordingComplete(blob: Blob): void {
+    const file = new File([blob], `recording-${Date.now()}.webm`, { type: blob.type || 'video/webm' });
+    this.isRecorderOpen.set(false);
+    this.uploadFiles([file]);
   }
 
   openGalleryInput(input: HTMLInputElement): void {
@@ -89,6 +89,29 @@ export class TaskAttachmentsSectionComponent {
     }
 
     input.click();
+  }
+
+  private uploadFiles(files: readonly File[]): void {
+    try {
+      this.uploadError.set(null);
+      this.isUploading.set(true);
+      this.mediaUploadFacade
+        .upload(files, {
+          kind: 'task',
+          taskId: this.taskId(),
+          subtaskId: this.subtaskId()
+        })
+        .pipe(finalize(() => this.isUploading.set(false)))
+        .subscribe({
+          next: (attachments) => this.attachmentsSelected.emit(attachments),
+          error: (error: Error) => {
+            this.uploadError.set(error instanceof Error ? error.message : 'No se pudo subir la multimedia seleccionada.');
+          }
+        });
+    } catch (error) {
+      this.uploadError.set(error instanceof Error ? error.message : 'No se pudo preparar la multimedia seleccionada.');
+      this.isUploading.set(false);
+    }
   }
 
   removeAttachment(attachmentId: string): void {

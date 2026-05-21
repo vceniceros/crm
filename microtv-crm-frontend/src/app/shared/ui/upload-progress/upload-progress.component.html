@@ -1,0 +1,13 @@
+@if (progress() !== null && progress()! < 100) {
+  <div class="upload-progress">
+    <mat-progress-bar mode="determinate" [value]="progress() ?? 0" />
+    <span>{{ progress() }}%</span>
+  </div>
+} @else if (progress() === 100 && status() === 'processing') {
+  <div class="upload-progress upload-progress--inline">
+    <mat-progress-spinner diameter="20" mode="indeterminate" />
+    <span>Procesando video...</span>
+  </div>
+} @else if (status() === 'failed') {
+  <p class="upload-progress__error">No se pudo procesar el video.</p>
+}

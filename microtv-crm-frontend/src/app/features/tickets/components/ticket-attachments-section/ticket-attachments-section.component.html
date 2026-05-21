@@ -31,21 +31,12 @@
           (change)="onFileSelection($event)"
         />
 
-        <input
-          #videoInput
-          type="file"
-          accept="video/*"
-          capture="environment"
-          hidden
-          (change)="onFileSelection($event)"
-        />
-
         <button mat-stroked-button type="button" (click)="openCameraInput(cameraInput)">
           <mat-icon>photo_camera</mat-icon>
           <span>Cámara foto</span>
         </button>
 
-        <button mat-stroked-button type="button" (click)="openCameraInput(videoInput)">
+        <button mat-stroked-button type="button" (click)="openVideoRecorder()">
           <mat-icon>videocam</mat-icon>
           <span>Grabar video</span>
         </button>
@@ -58,6 +49,13 @@
         <p class="ticket-attachments-section__hint">{{ hintText() }}</p>
         <p class="ticket-attachments-section__paste-hint">También podés pegar capturas con Ctrl+V.</p>
       </div>
+    }
+
+    @if (isRecorderOpen()) {
+      <app-video-recorder
+        (recordingComplete)="onRecordingComplete($event)"
+        (cancelled)="closeVideoRecorder()"
+      />
     }
 
     @if (attachments().length) {

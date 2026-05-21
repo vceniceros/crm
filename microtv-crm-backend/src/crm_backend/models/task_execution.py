@@ -549,6 +549,7 @@ class TaskAttachment(Base):
     mime_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     attachment_type: Mapped[str] = mapped_column(String(50), default=TaskAttachmentType.PHOTO.value)
     uploaded_by_crm_user_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id"), nullable=True, index=True)
+    video_job_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), ForeignKey("video_processing_jobs.id"), nullable=True, index=True)
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     comment: Mapped[TaskComment | None] = relationship("TaskComment", back_populates="attachments")
@@ -588,6 +589,10 @@ class TaskAttachment(Base):
     @property
     def size(self) -> int | None:
         return self.file_size_bytes
+
+    @property
+    def media_id(self) -> str | None:
+        return self.video_job_id
 
     @property
     def context(self) -> str:

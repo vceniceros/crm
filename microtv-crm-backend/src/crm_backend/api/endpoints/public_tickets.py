@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Annotated, cast
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import ValidationError
 
 from crm_backend.api.dependencies import get_satisfaction_form_service
@@ -102,6 +102,7 @@ def get_public_satisfaction_form(
 async def submit_public_satisfaction_form(
     token: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     sat_service: PublicSatisfactionFormService = Depends(get_satisfaction_form_service),
 ) -> SatisfactionResponseDetailResponse:
     """Submit the client's satisfaction response.
@@ -120,6 +121,7 @@ async def submit_public_satisfaction_form(
         media_files=media_files,
         submitter_ip=_get_client_ip(request),
         submitter_user_agent=request.headers.get("User-Agent"),
+        background_tasks=background_tasks,
     )
     return _to_satisfaction_detail_response(response)
 
@@ -133,6 +135,7 @@ async def submit_public_satisfaction_form(
 async def submit_public_satisfaction_form_with_media(
     token: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     rating: Annotated[float, Form(...)],
     customer_name: Annotated[str, Form(...)],
     customer_company: Annotated[str, Form(...)],
@@ -162,5 +165,6 @@ async def submit_public_satisfaction_form_with_media(
         media_files=list(files),
         submitter_ip=_get_client_ip(request),
         submitter_user_agent=request.headers.get("User-Agent"),
+        background_tasks=background_tasks,
     )
     return _to_satisfaction_detail_response(response)

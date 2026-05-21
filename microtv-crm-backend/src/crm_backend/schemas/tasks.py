@@ -141,6 +141,7 @@ class TaskAttachmentResponse(BaseModel):
     publicUrl: str
     storagePath: str
     size: int | None
+    media_id: str | None = None
 
 
 class TaskCommentMentionResponse(BaseModel):

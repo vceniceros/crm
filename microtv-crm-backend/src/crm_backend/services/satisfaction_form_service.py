@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from fastapi import UploadFile
+from fastapi import BackgroundTasks, UploadFile
 from sqlalchemy.orm import Session
 
 from crm_backend.core.exceptions import (
@@ -22,6 +22,9 @@ from crm_backend.core.exceptions import (
     TicketNotFoundError,
     TicketValidationError,
 )
+from crm_backend.core.config import Settings
+from crm_backend.infrastructure.video_job_repository import VideoJobRepository
+from crm_backend.infrastructure.video_processor import VideoProcessor
 from crm_backend.models.ticket import (
     Ticket,
     TicketSatisfactionForm,
@@ -32,6 +35,7 @@ from crm_backend.models.ticket import (
 from crm_backend.models.notification import NotificationEntityType, NotificationType
 from crm_backend.repositories import CrmUserRepository
 from crm_backend.services.notification_service import NotificationService
+from crm_backend.services.video_processing_service import BackgroundTaskVideoProcessingService
 
 if TYPE_CHECKING:
     from crm_backend.services.auth_service import ResolvedCrmSession
@@ -86,6 +90,7 @@ class PublicSatisfactionFormService:
         satisfaction_videos_public_prefix: str = "/videos/satisfaction",
         notification_service: NotificationService | None = None,
         user_repository: CrmUserRepository | None = None,
+        settings: Settings | None = None,
     ) -> None:
         self._session = session
         self._images_dir = Path(satisfaction_images_dir)  # type: ignore[arg-type]
@@ -97,6 +102,7 @@ class PublicSatisfactionFormService:
         self._videos_public_prefix = satisfaction_videos_public_prefix.rstrip("/")
         self._notification_service = notification_service
         self._user_repository = user_repository
+        self._settings = settings
 
     # ------------------------------------------------------------------
     # Internal (authenticated) operations
@@ -220,6 +226,7 @@ class PublicSatisfactionFormService:
         media_files: list[UploadFile],
         submitter_ip: str | None,
         submitter_user_agent: str | None,
+        background_tasks: BackgroundTasks | None = None,
     ) -> TicketSatisfactionResponse:
         """Submit a client response. Token is consumed atomically."""
         form = self._resolve_token(raw_token)
@@ -264,6 +271,14 @@ class PublicSatisfactionFormService:
                 dest = target_dir / file_name
                 dest.write_bytes(content)
                 stored_files.append(str(dest))
+                video_job_id = None
+                if is_video:
+                    video_job_id = self._create_and_enqueue_video_job(
+                        original_url=self._build_public_media_path(file_name, is_video=True),
+                        original_path=str(dest),
+                        input_path=dest,
+                        background_tasks=background_tasks,
+                    )
 
                 media = TicketSatisfactionMedia(
                     media_id=str(uuid4()),
@@ -272,6 +287,7 @@ class PublicSatisfactionFormService:
                     file_name=_sanitize_filename(upload.filename or file_name),
                     mime_type=upload.content_type or "application/octet-stream",
                     size_bytes=len(content),
+                    video_job_id=video_job_id,
                 )
                 self._session.add(media)
 
@@ -290,6 +306,31 @@ class PublicSatisfactionFormService:
         self._session.refresh(response)
         self._notify_satisfaction_submitted(form, response)
         return response
+
+    def _create_and_enqueue_video_job(
+        self,
+        *,
+        original_url: str,
+        original_path: str,
+        input_path: Path,
+        background_tasks: BackgroundTasks | None,
+    ) -> str | None:
+        if self._settings is None or background_tasks is None:
+            return None
+        output_name = f"{input_path.stem}.mp4"
+        optimized_url = f"{self._settings.satisfaction_videos_public_prefix}/{output_name}"
+        output_path = self._settings.satisfaction_videos_dir / output_name
+        job = VideoJobRepository(self._session).create(
+            original_url=original_url,
+            original_path=original_path,
+        )
+        BackgroundTaskVideoProcessingService(background_tasks, VideoProcessor(), self._settings).enqueue(
+            job.id,
+            input_path,
+            output_path,
+            optimized_url,
+        )
+        return job.id
 
     def _notify_satisfaction_submitted(
         self,

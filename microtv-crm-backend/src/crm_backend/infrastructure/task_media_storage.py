@@ -157,6 +157,13 @@ class VideoTaskMediaUploadStrategy(BaseTaskMediaUploadStrategy):
     allowed_content_types = {"video/mp4", "video/webm", "video/quicktime"}
     allowed_extensions = {"mp4", "webm", "mov"}
 
+    def __init__(self, *, settings: Settings, target_dir: Path, public_prefix: str, max_bytes: int) -> None:
+        super().__init__(settings=settings, target_dir=target_dir, public_prefix=public_prefix, max_bytes=max_bytes)
+        self.allowed_content_types = {item.lower() for item in settings.video_allowed_mime_types}
+
+    def supports(self, upload: UploadFile) -> bool:
+        return self._content_type_is_allowed(upload)
+
     def _size_error_message(self) -> str:
         return "El video supera el límite permitido de 128 MB."
 
@@ -178,9 +185,9 @@ class TaskMediaStorageFacade:
             ),
             VideoTaskMediaUploadStrategy(
                 settings=settings,
-                target_dir=settings.task_videos_dir,
-                public_prefix=settings.task_videos_public_prefix,
-                max_bytes=settings.task_videos_max_bytes,
+                target_dir=settings.task_raw_videos_dir,
+                public_prefix=settings.task_raw_videos_public_prefix,
+                max_bytes=settings.video_max_upload_mb * 1024 * 1024,
             ),
         ]
 

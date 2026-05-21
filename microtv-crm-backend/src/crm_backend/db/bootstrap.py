@@ -350,6 +350,7 @@ def _ensure_extension_tables(session: Session) -> None:
         "asset_field_values",
         "ticket_assets",
         "task_assets",
+        "video_processing_jobs",
     ]
     bind = session.get_bind()
     inspector = inspect(bind)
@@ -607,7 +608,20 @@ def _ensure_task_attachment_columns(session: Session, inspector=None) -> None:
         )
         session.commit()
 
+    if "video_job_id" not in attachment_columns:
+        if bind.dialect.name == "postgresql" and "video_processing_jobs" in table_names:
+            session.execute(
+                text(
+                    "ALTER TABLE task_attachments "
+                    "ADD COLUMN video_job_id UUID REFERENCES video_processing_jobs(id) ON DELETE SET NULL"
+                )
+            )
+        else:
+            session.execute(text("ALTER TABLE task_attachments ADD COLUMN video_job_id VARCHAR(36)"))
+        session.commit()
+
     session.execute(text("CREATE INDEX IF NOT EXISTS idx_task_attachments_comment ON task_attachments(task_comment_id)"))
+    session.execute(text("CREATE INDEX IF NOT EXISTS idx_task_attachments_video_job ON task_attachments(video_job_id)"))
     session.commit()
 
 
@@ -666,7 +680,20 @@ def _ensure_ticket_attachment_columns(session: Session, inspector=None) -> None:
             session.execute(text("ALTER TABLE ticket_attachments ADD COLUMN ticket_comment_id VARCHAR(36)"))
         session.commit()
 
+    if "video_job_id" not in attachment_columns:
+        if bind.dialect.name == "postgresql" and "video_processing_jobs" in table_names:
+            session.execute(
+                text(
+                    "ALTER TABLE ticket_attachments "
+                    "ADD COLUMN video_job_id UUID REFERENCES video_processing_jobs(id) ON DELETE SET NULL"
+                )
+            )
+        else:
+            session.execute(text("ALTER TABLE ticket_attachments ADD COLUMN video_job_id VARCHAR(36)"))
+        session.commit()
+
     session.execute(text("CREATE INDEX IF NOT EXISTS idx_ticket_attachments_comment ON ticket_attachments(ticket_comment_id)"))
+    session.execute(text("CREATE INDEX IF NOT EXISTS idx_ticket_attachments_video_job ON ticket_attachments(video_job_id)"))
     session.commit()
 
 
@@ -1180,4 +1207,20 @@ def _ensure_satisfaction_columns(session: Session, inspector=None) -> None:
                 "    customer_company = COALESCE(NULLIF(customer_company, ''), 'Empresa no indicada')"
             )
         )
+        session.commit()
+
+    if "ticket_satisfaction_media" in table_names:
+        media_columns = {column["name"] for column in active_inspector.get_columns("ticket_satisfaction_media")}
+        if "video_job_id" not in media_columns:
+            if bind.dialect.name == "postgresql" and "video_processing_jobs" in table_names:
+                session.execute(
+                    text(
+                        "ALTER TABLE ticket_satisfaction_media "
+                        "ADD COLUMN video_job_id UUID REFERENCES video_processing_jobs(id) ON DELETE SET NULL"
+                    )
+                )
+            else:
+                session.execute(text("ALTER TABLE ticket_satisfaction_media ADD COLUMN video_job_id VARCHAR(36)"))
+            session.commit()
+        session.execute(text("CREATE INDEX IF NOT EXISTS idx_ticket_satisfaction_media_video_job ON ticket_satisfaction_media(video_job_id)"))
         session.commit()

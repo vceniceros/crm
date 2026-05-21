@@ -1,0 +1,24 @@
+.video-recorder {
+  display: grid;
+  gap: 12px;
+}
+
+.video-recorder video {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #111;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.video-recorder__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.video-recorder__error {
+  color: #b3261e;
+  margin: 0;
+}
