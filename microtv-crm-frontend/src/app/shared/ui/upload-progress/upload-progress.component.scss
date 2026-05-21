@@ -1,0 +1,18 @@
+.upload-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.upload-progress--inline {
+  display: inline-flex;
+  grid-template-columns: none;
+}
+
+.upload-progress__error {
+  color: #b3261e;
+  margin: 8px 0 0;
+}

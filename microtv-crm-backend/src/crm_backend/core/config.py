@@ -70,6 +70,15 @@ class Settings(BaseSettings):
     product_images_max_bytes: int = Field(default=2 * 1024 * 1024)
     task_images_max_bytes: int = Field(default=8 * 1024 * 1024)
     task_videos_max_bytes: int = Field(default=128 * 1024 * 1024)
+    video_max_duration_seconds: int = Field(default=30)
+    video_max_upload_mb: int = Field(default=80)
+    video_target_height: int = Field(default=720)
+    video_target_fps: int = Field(default=24)
+    video_ffmpeg_crf: int = Field(default=28)
+    video_ffmpeg_preset: str = Field(default="veryfast")
+    video_allowed_mime_types: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["video/mp4", "video/webm", "video/quicktime"]
+    )
     default_admin_auth_roles: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["admin", "platform_admin", "company_admin"]
     )
@@ -174,12 +183,20 @@ class Settings(BaseSettings):
         return self.crm_media_root_path / "tasks" / "videos"
 
     @property
+    def task_raw_videos_dir(self) -> Path:
+        return self.task_videos_dir / "raw"
+
+    @property
     def task_images_public_prefix(self) -> str:
         return self._build_media_public_prefix("tasks", "images")
 
     @property
     def task_videos_public_prefix(self) -> str:
         return self._build_media_public_prefix("tasks", "videos")
+
+    @property
+    def task_raw_videos_public_prefix(self) -> str:
+        return self._build_media_public_prefix("tasks", "videos", "raw")
 
     @property
     def product_images_public_prefix(self) -> str:

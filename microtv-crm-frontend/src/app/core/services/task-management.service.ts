@@ -1,7 +1,7 @@
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpEvent, HttpEventType, HttpHeaders } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable, Subject, throwError } from 'rxjs';
-import { catchError, map, tap } from 'rxjs/operators';
+import { catchError, filter, map, tap } from 'rxjs/operators';
 
 import { crmApiConfig } from '../config/crm-api.config';
 import {
@@ -165,6 +165,13 @@ export class TaskManagementService {
   }
 
   uploadTaskAttachments(taskId: string, files: readonly File[], subtaskId?: string | null): Observable<TaskAttachment[]> {
+    return this.uploadTaskAttachmentsWithProgress(taskId, files, subtaskId).pipe(
+      filter((event) => event.type === HttpEventType.Response),
+      map((event) => event.body ?? [])
+    );
+  }
+
+  uploadTaskAttachmentsWithProgress(taskId: string, files: readonly File[], subtaskId?: string | null): Observable<HttpEvent<TaskAttachment[]>> {
     const headers = this.buildAuthHeaders();
     if (!headers) {
       return throwError(() => new Error('No hay una sesión autenticada válida para operar tareas.'));
@@ -177,9 +184,15 @@ export class TaskManagementService {
     }
 
     return this.http
-      .post<TaskAttachment[]>(`${crmApiConfig.baseUrl}/tasks/${taskId}/attachments`, formData, { headers })
+      .post<TaskAttachment[]>(`${crmApiConfig.baseUrl}/tasks/${taskId}/attachments`, formData, {
+        headers,
+        observe: 'events',
+        reportProgress: true
+      })
       .pipe(
-        map((attachments) => attachments.map((attachment) => this.normalizeAttachment(attachment))),
+        map((event) => event.type === HttpEventType.Response
+          ? event.clone({ body: (event.body ?? []).map((attachment) => this.normalizeAttachment(attachment)) })
+          : event),
         catchError((error) => this.handleRequestError(error))
       );
   }

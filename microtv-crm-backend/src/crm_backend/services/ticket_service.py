@@ -7,7 +7,7 @@ import logging
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from fastapi import UploadFile
+from fastapi import BackgroundTasks, UploadFile
 from sqlalchemy import select, text
 
 from crm_backend.core.exceptions import (
@@ -18,7 +18,10 @@ from crm_backend.core.exceptions import (
     TicketNotFoundError,
     TicketValidationError,
 )
+from crm_backend.core.config import Settings
 from crm_backend.infrastructure.task_media_storage import StoredTaskMedia, TaskMediaStorageFacade
+from crm_backend.infrastructure.video_job_repository import VideoJobRepository
+from crm_backend.infrastructure.video_processor import VideoProcessor
 from crm_backend.models import (
     CrmRole,
     CrmUser,
@@ -52,6 +55,7 @@ from crm_backend.services.auth_service import ResolvedCrmSession
 from crm_backend.services.notification_service import NotificationService
 from crm_backend.services.permission_service import PERMISSION_TICKET_REASSIGN, PermissionService
 from crm_backend.models.notification import NotificationEntityType, NotificationType
+from crm_backend.services.video_processing_service import BackgroundTaskVideoProcessingService
 
 
 _logger = logging.getLogger(__name__)
@@ -88,6 +92,7 @@ class TicketApplicationService:
         notification_service: NotificationService | None = None,
         permission_service: PermissionService | None = None,
         activity_log_service: ActivityLogService | None = None,
+        settings: Settings | None = None,
     ) -> None:
         self._ticket_repository = ticket_repository
         self._client_repository = client_repository
@@ -98,6 +103,7 @@ class TicketApplicationService:
         self._notification_service = notification_service
         self._permission_service = permission_service
         self._activity_log_service = activity_log_service
+        self._settings = settings
         self._legacy_status_id_cache: dict[str, str | None] = {}
         self._legacy_priority_id_cache: dict[str, str | None] = {}
 
@@ -1043,6 +1049,7 @@ class TicketApplicationService:
         actor: ResolvedCrmSession,
         ticket_id: str,
         files: list[UploadFile],
+        background_tasks: BackgroundTasks | None = None,
     ) -> list[TicketAttachment]:
         if not files:
             raise InvalidTaskAttachmentError("Se requiere al menos un archivo para subir multimedia.")
@@ -1056,6 +1063,7 @@ class TicketApplicationService:
             for upload in files:
                 stored_media = await self._media_storage.store(upload)
                 stored_media_batch.append(stored_media)
+                video_job_id = self._create_and_enqueue_video_job(stored_media, background_tasks)
                 attachment = TicketAttachment(
                     ticket_id=ticket.ticket_id,
                     file_name=stored_media.file_name,
@@ -1063,6 +1071,7 @@ class TicketApplicationService:
                     file_size_bytes=stored_media.file_size_bytes,
                     mime_type=stored_media.mime_type,
                     attachment_type=stored_media.attachment_type,
+                    video_job_id=video_job_id,
                     uploaded_by_crm_user_id=actor.crm_user.crm_user_id,
                 )
                 self._ticket_repository.session.add(attachment)
@@ -1085,6 +1094,33 @@ class TicketApplicationService:
         )
         self._ticket_repository.save(ticket)
         return persisted_attachments
+
+    def _create_and_enqueue_video_job(
+        self,
+        stored_media: StoredTaskMedia,
+        background_tasks: BackgroundTasks | None,
+    ) -> str | None:
+        if stored_media.attachment_type != TicketAttachmentType.VIDEO.value:
+            return None
+        if self._settings is None or background_tasks is None:
+            return None
+        input_path = self._settings.resolve_media_filesystem_path(stored_media.file_url)
+        if input_path is None:
+            raise InvalidTaskAttachmentError("No se pudo resolver el archivo de video subido.")
+        output_name = f"{input_path.stem}.mp4"
+        optimized_url = f"{self._settings.task_videos_public_prefix}/{output_name}"
+        output_path = self._settings.task_videos_dir / output_name
+        job = VideoJobRepository(self._ticket_repository.session).create(
+            original_url=stored_media.file_url,
+            original_path=stored_media.storage_path,
+        )
+        BackgroundTaskVideoProcessingService(background_tasks, VideoProcessor(), self._settings).enqueue(
+            job.id,
+            input_path,
+            output_path,
+            optimized_url,
+        )
+        return job.id
 
     def delete_ticket_attachment(self, actor: ResolvedCrmSession, attachment_id: str) -> None:
         attachment = self._ticket_repository.get_attachment(attachment_id)

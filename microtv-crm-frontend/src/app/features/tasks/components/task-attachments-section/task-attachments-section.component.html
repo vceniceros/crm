@@ -18,16 +18,6 @@
         />
 
         <input
-          #videoInput
-          type="file"
-          accept="video/*"
-          capture="environment"
-          hidden
-          [disabled]="isUploading()"
-          (change)="onFileSelection($event)"
-        />
-
-        <input
           #galleryInput
           type="file"
           [accept]="acceptAttribute"
@@ -42,7 +32,7 @@
           <span>{{ isUploading() ? 'Subiendo...' : 'Cámara foto' }}</span>
         </button>
 
-        <button mat-stroked-button type="button" [disabled]="isUploading()" (click)="openCameraInput(videoInput)">
+        <button mat-stroked-button type="button" [disabled]="isUploading()" (click)="openVideoRecorder()">
           <mat-icon>videocam</mat-icon>
           <span>Grabar video</span>
         </button>
@@ -63,6 +53,15 @@
     @if (uploadError(); as uploadError) {
       <p class="task-attachments-section__error">{{ uploadError }}</p>
     }
+
+    @if (isRecorderOpen()) {
+      <app-video-recorder
+        (recordingComplete)="onRecordingComplete($event)"
+        (cancelled)="closeVideoRecorder()"
+      />
+    }
+
+    <app-upload-progress [progress]="uploadProgress()" [status]="mediaStatus()" />
 
     @if (attachments().length) {
       <div class="task-attachments-section__list">

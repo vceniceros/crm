@@ -75,6 +75,7 @@ from crm_backend.models.warehouse import Warehouse
 from crm_backend.models.notification import Notification, NotificationEntityType, NotificationType
 from crm_backend.models.push_subscription import PushSubscription
 from crm_backend.models.settings import CrmCategory, CrmPriority, CrmStatus, NotificationRule, SlaRule
+from crm_backend.models.video_processing import VideoProcessingJob, VideoProcessingStatus
 
 __all__ = [
 	"CrmRole",
@@ -168,4 +169,6 @@ __all__ = [
 	"CrmStatus",
 	"SlaRule",
 	"NotificationRule",
+	"VideoProcessingJob",
+	"VideoProcessingStatus",
 ]

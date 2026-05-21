@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Response, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Response, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 from crm_backend.api.dependencies import (
@@ -359,6 +359,7 @@ def reopen_ticket(
 )
 async def upload_ticket_attachments(
     ticket_id: str,
+    background_tasks: BackgroundTasks,
     files: Annotated[list[UploadFile] | None, File(alias="files")] = None,
     file: Annotated[UploadFile | None, File(alias="file")] = None,
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
@@ -374,7 +375,7 @@ async def upload_ticket_attachments(
 
     return [
         TicketAttachmentResponse.model_validate(item)
-        for item in await ticket_service.upload_ticket_attachments(actor, ticket_id, resolved_files)
+        for item in await ticket_service.upload_ticket_attachments(actor, ticket_id, resolved_files, background_tasks)
     ]
 
 

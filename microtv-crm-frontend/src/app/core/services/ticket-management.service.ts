@@ -1,7 +1,7 @@
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpEvent, HttpEventType, HttpHeaders } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable, Subject, from, throwError } from 'rxjs';
-import { catchError, map, mergeMap, tap } from 'rxjs/operators';
+import { catchError, filter, map, mergeMap, tap } from 'rxjs/operators';
 
 import { crmApiConfig } from '../config/crm-api.config';
 import {
@@ -156,6 +156,13 @@ export class TicketManagementService {
   }
 
   uploadTicketAttachments(ticketId: string, files: readonly File[]): Observable<TicketAttachment[]> {
+    return this.uploadTicketAttachmentsWithProgress(ticketId, files).pipe(
+      filter((event) => event.type === HttpEventType.Response),
+      map((event) => event.body ?? [])
+    );
+  }
+
+  uploadTicketAttachmentsWithProgress(ticketId: string, files: readonly File[]): Observable<HttpEvent<TicketAttachment[]>> {
     const headers = this.buildAuthHeaders();
     if (!headers) {
       return throwError(() => new Error('No hay una sesión autenticada válida para operar tickets.'));
@@ -165,9 +172,15 @@ export class TicketManagementService {
     files.forEach((file) => formData.append('files', file));
 
     return this.http
-      .post<TicketAttachment[]>(`${crmApiConfig.baseUrl}/tickets/${ticketId}/attachments`, formData, { headers })
+      .post<TicketAttachment[]>(`${crmApiConfig.baseUrl}/tickets/${ticketId}/attachments`, formData, {
+        headers,
+        observe: 'events',
+        reportProgress: true
+      })
       .pipe(
-        map((attachments) => attachments.map((attachment) => this.normalizeAttachment(attachment))),
+        map((event) => event.type === HttpEventType.Response
+          ? event.clone({ body: (event.body ?? []).map((attachment) => this.normalizeAttachment(attachment)) })
+          : event),
         catchError((error) => this.handleRequestError(error))
       );
   }

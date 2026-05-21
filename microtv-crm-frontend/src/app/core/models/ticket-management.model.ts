@@ -40,6 +40,7 @@ export interface TicketAttachment {
   storagePath?: string | null;
   previewUrl?: string | null;
   size?: number | null;
+  media_id?: string | null;
 }
 
 export interface TicketComment {
@@ -288,6 +289,7 @@ export interface SatisfactionMediaFile {
   file_type: string;
   file_name?: string | null;
   size_bytes?: number | null;
+  media_id?: string | null;
 }
 
 export interface SatisfactionResponseDetailResponse {

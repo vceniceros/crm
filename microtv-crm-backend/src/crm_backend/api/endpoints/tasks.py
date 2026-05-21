@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, Response, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Response, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 from crm_backend.api.dependencies import (
@@ -181,6 +181,7 @@ def set_template_activation(
 )
 async def upload_task_attachments(
     task_id: str,
+    background_tasks: BackgroundTasks,
     files: Annotated[list[UploadFile], File(...)],
     subtask_id: Annotated[str | None, Form()] = None,
     actor: ResolvedCrmSession = Depends(get_authenticated_crm_session),
@@ -188,7 +189,7 @@ async def upload_task_attachments(
 ) -> list[TaskAttachmentResponse]:
     return [
         TaskAttachmentResponse.model_validate(item)
-        for item in await task_service.upload_task_attachments(actor, task_id, subtask_id, files)
+        for item in await task_service.upload_task_attachments(actor, task_id, subtask_id, files, background_tasks)
     ]
 
 

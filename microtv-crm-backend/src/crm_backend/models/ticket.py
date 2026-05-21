@@ -409,6 +409,7 @@ class TicketAttachment(Base):
     mime_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     attachment_type: Mapped[str] = mapped_column(String(50), default=TicketAttachmentType.PHOTO.value)
     uploaded_by_crm_user_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id"), nullable=True, index=True)
+    video_job_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), ForeignKey("video_processing_jobs.id"), nullable=True, index=True)
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     ticket: Mapped[Ticket] = relationship("Ticket", back_populates="attachments")
@@ -449,6 +450,10 @@ class TicketAttachment(Base):
     @property
     def size(self) -> int | None:
         return self.file_size_bytes
+
+    @property
+    def media_id(self) -> str | None:
+        return self.video_job_id
 
     @property
     def context(self) -> str:
@@ -655,6 +660,7 @@ class TicketSatisfactionMedia(Base):
     file_name: Mapped[str] = mapped_column(String(500))
     mime_type: Mapped[str] = mapped_column(String(100))
     size_bytes: Mapped[int] = mapped_column(nullable=False)
+    video_job_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), ForeignKey("video_processing_jobs.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     response: Mapped["TicketSatisfactionResponse"] = relationship("TicketSatisfactionResponse", back_populates="media")

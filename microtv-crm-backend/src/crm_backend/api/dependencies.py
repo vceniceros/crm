@@ -413,10 +413,12 @@ def get_task_application_service(
         notification_service=notification_service,
         permission_service=permission_service,
         activity_log_service=activity_log_service,
+        settings=settings,
     )
 
 
 def get_ticket_application_service(
+    settings: Settings = Depends(get_settings),
     ticket_repository: TicketRepository = Depends(get_ticket_repository),
     client_repository: ClientRepository = Depends(get_client_repository),
     location_repository: LocationRepository = Depends(get_location_repository),
@@ -459,6 +461,7 @@ def get_asset_application_service(
         task_repository=task_repository,
         permission_service=permission_service,
         activity_log_service=activity_log_service,
+        settings=settings,
     )
 
 
@@ -507,6 +510,7 @@ def get_satisfaction_form_service(
         satisfaction_videos_public_prefix=settings.satisfaction_videos_public_prefix,
         notification_service=notification_service,
         user_repository=user_repository,
+        settings=settings,
     )
 
 
