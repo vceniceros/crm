@@ -8,16 +8,6 @@
     <div class="task-attachments-section__actions">
       @if (!disabled()) {
         <input
-          #cameraInput
-          type="file"
-          accept="image/*"
-          capture="environment"
-          hidden
-          [disabled]="isUploading()"
-          (change)="onFileSelection($event)"
-        />
-
-        <input
           #galleryInput
           type="file"
           [accept]="acceptAttribute"
@@ -27,9 +17,9 @@
           (change)="onFileSelection($event)"
         />
 
-        <button mat-stroked-button type="button" [disabled]="isUploading()" (click)="openCameraInput(cameraInput)">
+        <button mat-stroked-button type="button" [disabled]="isUploading()" (click)="openPhotoCapture()">
           <mat-icon>photo_camera</mat-icon>
-          <span>{{ isUploading() ? 'Subiendo...' : 'Cámara foto' }}</span>
+          <span>{{ isUploading() ? 'Subiendo...' : 'Tomar foto' }}</span>
         </button>
 
         <button mat-stroked-button type="button" [disabled]="isUploading()" (click)="openVideoRecorder()">
@@ -39,7 +29,7 @@
 
         <button mat-stroked-button type="button" [disabled]="isUploading()" (click)="openGalleryInput(galleryInput)">
           <mat-icon>photo_library</mat-icon>
-          <span>Galería/archivo</span>
+          <span>Elegir de galería</span>
         </button>
 
         <p class="task-attachments-section__hint">
@@ -52,6 +42,13 @@
 
     @if (uploadError(); as uploadError) {
       <p class="task-attachments-section__error">{{ uploadError }}</p>
+    }
+
+    @if (isPhotoCaptureOpen()) {
+      <app-photo-capture
+        (photoCaptured)="onPhotoCaptured($event)"
+        (cancelled)="closePhotoCapture()"
+      />
     }
 
     @if (isRecorderOpen()) {

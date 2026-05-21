@@ -158,9 +158,10 @@ const devLoginAccounts = devMode
   ? (parseDevLoginAccounts(envValues.DEV_LOGIN_ACCOUNTS_JSON) ?? defaultDevLoginAccounts)
   : [];
 const mediaPublicUrl = parseMediaPublicUrl(envValues.CRM_MEDIA_PUBLIC_URL);
-const imageMaxWidth = parseNumber(envValues.IMAGE_MAX_WIDTH, 1280);
-const imageMaxHeight = parseNumber(envValues.IMAGE_MAX_HEIGHT, 1280);
-const imageQuality = parseNumber(envValues.IMAGE_QUALITY, 0.75);
+const imageMaxWidth = parseNumber(envValues.IMAGE_CAPTURE_MAX_WIDTH ?? envValues.IMAGE_MAX_WIDTH, 1280);
+const imageMaxHeight = parseNumber(envValues.IMAGE_CAPTURE_MAX_HEIGHT ?? envValues.IMAGE_MAX_HEIGHT, 720);
+const imageQuality = parseNumber(envValues.IMAGE_CAPTURE_QUALITY ?? envValues.IMAGE_QUALITY, 0.82);
+const imageMaxUploadMb = parseNumber(envValues.IMAGE_MAX_UPLOAD_MB, 10);
 const imageTargetFormat = (envValues.IMAGE_TARGET_FORMAT || 'webp').trim().toLowerCase() || 'webp';
 const videoMaxSizeMb = parseNumber(envValues.VIDEO_MAX_SIZE_MB, 50);
 const vapidPublicKey = (envValues.VAPID_PUBLIC_KEY || '').trim();
@@ -178,6 +179,7 @@ const runtimeConfigContents = `globalThis.__CRM_RUNTIME_CONFIG__ = ${JSON.string
     imageMaxWidth,
     imageMaxHeight,
     imageQuality,
+    imageMaxUploadMb,
     imageTargetFormat,
     videoMaxSizeMb,
     vapidPublicKey,
