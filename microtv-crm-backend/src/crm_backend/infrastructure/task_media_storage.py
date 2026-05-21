@@ -164,6 +164,10 @@ class VideoTaskMediaUploadStrategy(BaseTaskMediaUploadStrategy):
     def supports(self, upload: UploadFile) -> bool:
         return self._content_type_is_allowed(upload)
 
+    def _content_type_is_allowed(self, upload: UploadFile) -> bool:
+        base_type = (upload.content_type or "").lower().split(";")[0].strip()
+        return base_type in self.allowed_content_types
+
     def _size_error_message(self) -> str:
         return "El video supera el límite permitido de 128 MB."
 

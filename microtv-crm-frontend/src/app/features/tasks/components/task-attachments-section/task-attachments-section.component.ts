@@ -66,7 +66,8 @@ export class TaskAttachmentsSectionComponent {
   }
 
   onRecordingComplete(blob: Blob): void {
-    const file = new File([blob], `recording-${Date.now()}.webm`, { type: blob.type || 'video/webm' });
+    const mimeType = blob.type.split(';')[0] || 'video/webm';
+    const file = new File([blob], `recording-${Date.now()}.webm`, { type: mimeType });
     this.isRecorderOpen.set(false);
     this.uploadFiles([file]);
   }

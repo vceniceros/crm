@@ -9,7 +9,8 @@ export class VideoUploadStrategy implements MediaUploadStrategy {
   readonly acceptPattern = 'video/mp4,video/webm,video/quicktime';
 
   supports(file: File): boolean {
-    return VIDEO_MIME_TYPES.has(file.type) || hasAnyExtension(file.name, VIDEO_EXTENSIONS);
+    const baseMime = file.type.split(';')[0].toLowerCase();
+    return VIDEO_MIME_TYPES.has(baseMime) || hasAnyExtension(file.name, VIDEO_EXTENSIONS);
   }
 
   validate(file: File): void {

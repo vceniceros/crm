@@ -3,6 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 import { TicketAttachment } from '../../../../core/models/ticket-attachment.model';
 import { ImageViewerDialogComponent } from '../../../../shared/ui/image-viewer-dialog/image-viewer-dialog.component';
@@ -11,7 +12,7 @@ import { VideoRecorderComponent } from '../../../../shared/ui/video-recorder/vid
 @Component({
   selector: 'app-ticket-attachments-section',
   standalone: true,
-  imports: [MatButtonModule, MatCardModule, MatDialogModule, MatIconModule, VideoRecorderComponent],
+  imports: [MatButtonModule, MatCardModule, MatDialogModule, MatIconModule, MatProgressBarModule, VideoRecorderComponent],
   templateUrl: './ticket-attachments-section.component.html',
   styleUrl: './ticket-attachments-section.component.scss'
 })
@@ -26,6 +27,7 @@ export class TicketAttachmentsSectionComponent {
   readonly uploadButtonLabel = input('Agregar fotos o videos');
   readonly hintText = input('Los archivos quedan disponibles para comentarios, transiciones y cierre del ticket.');
   readonly emptyMessage = input('No hay adjuntos cargados todavía para este ticket.');
+  readonly isSaving = input(false);
   readonly attachmentsSelected = output<readonly File[]>();
   readonly attachmentRemoved = output<string>();
   readonly isRecorderOpen = signal(false);
@@ -69,9 +71,10 @@ export class TicketAttachmentsSectionComponent {
   }
 
   onRecordingComplete(blob: Blob): void {
+    const mimeType = blob.type.split(';')[0] || 'video/webm';
     this.isRecorderOpen.set(false);
     this.attachmentsSelected.emit([
-      new File([blob], `recording-${Date.now()}.webm`, { type: blob.type || 'video/webm' })
+      new File([blob], `recording-${Date.now()}.webm`, { type: mimeType })
     ]);
   }
 
