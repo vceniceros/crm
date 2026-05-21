@@ -8,13 +8,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { crmApiConfig } from '../../../../core/config/crm-api.config';
 import { TaskAttachment } from '../../../../core/models/task-attachment.model';
 import { MediaUploadFacade } from '../../../../shared/facades/media-upload.facade';
+import { PhotoCaptureComponent } from '../../../../shared/ui/photo-capture/photo-capture.component';
 import { UploadProgressComponent } from '../../../../shared/ui/upload-progress/upload-progress.component';
 import { VideoRecorderComponent } from '../../../../shared/ui/video-recorder/video-recorder.component';
 
 @Component({
   selector: 'app-task-attachments-section',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatCardModule, MatIconModule, UploadProgressComponent, VideoRecorderComponent],
+  imports: [CommonModule, MatButtonModule, MatCardModule, MatIconModule, PhotoCaptureComponent, UploadProgressComponent, VideoRecorderComponent],
   templateUrl: './task-attachments-section.component.html',
   styleUrl: './task-attachments-section.component.scss'
 })
@@ -31,6 +32,7 @@ export class TaskAttachmentsSectionComponent {
   readonly attachmentRemoved = output<string>();
   readonly uploadError = signal<string | null>(null);
   readonly isUploading = signal(false);
+  readonly isPhotoCaptureOpen = signal(false);
   readonly isRecorderOpen = signal(false);
   readonly uploadProgress = this.mediaUploadFacade.uploadProgress;
   readonly mediaStatus = this.mediaUploadFacade.mediaStatus;
@@ -48,16 +50,22 @@ export class TaskAttachmentsSectionComponent {
     input.value = '';
   }
 
-  openCameraInput(input: HTMLInputElement): void {
-    if (!input) {
-      return;
-    }
+  openPhotoCapture(): void {
+    this.isRecorderOpen.set(false);
+    this.isPhotoCaptureOpen.set(true);
+  }
 
-    input.value = '';
-    input.click();
+  closePhotoCapture(): void {
+    this.isPhotoCaptureOpen.set(false);
+  }
+
+  onPhotoCaptured(file: File): void {
+    this.isPhotoCaptureOpen.set(false);
+    this.uploadFiles([file]);
   }
 
   openVideoRecorder(): void {
+    this.isPhotoCaptureOpen.set(false);
     this.isRecorderOpen.set(true);
   }
 

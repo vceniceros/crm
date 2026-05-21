@@ -14,15 +14,6 @@
     @if (canEdit()) {
       <div class="ticket-attachments-section__actions">
         <input
-          #cameraInput
-          type="file"
-          accept="image/*"
-          capture="environment"
-          hidden
-          (change)="onFileSelection($event)"
-        />
-
-        <input
           #galleryInput
           type="file"
           accept="image/*,video/*"
@@ -31,9 +22,9 @@
           (change)="onFileSelection($event)"
         />
 
-        <button mat-stroked-button type="button" (click)="openCameraInput(cameraInput)">
+        <button mat-stroked-button type="button" (click)="openPhotoCapture()">
           <mat-icon>photo_camera</mat-icon>
-          <span>Cámara foto</span>
+          <span>Tomar foto</span>
         </button>
 
         <button mat-stroked-button type="button" (click)="openVideoRecorder()">
@@ -43,12 +34,19 @@
 
         <button mat-stroked-button type="button" (click)="openGalleryInput(galleryInput)">
           <mat-icon>photo_library</mat-icon>
-          <span>Galería/archivo</span>
+          <span>Elegir de galería</span>
         </button>
 
         <p class="ticket-attachments-section__hint">{{ hintText() }}</p>
         <p class="ticket-attachments-section__paste-hint">También podés pegar capturas con Ctrl+V.</p>
       </div>
+    }
+
+    @if (isPhotoCaptureOpen()) {
+      <app-photo-capture
+        (photoCaptured)="onPhotoCaptured($event)"
+        (cancelled)="closePhotoCapture()"
+      />
     }
 
     @if (isRecorderOpen()) {

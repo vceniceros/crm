@@ -1,0 +1,19 @@
+<div class="photo-capture">
+  <video #preview autoplay muted playsinline></video>
+
+  <div class="photo-capture__controls">
+    <button mat-flat-button color="primary" type="button" [disabled]="!photoCapture.isCameraActive()" (click)="capture()">
+      <mat-icon>photo_camera</mat-icon>
+      <span>Capturar foto</span>
+    </button>
+
+    <button mat-stroked-button type="button" (click)="cancel()">
+      <mat-icon>close</mat-icon>
+      <span>Cancelar</span>
+    </button>
+  </div>
+
+  @if (photoCapture.errorMessage(); as message) {
+    <p class="photo-capture__error">{{ message }}</p>
+  }
+</div>

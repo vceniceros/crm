@@ -1,0 +1,24 @@
+.photo-capture {
+  display: grid;
+  gap: 12px;
+}
+
+.photo-capture video {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #111;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.photo-capture__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.photo-capture__error {
+  color: #b3261e;
+  margin: 0;
+}

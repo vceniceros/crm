@@ -14,6 +14,7 @@ type CrmRuntimeConfig = {
   imageMaxWidth?: number | string;
   imageMaxHeight?: number | string;
   imageQuality?: number | string;
+  imageMaxUploadMb?: number | string;
   imageTargetFormat?: string;
   videoMaxSizeMb?: number | string;
   videoMaxDurationSeconds?: number | string;
@@ -150,8 +151,9 @@ export const crmMediaConfig = {
   publicUrl: resolveMediaPublicUrl(runtimeConfig?.mediaPublicUrl),
   image: {
     maxWidth: Math.max(64, Math.round(resolveNumber(runtimeConfig?.imageMaxWidth, 1280))),
-    maxHeight: Math.max(64, Math.round(resolveNumber(runtimeConfig?.imageMaxHeight, 1280))),
-    quality: Math.min(1, Math.max(0.1, resolveNumber(runtimeConfig?.imageQuality, 0.75))),
+    maxHeight: Math.max(64, Math.round(resolveNumber(runtimeConfig?.imageMaxHeight, 720))),
+    quality: Math.min(1, Math.max(0.1, resolveNumber(runtimeConfig?.imageQuality, 0.82))),
+    maxUploadMb: Math.max(1, Math.round(resolveNumber(runtimeConfig?.imageMaxUploadMb, 10))),
     targetFormat: resolveImageTargetFormat(runtimeConfig?.imageTargetFormat)
   },
   video: {

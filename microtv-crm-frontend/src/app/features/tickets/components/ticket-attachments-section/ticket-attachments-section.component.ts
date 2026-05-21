@@ -7,12 +7,13 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 import { TicketAttachment } from '../../../../core/models/ticket-attachment.model';
 import { ImageViewerDialogComponent } from '../../../../shared/ui/image-viewer-dialog/image-viewer-dialog.component';
+import { PhotoCaptureComponent } from '../../../../shared/ui/photo-capture/photo-capture.component';
 import { VideoRecorderComponent } from '../../../../shared/ui/video-recorder/video-recorder.component';
 
 @Component({
   selector: 'app-ticket-attachments-section',
   standalone: true,
-  imports: [MatButtonModule, MatCardModule, MatDialogModule, MatIconModule, MatProgressBarModule, VideoRecorderComponent],
+  imports: [MatButtonModule, MatCardModule, MatDialogModule, MatIconModule, MatProgressBarModule, PhotoCaptureComponent, VideoRecorderComponent],
   templateUrl: './ticket-attachments-section.component.html',
   styleUrl: './ticket-attachments-section.component.scss'
 })
@@ -30,6 +31,7 @@ export class TicketAttachmentsSectionComponent {
   readonly isSaving = input(false);
   readonly attachmentsSelected = output<readonly File[]>();
   readonly attachmentRemoved = output<string>();
+  readonly isPhotoCaptureOpen = signal(false);
   readonly isRecorderOpen = signal(false);
 
   onFileSelection(event: Event): void {
@@ -62,7 +64,22 @@ export class TicketAttachmentsSectionComponent {
     this.attachmentRemoved.emit(attachmentId);
   }
 
+  openPhotoCapture(): void {
+    this.isRecorderOpen.set(false);
+    this.isPhotoCaptureOpen.set(true);
+  }
+
+  closePhotoCapture(): void {
+    this.isPhotoCaptureOpen.set(false);
+  }
+
+  onPhotoCaptured(file: File): void {
+    this.isPhotoCaptureOpen.set(false);
+    this.attachmentsSelected.emit([file]);
+  }
+
   openVideoRecorder(): void {
+    this.isPhotoCaptureOpen.set(false);
     this.isRecorderOpen.set(true);
   }
 
@@ -80,17 +97,6 @@ export class TicketAttachmentsSectionComponent {
 
   trackByAttachmentId(_: number, attachment: TicketAttachment): string {
     return attachment.id;
-  }
-
-  openCameraInput(input: HTMLInputElement): void {
-    if (!input) {
-      return;
-    }
-
-    input.value = '';
-
-    // On Android, direct click tends to respect capture better than showPicker.
-    input.click();
   }
 
   openGalleryInput(input: HTMLInputElement): void {
