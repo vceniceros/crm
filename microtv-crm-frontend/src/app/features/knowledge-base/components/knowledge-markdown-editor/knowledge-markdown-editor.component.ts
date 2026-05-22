@@ -71,6 +71,21 @@ export class KnowledgeMarkdownEditorComponent {
     (event.target as HTMLInputElement).value = '';
   }
 
+  pasteImage(event: ClipboardEvent): void {
+    if (this.uploadDisabled) {
+      return;
+    }
+    const imageItem = Array.from(event.clipboardData?.items ?? []).find((item) => item.type.startsWith('image/'));
+    const file = imageItem?.getAsFile();
+    if (!file) {
+      return;
+    }
+    event.preventDefault();
+    const extension = file.type.split('/')[1] || 'png';
+    const namedFile = new File([file], `imagen-pegada-${Date.now()}.${extension}`, { type: file.type });
+    this.imageSelected.emit(namedFile);
+  }
+
   appendImageMarkdown(alt: string, url: string): void {
     this.setValue(`${this.value}${this.value.endsWith('\n') || !this.value ? '' : '\n'}![${alt}](${url})\n`);
   }

@@ -4,6 +4,7 @@
       class="kb-editor-textarea"
       [value]="value"
       (input)="setValue($any($event.target).value)"
+      (paste)="pasteImage($event)"
       placeholder="# Titulo&#10;&#10;Pegue o escriba el contenido Markdown"
     ></textarea>
   </mat-tab>
@@ -24,6 +25,7 @@
           class="kb-editor-textarea"
           [value]="value"
           (input)="setValue($any($event.target).value)"
+          (paste)="pasteImage($event)"
           placeholder="Escriba el articulo en Markdown"
         ></textarea>
       </div>
