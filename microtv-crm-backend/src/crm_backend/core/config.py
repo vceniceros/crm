@@ -70,6 +70,10 @@ class Settings(BaseSettings):
     product_images_max_bytes: int = Field(default=2 * 1024 * 1024)
     task_images_max_bytes: int = Field(default=8 * 1024 * 1024)
     task_videos_max_bytes: int = Field(default=128 * 1024 * 1024)
+    pre_form_expiry_hours: int = Field(default=72)
+    pre_form_images_max_bytes: int = Field(default=8 * 1024 * 1024)
+    pre_form_max_attachments_per_instance: int = Field(default=10)
+    pre_form_max_attachments_per_field: int = Field(default=3)
     video_max_duration_seconds: int = Field(default=30)
     video_max_upload_mb: int = Field(default=80)
     video_target_height: int = Field(default=720)
@@ -188,8 +192,16 @@ class Settings(BaseSettings):
         return self.task_videos_dir / "raw"
 
     @property
+    def pre_form_images_dir(self) -> Path:
+        return self.crm_media_root_path / "pre_form" / "images"
+
+    @property
     def task_images_public_prefix(self) -> str:
         return self._build_media_public_prefix("tasks", "images")
+
+    @property
+    def pre_form_images_public_prefix(self) -> str:
+        return self._build_media_public_prefix("pre_form", "images")
 
     @property
     def task_videos_public_prefix(self) -> str:

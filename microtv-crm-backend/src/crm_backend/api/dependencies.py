@@ -8,6 +8,7 @@ from crm_backend.core.config import Settings, get_settings
 from crm_backend.core.exceptions import UnauthenticatedError
 from crm_backend.db import get_db_session
 from crm_backend.infrastructure.product_image_storage import ProductImageStorage
+from crm_backend.infrastructure.pre_form_media_storage import PreFormMediaStorageFacade
 from crm_backend.infrastructure.task_media_storage import TaskMediaStorageFacade
 from crm_backend.repositories import (
     ActivityLogRepository,
@@ -218,6 +219,12 @@ def get_task_media_storage(settings: Settings = Depends(get_settings)) -> TaskMe
     """Provide the local task media storage facade."""
 
     return TaskMediaStorageFacade(settings)
+
+
+def get_pre_form_media_storage(settings: Settings = Depends(get_settings)) -> PreFormMediaStorageFacade:
+    """Provide the local public pre-form image storage facade."""
+
+    return PreFormMediaStorageFacade(settings)
 
 
 def get_task_template_repository(session: Session = Depends(get_db_session)) -> TaskTemplateRepository:
@@ -556,13 +563,16 @@ def get_task_satisfaction_form_service(
 def get_task_pre_form_service(
     session: Session = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
+    pre_form_storage: PreFormMediaStorageFacade = Depends(get_pre_form_media_storage),
     notification_service: NotificationService = Depends(get_notification_service),
     user_repository: CrmUserRepository = Depends(get_crm_user_repository),
 ) -> TaskPreFormService:
     """Provide task pre-form service."""
     return TaskPreFormService(
         session=session,
-        expiry_hours=settings.satisfaction_form_expiry_hours,
+        expiry_hours=settings.pre_form_expiry_hours,
+        settings=settings,
+        pre_form_storage=pre_form_storage,
         notification_service=notification_service,
         user_repository=user_repository,
     )

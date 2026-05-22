@@ -490,6 +490,7 @@ def generate_task_pre_form_link(
         revoked_at=instance.revoked_at,
         form_link_path=f"/pre-form/{raw_token}",
         response_values=[],
+        attachments=[],
     )
 
 
@@ -523,8 +524,19 @@ def get_task_pre_form_status(
                     "field_type": field.field_type,
                     "text_value": field_value.text_value,
                     "file_attachment_id": field_value.file_attachment_id,
+                    "file_url": field_value.attachment.file_url if field_value.attachment is not None else None,
                 }
             )
+
+    attachments = [
+        {
+            "attachment_id": attachment.attachment_id,
+            "file_url": attachment.file_url,
+            "mime_type": attachment.mime_type,
+            "uploaded_at": attachment.uploaded_at,
+        }
+        for attachment in instance.attachments
+    ]
 
     return TaskPreFormStatusResponse(
         instance_id=instance.instance_id,
@@ -535,4 +547,5 @@ def get_task_pre_form_status(
         revoked_at=instance.revoked_at,
         form_link_path=None,
         response_values=response_values,
+        attachments=attachments,
     )

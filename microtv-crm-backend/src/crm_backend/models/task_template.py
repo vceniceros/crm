@@ -36,6 +36,7 @@ class SubtaskType(StrEnum):
 
     STANDARD = "standard"
     PRE_FORM = "pre_form"
+    CLOSE_FORM = "close_form"
 
 
 class TaskTemplate(Base):

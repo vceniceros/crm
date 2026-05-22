@@ -34,6 +34,47 @@
   width: 100%;
 }
 
+.public-task-pre-form-page__file-field {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.85rem;
+  border: 1px solid #c8d3df;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.public-task-pre-form-page__file-label {
+  font-weight: 600;
+  color: #243447;
+}
+
+.public-task-pre-form-page__file-input {
+  max-width: 100%;
+}
+
+.public-task-pre-form-page__file-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.5rem;
+  font-size: 0.9rem;
+  color: #465b72;
+}
+
+.public-task-pre-form-page__file-status mat-icon {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+}
+
+.public-task-pre-form-page__file-status--ok {
+  color: #146c43;
+}
+
+.public-task-pre-form-page__file-status--error {
+  color: #b3261e;
+}
+
 .public-task-pre-form-page__actions {
   display: flex;
   justify-content: flex-end;
