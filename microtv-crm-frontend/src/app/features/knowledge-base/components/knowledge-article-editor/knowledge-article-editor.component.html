@@ -26,8 +26,8 @@
       <mat-label>Categoria</mat-label>
       <mat-select [(ngModel)]="categoryId">
         <mat-option [value]="null">Sin categoria</mat-option>
-        @for (category of categories(); track category.article_category_id) {
-          <mat-option [value]="category.article_category_id">{{ category.name }}</mat-option>
+        @for (category of categories(); track category.category_id) {
+          <mat-option [value]="category.category_id">{{ category.name }}</mat-option>
         }
       </mat-select>
     </mat-form-field>

@@ -12,7 +12,8 @@ from crm_backend.core.config import Settings
 from crm_backend.core.exceptions import KnowledgeAccessDeniedError, KnowledgeNotFoundError, KnowledgeValidationError
 from crm_backend.infrastructure.knowledge_media_storage import KnowledgeMediaStorageFacade
 from crm_backend.infrastructure.task_media_storage import StoredTaskMedia
-from crm_backend.models.knowledge import KnowledgeArticle, KnowledgeArticleAttachment, KnowledgeCategory
+from crm_backend.models.knowledge import KnowledgeArticle, KnowledgeArticleAttachment
+from crm_backend.models.settings import CrmCategory
 from crm_backend.models.task_execution import TaskAttachmentType
 from crm_backend.repositories.knowledge_repository import KnowledgeRepository
 from crm_backend.schemas.knowledge import CreateKnowledgeArticleRequest, KnowledgeArticleFilterParams, UpdateKnowledgeArticleRequest
@@ -133,7 +134,7 @@ class KnowledgeApplicationService:
         )
         self._repository.delete_attachment(attachment)
 
-    def list_categories(self) -> list[KnowledgeCategory]:
+    def list_categories(self) -> list[CrmCategory]:
         return self._repository.list_categories()
 
     def _generate_slug(self, title: str, exclude_id: str | None = None) -> str:

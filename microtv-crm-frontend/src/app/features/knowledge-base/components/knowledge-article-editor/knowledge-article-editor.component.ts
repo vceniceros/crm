@@ -123,7 +123,7 @@ export class KnowledgeArticleEditorComponent {
     this.service.getArticle(articleId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (article) => {
         this.title = article.title;
-        this.categoryId = article.category?.article_category_id ?? null;
+        this.categoryId = article.category?.category_id ?? null;
         this.contentMd = article.content_md;
         this.loading.set(false);
       },

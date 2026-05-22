@@ -9,8 +9,8 @@ from crm_backend.models.knowledge import (
     KnowledgeArticle,
     KnowledgeArticleAttachment,
     KnowledgeArticleVersion,
-    KnowledgeCategory,
 )
+from crm_backend.models.settings import CrmCategory
 from crm_backend.schemas.knowledge import KnowledgeArticleFilterParams
 
 
@@ -32,7 +32,7 @@ class KnowledgeRepository:
                 or_(
                     KnowledgeArticle.title.ilike(term),
                     KnowledgeArticle.content_md.ilike(term),
-                    KnowledgeCategory.name.ilike(term),
+                    CrmCategory.name.ilike(term),
                 )
             )
         return list(self._session.scalars(statement).unique())
@@ -55,8 +55,14 @@ class KnowledgeRepository:
         article.deleted_at = func.now()
         self._session.commit()
 
-    def list_categories(self) -> list[KnowledgeCategory]:
-        return list(self._session.scalars(select(KnowledgeCategory).order_by(KnowledgeCategory.name)))
+    def list_categories(self) -> list[CrmCategory]:
+        return list(
+            self._session.scalars(
+                select(CrmCategory)
+                .where(CrmCategory.is_active.is_(True))
+                .order_by(CrmCategory.name)
+            )
+        )
 
     def save_attachment(self, attachment: KnowledgeArticleAttachment) -> KnowledgeArticleAttachment:
         self._session.add(attachment)

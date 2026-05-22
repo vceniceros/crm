@@ -1,7 +1,6 @@
 <mat-tab-group class="kb-editor-tabs">
   <mat-tab label="Cargar Markdown">
     <textarea
-      #textarea
       class="kb-editor-textarea"
       [value]="value"
       (input)="setValue($any($event.target).value)"
@@ -9,22 +8,29 @@
     ></textarea>
   </mat-tab>
   <mat-tab label="Modo escritura">
-    <div class="toolbar">
-      <button mat-icon-button type="button" title="Negrita" (click)="insert('**', '**')"><mat-icon>format_bold</mat-icon></button>
-      <button mat-icon-button type="button" title="Italica" (click)="insert('*', '*')"><mat-icon>format_italic</mat-icon></button>
-      <button mat-icon-button type="button" title="Titulo" (click)="insert('## ', '')"><mat-icon>title</mat-icon></button>
-      <button mat-icon-button type="button" title="Lista" (click)="insert('- ', '')"><mat-icon>format_list_bulleted</mat-icon></button>
-      <button mat-icon-button type="button" title="Codigo" (click)="insert('`', '`', 'codigo')"><mat-icon>code</mat-icon></button>
-      <button mat-icon-button type="button" title="Imagen" [disabled]="uploadDisabled" (click)="triggerImageInput()"><mat-icon>image</mat-icon></button>
-      <button mat-icon-button type="button" title="Video asociado" [disabled]="uploadDisabled" (click)="triggerVideoInput()"><mat-icon>movie</mat-icon></button>
+    <div class="split-pane">
+      <div class="write-pane">
+        <div class="toolbar">
+          <button mat-icon-button type="button" title="Negrita" (click)="insert('**', '**')"><mat-icon>format_bold</mat-icon></button>
+          <button mat-icon-button type="button" title="Italica" (click)="insert('*', '*')"><mat-icon>format_italic</mat-icon></button>
+          <button mat-icon-button type="button" title="Titulo" (click)="insert('## ', '')"><mat-icon>title</mat-icon></button>
+          <button mat-icon-button type="button" title="Lista" (click)="insert('- ', '')"><mat-icon>format_list_bulleted</mat-icon></button>
+          <button mat-icon-button type="button" title="Codigo" (click)="insert('`', '`', 'codigo')"><mat-icon>code</mat-icon></button>
+          <button mat-icon-button type="button" title="Imagen" [disabled]="uploadDisabled" (click)="triggerImageInput()"><mat-icon>image</mat-icon></button>
+          <button mat-icon-button type="button" title="Video asociado" [disabled]="uploadDisabled" (click)="triggerVideoInput()"><mat-icon>movie</mat-icon></button>
+        </div>
+        <textarea
+          #textarea
+          class="kb-editor-textarea"
+          [value]="value"
+          (input)="setValue($any($event.target).value)"
+          placeholder="Escriba el articulo en Markdown"
+        ></textarea>
+      </div>
+      <div class="preview-pane">
+        <markdown [data]="value"></markdown>
+      </div>
     </div>
-    <textarea
-      #textarea
-      class="kb-editor-textarea"
-      [value]="value"
-      (input)="setValue($any($event.target).value)"
-      placeholder="Escriba el articulo en Markdown"
-    ></textarea>
   </mat-tab>
   <mat-tab label="Vista previa">
     <article class="markdown-preview">

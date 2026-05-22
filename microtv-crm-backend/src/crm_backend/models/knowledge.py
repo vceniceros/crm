@@ -9,21 +9,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, Uni
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from crm_backend.db.base import Base
-
-
-class KnowledgeCategory(Base):
-    """Read-only article taxonomy."""
-
-    __tablename__ = "knowledge_categories"
-
-    article_category_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-    articles: Mapped[list[KnowledgeArticle]] = relationship("KnowledgeArticle", back_populates="category", lazy="selectin")
+from crm_backend.models.settings import CrmCategory
 
 
 class KnowledgeArticle(Base):
@@ -34,7 +20,7 @@ class KnowledgeArticle(Base):
     article_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
-    category_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), ForeignKey("knowledge_categories.article_category_id"), nullable=True, index=True)
+    category_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_categories.category_id"), nullable=True, index=True)
     content_md: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="published", server_default="published", index=True)
     created_by_user_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("crm_users.crm_user_id"), nullable=False, index=True)
@@ -44,7 +30,7 @@ class KnowledgeArticle(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     is_auto_draft: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
-    category: Mapped[KnowledgeCategory | None] = relationship("KnowledgeCategory", back_populates="articles", lazy="selectin")
+    category: Mapped[CrmCategory | None] = relationship("CrmCategory", foreign_keys=[category_id], lazy="selectin")
     created_by: Mapped[object] = relationship("CrmUser", foreign_keys=[created_by_user_id], lazy="selectin")
     updated_by: Mapped[object | None] = relationship("CrmUser", foreign_keys=[updated_by_user_id], lazy="selectin")
     attachments: Mapped[list[KnowledgeArticleAttachment]] = relationship(

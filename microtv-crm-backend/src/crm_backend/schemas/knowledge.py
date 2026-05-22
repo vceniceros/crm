@@ -11,9 +11,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 class KnowledgeCategoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    article_category_id: str
+    category_id: str
     name: str
-    slug: str
     description: str | None = None
 
 
