@@ -76,6 +76,7 @@ from crm_backend.models.notification import Notification, NotificationEntityType
 from crm_backend.models.push_subscription import PushSubscription
 from crm_backend.models.settings import CrmCategory, CrmPriority, CrmStatus, NotificationRule, SlaRule
 from crm_backend.models.video_processing import VideoProcessingJob, VideoProcessingStatus
+from crm_backend.models.knowledge import KnowledgeArticle, KnowledgeArticleAttachment, KnowledgeArticleVersion, KnowledgeCategory
 
 __all__ = [
 	"CrmRole",
@@ -171,4 +172,8 @@ __all__ = [
 	"NotificationRule",
 	"VideoProcessingJob",
 	"VideoProcessingStatus",
+	"KnowledgeArticle",
+	"KnowledgeArticleAttachment",
+	"KnowledgeArticleVersion",
+	"KnowledgeCategory",
 ]

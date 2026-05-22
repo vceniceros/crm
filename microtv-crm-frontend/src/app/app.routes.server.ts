@@ -6,6 +6,14 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Server
   },
   {
+    path: 'knowledge-base/:articleId/edit',
+    renderMode: RenderMode.Server
+  },
+  {
+    path: 'knowledge-base/:articleId',
+    renderMode: RenderMode.Server
+  },
+  {
     path: 'tickets/:ticketId',
     renderMode: RenderMode.Server
   },

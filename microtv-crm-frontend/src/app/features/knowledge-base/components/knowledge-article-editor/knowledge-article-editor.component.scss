@@ -1,0 +1,52 @@
+.article-editor {
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem;
+}
+
+.back-link,
+.page-header,
+.form-grid {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.back-link {
+  color: var(--mat-sys-primary);
+  text-decoration: none;
+}
+
+.page-header {
+  justify-content: space-between;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.page-header p,
+.state {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.form-grid {
+  flex-wrap: wrap;
+}
+
+.form-grid mat-form-field:first-child {
+  flex: 1 1 24rem;
+}
+
+.error {
+  color: var(--mat-sys-error);
+}
+
+@media (max-width: 720px) {
+  .page-header,
+  .form-grid {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

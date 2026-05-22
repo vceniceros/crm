@@ -70,6 +70,8 @@ class Settings(BaseSettings):
     product_images_max_bytes: int = Field(default=2 * 1024 * 1024)
     task_images_max_bytes: int = Field(default=8 * 1024 * 1024)
     task_videos_max_bytes: int = Field(default=128 * 1024 * 1024)
+    knowledge_images_max_bytes: int = Field(default=8 * 1024 * 1024)
+    knowledge_videos_max_bytes: int = Field(default=128 * 1024 * 1024)
     pre_form_expiry_hours: int = Field(default=72)
     pre_form_images_max_bytes: int = Field(default=8 * 1024 * 1024)
     pre_form_max_attachments_per_instance: int = Field(default=10)
@@ -196,6 +198,14 @@ class Settings(BaseSettings):
         return self.crm_media_root_path / "pre_form" / "images"
 
     @property
+    def knowledge_images_dir(self) -> Path:
+        return self.crm_media_root_path / "knowledge" / "images"
+
+    @property
+    def knowledge_videos_dir(self) -> Path:
+        return self.crm_media_root_path / "knowledge" / "videos"
+
+    @property
     def task_images_public_prefix(self) -> str:
         return self._build_media_public_prefix("tasks", "images")
 
@@ -214,6 +224,14 @@ class Settings(BaseSettings):
     @property
     def product_images_public_prefix(self) -> str:
         return self._build_media_public_prefix("products", "images")
+
+    @property
+    def knowledge_images_public_prefix(self) -> str:
+        return self._build_media_public_prefix("knowledge", "images")
+
+    @property
+    def knowledge_videos_public_prefix(self) -> str:
+        return self._build_media_public_prefix("knowledge", "videos")
 
     satisfaction_images_max_bytes: int = Field(default=8 * 1024 * 1024)
     satisfaction_videos_max_bytes: int = Field(default=64 * 1024 * 1024)

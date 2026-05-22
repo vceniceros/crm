@@ -1,0 +1,37 @@
+<section class="article-detail">
+  <a class="back-link" routerLink="/knowledge-base"><mat-icon>arrow_back</mat-icon> Base de conocimientos</a>
+
+  @if (errorMessage()) {
+    <p class="state error">{{ errorMessage() }}</p>
+  } @else if (loading()) {
+    <p class="state">Cargando articulo...</p>
+  } @else if (article(); as item) {
+    <header class="page-header">
+      <div>
+        <h1>{{ item.title }}</h1>
+        <p>{{ item.category?.name || 'Sin categoria' }} · {{ item.created_by_display_name }}</p>
+      </div>
+      <div class="actions">
+        <button mat-stroked-button type="button" [disabled]="exportingPdf()" (click)="exportPdf()"><mat-icon>picture_as_pdf</mat-icon> Exportar PDF</button>
+        <a mat-stroked-button [routerLink]="['/knowledge-base', item.article_id, 'edit']"><mat-icon>edit</mat-icon> Editar</a>
+        @if (isAdmin) {
+          <button mat-icon-button type="button" aria-label="Eliminar articulo" (click)="deleteArticle()"><mat-icon>delete</mat-icon></button>
+        }
+      </div>
+    </header>
+
+    <article id="knowledge-article-export" class="article-body">
+      <h1>{{ item.title }}</h1>
+      <p class="meta">{{ item.category?.name || 'Sin categoria' }} · {{ item.created_by_display_name }}</p>
+      <markdown [data]="item.content_md"></markdown>
+      @if (videos.length) {
+        <section class="videos">
+          <h2>Videos asociados</h2>
+          @for (video of videos; track video.attachment_id) {
+            <video controls [src]="video.file_url"></video>
+          }
+        </section>
+      }
+    </article>
+  }
+</section>

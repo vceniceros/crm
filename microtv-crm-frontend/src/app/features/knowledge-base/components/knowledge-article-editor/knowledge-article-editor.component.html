@@ -1,0 +1,46 @@
+<section class="article-editor">
+  <a class="back-link" routerLink="/knowledge-base"><mat-icon>arrow_back</mat-icon> Base de conocimientos</a>
+
+  <header class="page-header">
+    <div>
+      <h1>{{ articleId() ? 'Editar articulo' : 'Crear articulo' }}</h1>
+      <p>Contenido Markdown con imagenes inline y videos asociados.</p>
+    </div>
+    <button mat-flat-button color="primary" type="button" [disabled]="saving() || loading()" (click)="save()">
+      <mat-icon>save</mat-icon>
+      Guardar
+    </button>
+  </header>
+
+  @if (errorMessage()) {
+    <p class="state error">{{ errorMessage() }}</p>
+  }
+
+  <div class="form-grid">
+    <mat-form-field appearance="outline">
+      <mat-label>Titulo</mat-label>
+      <input matInput [(ngModel)]="title">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Categoria</mat-label>
+      <mat-select [(ngModel)]="categoryId">
+        <mat-option [value]="null">Sin categoria</mat-option>
+        @for (category of categories(); track category.article_category_id) {
+          <mat-option [value]="category.article_category_id">{{ category.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  @if (loading()) {
+    <p class="state">Preparando editor...</p>
+  } @else {
+    <app-knowledge-markdown-editor
+      [(value)]="contentMd"
+      [uploadDisabled]="uploading()"
+      (imageSelected)="uploadImage($event)"
+      (videoSelected)="uploadVideo($event)"
+    ></app-knowledge-markdown-editor>
+  }
+</section>

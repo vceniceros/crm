@@ -8,6 +8,7 @@ export type MockModuleKey =
   | 'installations'
   | 'clients'
   | 'assets'
+  | 'knowledge-base'
   | 'billing'
   | 'reports'
   | 'settings'

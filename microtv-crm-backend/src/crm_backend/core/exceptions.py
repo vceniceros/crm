@@ -423,3 +423,23 @@ class NotificationAccessDeniedError(ApplicationError):
 
     def __init__(self) -> None:
         super().__init__(code="notification_access_denied", message="No tenés acceso a esa notificación.", status_code=403)
+
+class KnowledgeNotFoundError(ApplicationError):
+    """Senala que el articulo o adjunto solicitado no existe."""
+
+    def __init__(self, message: str = "El articulo indicado no existe.") -> None:
+        super().__init__(code="knowledge_not_found", message=message, status_code=404)
+
+
+class KnowledgeAccessDeniedError(ApplicationError):
+    """Senala una accion no permitida dentro de la base de conocimientos."""
+
+    def __init__(self, message: str = "No tenes permisos para esta accion.") -> None:
+        super().__init__(code="knowledge_access_denied", message=message, status_code=403)
+
+
+class KnowledgeValidationError(ApplicationError):
+    """Senala una validacion de dominio invalida."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(code="knowledge_validation_error", message=message, status_code=422)
