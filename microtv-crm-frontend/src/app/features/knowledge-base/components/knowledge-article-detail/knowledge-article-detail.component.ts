@@ -69,10 +69,7 @@ export class KnowledgeArticleDetailComponent {
       }
       const canvas = await html2canvas(target, { backgroundColor: '#ffffff', scale: 2, useCORS: true });
       const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
-      const margin = 24;
-      const usableWidth = pdf.internal.pageSize.getWidth() - margin * 2;
-      const scale = usableWidth / canvas.width;
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin, usableWidth, canvas.height * scale, undefined, 'FAST');
+      this.appendCanvasToPdf(pdf, canvas);
       pdf.save(`base-conocimientos-${article.slug}.pdf`);
     } catch (error) {
       this.errorMessage.set(error instanceof Error ? error.message : 'No se pudo exportar el PDF.');
@@ -94,5 +91,45 @@ export class KnowledgeArticleDetailComponent {
         this.loading.set(false);
       }
     });
+  }
+
+  private appendCanvasToPdf(pdf: import('jspdf').jsPDF, canvas: HTMLCanvasElement): void {
+    const margin = 24;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const usableWidth = pageWidth - margin * 2;
+    const usableHeight = pageHeight - margin * 2;
+    const scale = usableWidth / canvas.width;
+    const sliceHeight = Math.max(1, Math.floor(usableHeight / scale));
+
+    let offsetY = 0;
+    let firstPage = true;
+    while (offsetY < canvas.height) {
+      if (!firstPage) {
+        pdf.addPage();
+      }
+
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = Math.min(sliceHeight, canvas.height - offsetY);
+      const context = pageCanvas.getContext('2d');
+      if (context) {
+        context.drawImage(canvas, 0, offsetY, canvas.width, pageCanvas.height, 0, 0, canvas.width, pageCanvas.height);
+      }
+
+      pdf.addImage(
+        pageCanvas.toDataURL('image/png'),
+        'PNG',
+        margin,
+        margin,
+        usableWidth,
+        pageCanvas.height * scale,
+        undefined,
+        'FAST'
+      );
+
+      offsetY += pageCanvas.height;
+      firstPage = false;
+    }
   }
 }

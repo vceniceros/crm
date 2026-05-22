@@ -31,13 +31,8 @@
 .preview-pane {
   padding: 1rem;
   overflow-y: auto;
-  font-size: 0.95rem;
-  line-height: 1.6;
-}
-
-.preview-pane img {
-  max-width: 100%;
-  border-radius: 6px;
+  background: #ffffff;
+  color: #262626;
 }
 
 .kb-editor-textarea {
@@ -55,12 +50,143 @@
 
 .markdown-preview {
   min-height: 22rem;
-  padding: 1rem;
+  padding: 2rem;
+  overflow-x: auto;
+  background: #ffffff;
+  color: #262626;
 }
 
-.markdown-preview img {
+:host ::ng-deep .kb-document markdown {
+  display: block;
+}
+
+:host ::ng-deep .kb-document h1,
+:host ::ng-deep .kb-document h2,
+:host ::ng-deep .kb-document h3,
+:host ::ng-deep .kb-document h4 {
+  margin: 1.6rem 0 0.75rem;
+  color: #0f172a;
+  font-weight: 800;
+  line-height: 1.18;
+}
+
+:host ::ng-deep .kb-document h1 {
+  font-size: 2.15rem;
+}
+
+:host ::ng-deep .kb-document h2 {
+  font-size: 1.55rem;
+}
+
+:host ::ng-deep .kb-document h3 {
+  font-size: 1.22rem;
+}
+
+:host ::ng-deep .kb-document p {
+  margin: 0.75rem 0;
+  color: #4b5563;
+  line-height: 1.65;
+}
+
+:host ::ng-deep .kb-document strong {
+  color: #111827;
+  font-weight: 800;
+}
+
+:host ::ng-deep .kb-document em {
+  font-style: italic;
+}
+
+:host ::ng-deep .kb-document ol,
+:host ::ng-deep .kb-document ul {
+  margin: 0.75rem 0;
+  padding-left: 1.5rem;
+  color: #4b5563;
+}
+
+:host ::ng-deep .kb-document ol {
+  list-style: decimal;
+}
+
+:host ::ng-deep .kb-document ul {
+  list-style: disc;
+}
+
+:host ::ng-deep .kb-document li {
+  margin: 0.3rem 0;
+  line-height: 1.6;
+}
+
+:host ::ng-deep .kb-document blockquote {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid #ef4444;
+  background: #f8fafc;
+  color: #334155;
+}
+
+:host ::ng-deep .kb-document table {
+  width: 100%;
+  margin: 1rem 0;
+  border-collapse: collapse;
+  color: #374151;
+  font-size: 0.95rem;
+}
+
+:host ::ng-deep .kb-document th,
+:host ::ng-deep .kb-document td {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #d1d5db;
+  vertical-align: top;
+}
+
+:host ::ng-deep .kb-document th {
+  background: #f3f4f6;
+  color: #111827;
+  font-weight: 800;
+}
+
+:host ::ng-deep .kb-document img {
   max-width: 100%;
+  height: auto;
   border-radius: 6px;
+  vertical-align: middle;
+}
+
+:host ::ng-deep .kb-document code {
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #b91c1c;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+:host ::ng-deep .kb-document pre {
+  overflow-x: auto;
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #e5e7eb;
+}
+
+:host ::ng-deep .kb-document pre code {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
+:host ::ng-deep .kb-document hr {
+  margin: 2rem 0;
+  border: 0;
+  border-top: 1px solid #d1d5db;
+}
+
+:host ::ng-deep .kb-document div[style*='page-break-after'] {
+  display: block;
+  height: 1.5rem;
+  margin: 2rem 0;
+  border-top: 1px dashed #cbd5e1;
 }
 
 @media (max-width: 720px) {

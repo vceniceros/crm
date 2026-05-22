@@ -27,13 +27,13 @@
           placeholder="Escriba el articulo en Markdown"
         ></textarea>
       </div>
-      <div class="preview-pane">
+      <article class="preview-pane kb-document">
         <markdown [data]="value"></markdown>
-      </div>
+      </article>
     </div>
   </mat-tab>
   <mat-tab label="Vista previa">
-    <article class="markdown-preview">
+    <article class="markdown-preview kb-document">
       <markdown [data]="value"></markdown>
     </article>
   </mat-tab>

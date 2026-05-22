@@ -20,7 +20,7 @@
       </div>
     </header>
 
-    <article id="knowledge-article-export" class="article-body">
+    <article id="knowledge-article-export" class="article-body kb-document">
       <h1>{{ item.title }}</h1>
       <p class="meta">{{ item.category?.name || 'Sin categoria' }} · {{ item.created_by_display_name }}</p>
       <markdown [data]="item.content_md"></markdown>
