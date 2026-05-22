@@ -38,7 +38,6 @@
         <a class="article-row" [routerLink]="['/knowledge-base', article.article_id]">
           <div>
             <h2>{{ article.title }}</h2>
-            <p>{{ article.excerpt || 'Sin contenido cargado.' }}</p>
           </div>
           <span>{{ article.category?.name || 'Sin categoria' }}</span>
         </a>
