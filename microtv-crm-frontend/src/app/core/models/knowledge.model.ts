@@ -2,9 +2,8 @@ export type KnowledgeArticleStatus = 'draft' | 'published';
 export type KnowledgeAttachmentType = 'image' | 'video';
 
 export interface KnowledgeCategory {
-  article_category_id: string;
+  category_id: string;
   name: string;
-  slug: string;
   description: string | null;
 }
 

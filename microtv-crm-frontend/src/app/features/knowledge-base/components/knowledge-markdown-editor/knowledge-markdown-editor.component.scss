@@ -10,6 +10,36 @@
   padding: 0.5rem 0.75rem 0;
 }
 
+.split-pane {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 22rem;
+  border-top: 1px solid color-mix(in srgb, var(--mat-sys-outline) 20%, transparent);
+}
+
+.write-pane {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid color-mix(in srgb, var(--mat-sys-outline) 20%, transparent);
+}
+
+.write-pane .kb-editor-textarea {
+  flex: 1;
+  min-height: 0;
+}
+
+.preview-pane {
+  padding: 1rem;
+  overflow-y: auto;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.preview-pane img {
+  max-width: 100%;
+  border-radius: 6px;
+}
+
 .kb-editor-textarea {
   box-sizing: border-box;
   min-height: 22rem;
@@ -31,4 +61,15 @@
 .markdown-preview img {
   max-width: 100%;
   border-radius: 6px;
+}
+
+@media (max-width: 720px) {
+  .split-pane {
+    grid-template-columns: 1fr;
+  }
+
+  .write-pane {
+    border-right: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--mat-sys-outline) 20%, transparent);
+  }
 }
