@@ -2,6 +2,7 @@
   display: grid;
   gap: 1rem;
   padding: 1.5rem;
+  min-width: 0;
 }
 
 .back-link,
@@ -10,6 +11,7 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+  min-width: 0;
 }
 
 .back-link {
@@ -19,6 +21,10 @@
 
 .page-header {
   justify-content: space-between;
+}
+
+.page-header > div {
+  min-width: 0;
 }
 
 .page-header h1 {
@@ -35,6 +41,10 @@
   flex-wrap: wrap;
 }
 
+.form-grid mat-form-field {
+  min-width: 0;
+}
+
 .form-grid mat-form-field:first-child {
   flex: 1 1 24rem;
 }
@@ -44,9 +54,18 @@
 }
 
 @media (max-width: 720px) {
+  .article-editor {
+    padding: 1rem;
+  }
+
   .page-header,
   .form-grid {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .page-header button,
+  .form-grid mat-form-field {
+    width: 100%;
   }
 }
