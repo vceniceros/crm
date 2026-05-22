@@ -714,6 +714,7 @@ class TaskTemplatePreForm(Base):
     template_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("task_templates.template_id"), unique=True, index=True)
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    form_phase: Mapped[str] = mapped_column(String(10), default="pre", server_default="pre")
     assignment_role_key: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     assignment_crm_user_id: Mapped[str | None] = mapped_column(
         Uuid(as_uuid=False),
@@ -810,6 +811,7 @@ class TaskPreFormResponse(Base):
     task_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("tasks.task_id"), index=True)
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     submitter_ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    submitter_user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     instance: Mapped[TaskPreFormInstance] = relationship("TaskPreFormInstance", back_populates="response")
     field_values: Mapped[list[TaskPreFormFieldValue]] = relationship(
@@ -849,12 +851,19 @@ class TaskPreFormAttachment(Base):
 
     attachment_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
     instance_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("task_pre_form_instances.instance_id"), index=True)
+    field_id: Mapped[str | None] = mapped_column(
+        Uuid(as_uuid=False),
+        ForeignKey("task_template_pre_form_fields.field_id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     file_name: Mapped[str] = mapped_column(String(500))
     file_url: Mapped[str] = mapped_column(String(1000))
     mime_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     instance: Mapped[TaskPreFormInstance] = relationship("TaskPreFormInstance", back_populates="attachments")
+    field: Mapped[TaskTemplatePreFormField | None] = relationship("TaskTemplatePreFormField", lazy="joined")
 
 
 def _user_display_label(user: object | None) -> str | None:

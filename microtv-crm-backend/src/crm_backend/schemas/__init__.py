@@ -20,6 +20,15 @@ from crm_backend.schemas.clients import (
 )
 from crm_backend.schemas.crm_users import CrmUserOptionResponse
 from crm_backend.schemas.locations import CreateLocationRequest, LocationResponse
+from crm_backend.schemas.knowledge import (
+    CreateKnowledgeArticleRequest,
+    KnowledgeArticleDetail,
+    KnowledgeArticleFilterParams,
+    KnowledgeArticleListItem,
+    KnowledgeAttachmentResponse,
+    KnowledgeCategoryResponse,
+    UpdateKnowledgeArticleRequest,
+)
 from crm_backend.schemas.material_flow import (
     ConfirmDispatchItemRequest,
     CreateInventoryRequestRequest,
@@ -152,6 +161,13 @@ __all__ = [
     "LoginSuccessResponse",
     "MembershipOptionResponse",
     "LocationResponse",
+    "CreateKnowledgeArticleRequest",
+    "KnowledgeArticleDetail",
+    "KnowledgeArticleFilterParams",
+    "KnowledgeArticleListItem",
+    "KnowledgeAttachmentResponse",
+    "KnowledgeCategoryResponse",
+    "UpdateKnowledgeArticleRequest",
     "RequiredMaterialResponse",
     "RequiredMaterialWriteRequest",
     "ReviewInventoryRequestRequest",

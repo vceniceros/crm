@@ -19,6 +19,7 @@ src/crm_backend/api/endpoints/health.py
 src/crm_backend/api/endpoints/inventory_flow.py
 src/crm_backend/api/endpoints/locations.py
 src/crm_backend/api/endpoints/me.py
+src/crm_backend/api/endpoints/media.py
 src/crm_backend/api/endpoints/notifications.py
 src/crm_backend/api/endpoints/public_tasks.py
 src/crm_backend/api/endpoints/public_tickets.py
@@ -35,8 +36,11 @@ src/crm_backend/db/__init__.py
 src/crm_backend/db/base.py
 src/crm_backend/db/bootstrap.py
 src/crm_backend/db/session.py
+src/crm_backend/infrastructure/pre_form_media_storage.py
 src/crm_backend/infrastructure/product_image_storage.py
 src/crm_backend/infrastructure/task_media_storage.py
+src/crm_backend/infrastructure/video_job_repository.py
+src/crm_backend/infrastructure/video_processor.py
 src/crm_backend/models/__init__.py
 src/crm_backend/models/activity_log.py
 src/crm_backend/models/asset.py
@@ -60,6 +64,7 @@ src/crm_backend/models/task_execution.py
 src/crm_backend/models/task_reference.py
 src/crm_backend/models/task_template.py
 src/crm_backend/models/ticket.py
+src/crm_backend/models/video_processing.py
 src/crm_backend/models/warehouse.py
 src/crm_backend/repositories/__init__.py
 src/crm_backend/repositories/activity_log_repository.py
@@ -88,6 +93,7 @@ src/crm_backend/schemas/dashboard.py
 src/crm_backend/schemas/locations.py
 src/crm_backend/schemas/material_flow.py
 src/crm_backend/schemas/me.py
+src/crm_backend/schemas/media.py
 src/crm_backend/schemas/notifications.py
 src/crm_backend/schemas/permissions.py
 src/crm_backend/schemas/reports.py
@@ -115,6 +121,7 @@ src/crm_backend/services/task_pre_form_service.py
 src/crm_backend/services/task_satisfaction_form_service.py
 src/crm_backend/services/ticket_export_service.py
 src/crm_backend/services/ticket_service.py
+src/crm_backend/services/video_processing_service.py
 src/crm_backend/services/assets/__init__.py
 src/crm_backend/services/assets/application.py
 src/crm_backend/services/assets/builder.py

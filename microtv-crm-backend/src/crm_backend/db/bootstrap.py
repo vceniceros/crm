@@ -498,6 +498,7 @@ def ensure_task_pre_form_columns(session: Session, inspector=None) -> None:
         return
 
     if bind.dialect.name == "postgresql":
+        session.execute(text("ALTER TABLE task_template_pre_forms ADD COLUMN IF NOT EXISTS form_phase VARCHAR(10) NOT NULL DEFAULT 'pre'"))
         session.execute(text("ALTER TABLE task_template_pre_forms ADD COLUMN IF NOT EXISTS assignment_role_key VARCHAR(50)"))
         session.execute(
             text(
@@ -512,16 +513,34 @@ def ensure_task_pre_form_columns(session: Session, inspector=None) -> None:
                 "WHERE assignment_role_key IS NULL"
             )
         )
+        session.execute(text("ALTER TABLE task_pre_form_responses ADD COLUMN IF NOT EXISTS submitter_user_agent VARCHAR(500)"))
+        session.execute(
+            text(
+                "ALTER TABLE task_pre_form_attachments "
+                "ADD COLUMN IF NOT EXISTS field_id UUID REFERENCES task_template_pre_form_fields(field_id) ON DELETE SET NULL"
+            )
+        )
         session.execute(text("CREATE INDEX IF NOT EXISTS idx_task_template_pre_forms_assignment_role ON task_template_pre_forms(assignment_role_key)"))
         session.execute(text("CREATE INDEX IF NOT EXISTS idx_task_template_pre_forms_assignment_user ON task_template_pre_forms(assignment_crm_user_id)"))
+        session.execute(text("CREATE INDEX IF NOT EXISTS idx_pre_form_attachments_field_id ON task_pre_form_attachments(field_id)"))
         session.commit()
         return
 
     columns = {column["name"] for column in active_inspector.get_columns("task_template_pre_forms")}
+    if "form_phase" not in columns:
+        session.execute(text("ALTER TABLE task_template_pre_forms ADD COLUMN form_phase VARCHAR(10) NOT NULL DEFAULT 'pre'"))
     if "assignment_role_key" not in columns:
         session.execute(text("ALTER TABLE task_template_pre_forms ADD COLUMN assignment_role_key VARCHAR(50)"))
     if "assignment_crm_user_id" not in columns:
         session.execute(text("ALTER TABLE task_template_pre_forms ADD COLUMN assignment_crm_user_id VARCHAR(36)"))
+    if "task_pre_form_responses" in table_names:
+        response_columns = {column["name"] for column in active_inspector.get_columns("task_pre_form_responses")}
+        if "submitter_user_agent" not in response_columns:
+            session.execute(text("ALTER TABLE task_pre_form_responses ADD COLUMN submitter_user_agent VARCHAR(500)"))
+    if "task_pre_form_attachments" in table_names:
+        attachment_columns = {column["name"] for column in active_inspector.get_columns("task_pre_form_attachments")}
+        if "field_id" not in attachment_columns:
+            session.execute(text("ALTER TABLE task_pre_form_attachments ADD COLUMN field_id VARCHAR(36)"))
     session.execute(
         text(
             "UPDATE task_template_pre_forms "
@@ -531,6 +550,7 @@ def ensure_task_pre_form_columns(session: Session, inspector=None) -> None:
     )
     session.execute(text("CREATE INDEX IF NOT EXISTS idx_task_template_pre_forms_assignment_role ON task_template_pre_forms(assignment_role_key)"))
     session.execute(text("CREATE INDEX IF NOT EXISTS idx_task_template_pre_forms_assignment_user ON task_template_pre_forms(assignment_crm_user_id)"))
+    session.execute(text("CREATE INDEX IF NOT EXISTS idx_pre_form_attachments_field_id ON task_pre_form_attachments(field_id)"))
     session.commit()
 
 

@@ -9,6 +9,7 @@ from crm_backend.services.client_service import (
 	UpdateClientCommand,
 )
 from crm_backend.services.dashboard_service import DashboardService
+from crm_backend.services.knowledge_service import KnowledgeApplicationService
 from crm_backend.services.location_service import CreateLocationCommand, LocationApplicationService
 from crm_backend.services.material_flow_service import InventoryRequestFacade, TaskMaterialFlowFacade
 from crm_backend.services.notification_service import NotificationService
@@ -32,6 +33,7 @@ __all__ = [
 	"CreateClientCommand",
 	"UpdateClientCommand",
 	"DashboardService",
+	"KnowledgeApplicationService",
 	"CreateLocationCommand",
 	"LocationApplicationService",
 	"InventoryRequestFacade",

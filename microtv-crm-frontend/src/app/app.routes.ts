@@ -79,6 +79,11 @@ export const routes: Routes = [
 				data: { title: 'Activo' }
 			},
 			{
+				path: 'knowledge-base',
+				loadChildren: () => import('./features/knowledge-base/knowledge-base.routes').then((module) => module.KNOWLEDGE_BASE_ROUTES),
+				data: { title: 'Base de conocimientos' }
+			},
+			{
 				path: 'tickets',
 				loadComponent: () => import('./features/tickets/components/tickets-page/tickets-page.component').then((module) => module.TicketsPageComponent),
 				data: { title: 'Tickets' }

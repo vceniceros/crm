@@ -21,6 +21,7 @@ import {
   RejectTaskApprovalRequest,
   SetTaskTemplateActivationRequest,
   TaskDetail,
+  TaskPreFormAttachmentResponse,
   TaskPreFormStatusResponse,
   TaskSatisfactionFormStatusResponse,
   TaskSatisfactionResponseDetailResponse,
@@ -265,13 +266,25 @@ export class TaskManagementService {
 
   getPublicTaskPreForm(token: string): Observable<PublicTaskPreFormInfoResponse> {
     return this.http
-      .get<PublicTaskPreFormInfoResponse>(`${crmApiConfig.baseUrl}/pre-form/${encodeURIComponent(token)}`)
+      .get<PublicTaskPreFormInfoResponse>(`${crmApiConfig.baseUrl}/public/tasks/pre-form/${encodeURIComponent(token)}`)
       .pipe(catchError((error) => this.handleRequestError(error)));
   }
 
   submitPublicTaskPreForm(token: string, payload: SubmitTaskPreFormRequest): Observable<{ status: string }> {
     return this.http
-      .post<{ status: string }>(`${crmApiConfig.baseUrl}/pre-form/${encodeURIComponent(token)}`, payload)
+      .post<{ status: string }>(`${crmApiConfig.baseUrl}/public/tasks/pre-form/${encodeURIComponent(token)}`, payload)
+      .pipe(catchError((error) => this.handleRequestError(error)));
+  }
+
+  uploadPreFormAttachment(token: string, fieldId: string, file: File): Observable<TaskPreFormAttachmentResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return this.http
+      .post<TaskPreFormAttachmentResponse>(
+        `${crmApiConfig.baseUrl}/public/tasks/pre-form/${encodeURIComponent(token)}/fields/${encodeURIComponent(fieldId)}/attachments`,
+        formData
+      )
       .pipe(catchError((error) => this.handleRequestError(error)));
   }
 

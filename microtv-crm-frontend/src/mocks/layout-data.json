@@ -33,7 +33,8 @@
       "section": "CRM",
       "items": [
         { "id": "clients", "moduleKey": "clients", "label": "Clientes", "icon": "people", "route": "/clients" },
-        { "id": "assets", "moduleKey": "assets", "label": "Activos", "icon": "devices", "route": "/assets" }
+        { "id": "assets", "moduleKey": "assets", "label": "Activos", "icon": "devices", "route": "/assets" },
+        { "id": "knowledge-base", "moduleKey": "knowledge-base", "label": "Base de conocimientos", "icon": "menu_book", "route": "/knowledge-base" }
       ]
     },
     {

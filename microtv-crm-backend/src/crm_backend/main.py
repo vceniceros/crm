@@ -69,6 +69,8 @@ def create_app() -> FastAPI:
         settings.task_images_dir,
         settings.task_videos_dir,
         settings.product_images_dir,
+        settings.knowledge_images_dir,
+        settings.knowledge_videos_dir,
         settings.satisfaction_images_dir,
         settings.satisfaction_videos_dir,
         settings.public_images_dir,

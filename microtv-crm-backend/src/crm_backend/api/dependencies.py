@@ -8,6 +8,8 @@ from crm_backend.core.config import Settings, get_settings
 from crm_backend.core.exceptions import UnauthenticatedError
 from crm_backend.db import get_db_session
 from crm_backend.infrastructure.product_image_storage import ProductImageStorage
+from crm_backend.infrastructure.knowledge_media_storage import KnowledgeMediaStorageFacade
+from crm_backend.infrastructure.pre_form_media_storage import PreFormMediaStorageFacade
 from crm_backend.infrastructure.task_media_storage import TaskMediaStorageFacade
 from crm_backend.repositories import (
     ActivityLogRepository,
@@ -16,6 +18,7 @@ from crm_backend.repositories import (
     CrmRoleRepository,
     CrmUserRepository,
     InventoryFlowRepository,
+    KnowledgeRepository,
     LocationRepository,
     NotificationRepository,
     PermissionRepository,
@@ -32,6 +35,7 @@ from crm_backend.services import (
     AuthApplicationService,
     ClientApplicationService,
     InventoryRequestFacade,
+    KnowledgeApplicationService,
     LocationApplicationService,
     NotificationService,
     PermissionService,
@@ -220,6 +224,18 @@ def get_task_media_storage(settings: Settings = Depends(get_settings)) -> TaskMe
     return TaskMediaStorageFacade(settings)
 
 
+def get_knowledge_media_storage(settings: Settings = Depends(get_settings)) -> KnowledgeMediaStorageFacade:
+    """Provide the local knowledge media storage facade."""
+
+    return KnowledgeMediaStorageFacade(settings)
+
+
+def get_pre_form_media_storage(settings: Settings = Depends(get_settings)) -> PreFormMediaStorageFacade:
+    """Provide the local public pre-form image storage facade."""
+
+    return PreFormMediaStorageFacade(settings)
+
+
 def get_task_template_repository(session: Session = Depends(get_db_session)) -> TaskTemplateRepository:
     """Provide the task template repository."""
 
@@ -236,6 +252,12 @@ def get_ticket_repository(session: Session = Depends(get_db_session)) -> TicketR
     """Provide the ticket repository."""
 
     return TicketRepository(session)
+
+
+def get_knowledge_repository(session: Session = Depends(get_db_session)) -> KnowledgeRepository:
+    """Provide the knowledge base repository."""
+
+    return KnowledgeRepository(session)
 
 
 def get_asset_repository(session: Session = Depends(get_db_session)) -> AssetRepository:
@@ -446,6 +468,16 @@ def get_ticket_application_service(
     )
 
 
+def get_knowledge_application_service(
+    settings: Settings = Depends(get_settings),
+    repository: KnowledgeRepository = Depends(get_knowledge_repository),
+    media_storage: KnowledgeMediaStorageFacade = Depends(get_knowledge_media_storage),
+) -> KnowledgeApplicationService:
+    """Provide the knowledge base application service."""
+
+    return KnowledgeApplicationService(repository=repository, media_storage=media_storage, settings=settings)
+
+
 def get_asset_application_service(
     asset_repository: AssetRepository = Depends(get_asset_repository),
     client_repository: ClientRepository = Depends(get_client_repository),
@@ -556,13 +588,16 @@ def get_task_satisfaction_form_service(
 def get_task_pre_form_service(
     session: Session = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
+    pre_form_storage: PreFormMediaStorageFacade = Depends(get_pre_form_media_storage),
     notification_service: NotificationService = Depends(get_notification_service),
     user_repository: CrmUserRepository = Depends(get_crm_user_repository),
 ) -> TaskPreFormService:
     """Provide task pre-form service."""
     return TaskPreFormService(
         session=session,
-        expiry_hours=settings.satisfaction_form_expiry_hours,
+        expiry_hours=settings.pre_form_expiry_hours,
+        settings=settings,
+        pre_form_storage=pre_form_storage,
         notification_service=notification_service,
         user_repository=user_repository,
     )

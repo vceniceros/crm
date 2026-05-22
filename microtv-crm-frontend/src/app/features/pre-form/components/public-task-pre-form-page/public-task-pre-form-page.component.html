@@ -56,10 +56,34 @@
                     <textarea matInput rows="4" [placeholder]="field.placeholder || ''" [formControlName]="fieldControlName(field)"></textarea>
                   </mat-form-field>
                 } @else if (field.field_type === 'FILE') {
-                  <mat-form-field appearance="outline" class="public-task-pre-form-page__full-width">
-                    <mat-label>{{ field.label }} @if (field.is_required) { * }</mat-label>
-                    <input matInput [placeholder]="field.placeholder || 'Referencia del archivo (URL o detalle)'" [formControlName]="fieldControlName(field)" />
-                  </mat-form-field>
+                  <div class="public-task-pre-form-page__file-field">
+                    <label class="public-task-pre-form-page__file-label">
+                      {{ field.label }} @if (field.is_required) { * }
+                    </label>
+                    <input
+                      class="public-task-pre-form-page__file-input"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      capture="environment"
+                      (change)="onFileSelected($event, field)"
+                    />
+                    @if (fileState(field).state === 'uploading') {
+                      <div class="public-task-pre-form-page__file-status">
+                        <mat-spinner diameter="18"></mat-spinner>
+                        <span>Subiendo {{ fileState(field).fileName }}...</span>
+                      </div>
+                    } @else if (fileState(field).state === 'uploaded') {
+                      <div class="public-task-pre-form-page__file-status public-task-pre-form-page__file-status--ok">
+                        <mat-icon>check_circle</mat-icon>
+                        <span>{{ fileState(field).fileName }}</span>
+                      </div>
+                    } @else if (fileState(field).state === 'error') {
+                      <div class="public-task-pre-form-page__file-status public-task-pre-form-page__file-status--error">
+                        <mat-icon>error</mat-icon>
+                        <span>{{ fileState(field).errorMessage }}</span>
+                      </div>
+                    }
+                  </div>
                 } @else {
                   <mat-form-field appearance="outline" class="public-task-pre-form-page__full-width">
                     <mat-label>{{ field.label }} @if (field.is_required) { * }</mat-label>
@@ -75,7 +99,7 @@
           }
 
           <div class="public-task-pre-form-page__actions">
-            <button mat-flat-button color="primary" type="submit" [disabled]="isSubmitting() || preForm.invalid">
+            <button mat-flat-button color="primary" type="submit" [disabled]="isSubmitting() || hasPendingUpload() || preForm.invalid">
               @if (isSubmitting()) {
                 <mat-spinner diameter="20"></mat-spinner>
               } @else {

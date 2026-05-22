@@ -9,6 +9,7 @@ from crm_backend.api.endpoints.crm_users import router as crm_users_router
 from crm_backend.api.endpoints.dashboard import router as dashboard_router
 from crm_backend.api.endpoints.health import router as health_router
 from crm_backend.api.endpoints.inventory_flow import router as inventory_flow_router
+from crm_backend.api.endpoints.knowledge_base import router as knowledge_base_router
 from crm_backend.api.endpoints.locations import router as locations_router
 from crm_backend.api.endpoints.me import router as me_router
 from crm_backend.api.endpoints.media import router as media_router
@@ -36,6 +37,7 @@ api_router.include_router(me_router)
 api_router.include_router(media_router)
 api_router.include_router(stock_router)
 api_router.include_router(inventory_flow_router)
+api_router.include_router(knowledge_base_router)
 api_router.include_router(tasks_router)
 api_router.include_router(tickets_router)
 api_router.include_router(public_tickets_router)

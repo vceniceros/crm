@@ -36,7 +36,7 @@ class TaskTemplateSubtaskWriteRequest(BaseModel):
     next_assignment_policy: Literal["role_queue_auto", "default_user_auto", "manual_required"] = Field(
         default="role_queue_auto"
     )
-    subtask_type: Literal["standard", "pre_form"] = Field(default="standard")
+    subtask_type: Literal["standard", "pre_form", "close_form"] = Field(default="standard")
     items: list[TaskTemplateItemWriteRequest] = Field(default_factory=list)
 
 
@@ -463,6 +463,7 @@ class SubmitTaskSatisfactionFormRequest(BaseModel):
 class TaskPreFormFieldValueWriteRequest(BaseModel):
     field_id: str
     text_value: str | None = None
+    file_attachment_id: str | None = None
 
 
 class TaskPreFormFieldValueResponse(BaseModel):
@@ -473,6 +474,14 @@ class TaskPreFormFieldValueResponse(BaseModel):
     field_type: str
     text_value: str | None
     file_attachment_id: str | None
+    file_url: str | None = None
+
+
+class TaskPreFormAttachmentResponse(BaseModel):
+    attachment_id: str
+    file_url: str
+    mime_type: str | None
+    uploaded_at: datetime
 
 
 class TaskPreFormStatusResponse(BaseModel):
@@ -484,6 +493,7 @@ class TaskPreFormStatusResponse(BaseModel):
     revoked_at: datetime | None
     form_link_path: str | None
     response_values: list[TaskPreFormFieldValueResponse] = Field(default_factory=list)
+    attachments: list[TaskPreFormAttachmentResponse] = Field(default_factory=list)
 
 
 class PublicTaskPreFormInfoResponse(BaseModel):

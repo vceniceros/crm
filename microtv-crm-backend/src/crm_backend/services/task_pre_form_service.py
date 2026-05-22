@@ -9,11 +9,25 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+from fastapi import UploadFile
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from crm_backend.core.exceptions import TaskAccessDeniedError, TaskPreFormNotFoundError, TaskValidationError
+from crm_backend.core.config import Settings
+from crm_backend.core.exceptions import TaskAccessDeniedError, TaskConflictError, TaskPreFormNotFoundError, TaskValidationError
+from crm_backend.infrastructure.pre_form_media_storage import PreFormMediaStorageFacade
 from crm_backend.models.notification import NotificationEntityType, NotificationType
-from crm_backend.models import SubtaskAssignment, SubtaskStatus, Task, TaskPreFormFieldValue, TaskPreFormInstance, TaskPreFormResponse, TaskStatus
+from crm_backend.models import (
+    SubtaskAssignment,
+    SubtaskStatus,
+    Task,
+    TaskPreFormAttachment,
+    TaskPreFormFieldType,
+    TaskPreFormFieldValue,
+    TaskPreFormInstance,
+    TaskPreFormResponse,
+    TaskStatus,
+)
 from crm_backend.repositories import CrmUserRepository
 from crm_backend.services.notification_service import NotificationService
 
@@ -39,11 +53,15 @@ class TaskPreFormService:
         self,
         session: Session,
         expiry_hours: int = _DEFAULT_EXPIRY_HOURS,
+        settings: Settings | None = None,
+        pre_form_storage: PreFormMediaStorageFacade | None = None,
         notification_service: NotificationService | None = None,
         user_repository: CrmUserRepository | None = None,
     ) -> None:
         self._session = session
         self._expiry_hours = expiry_hours
+        self._settings = settings
+        self._pre_form_storage = pre_form_storage
         self._notification_service = notification_service
         self._user_repository = user_repository
 
@@ -99,40 +117,112 @@ class TaskPreFormService:
     def get_public_form_info(self, raw_token: str) -> TaskPreFormInstance:
         return self._resolve_token(raw_token)
 
+    async def upload_attachment(
+        self,
+        raw_token: str,
+        field_id: str,
+        upload_file: UploadFile,
+    ) -> TaskPreFormAttachment:
+        instance = self._resolve_token(raw_token)
+        if instance.submitted_at is not None:
+            raise TaskConflictError("El formulario ya fue enviado.")
+        if instance.template_pre_form is None:
+            raise TaskValidationError("El formulario previo no tiene definicion valida.")
+
+        normalized_field_id = (field_id or "").strip()
+        field_by_id = {field.field_id: field for field in instance.template_pre_form.fields}
+        field = field_by_id.get(normalized_field_id)
+        if field is None:
+            raise TaskValidationError("El campo indicado no pertenece a este formulario.")
+        if field.field_type != TaskPreFormFieldType.FILE.value:
+            raise TaskValidationError("El campo indicado no acepta archivos.")
+
+        per_field_count = self._session.scalar(
+            select(func.count())
+            .select_from(TaskPreFormAttachment)
+            .where(TaskPreFormAttachment.instance_id == instance.instance_id)
+            .where(TaskPreFormAttachment.field_id == field.field_id)
+        )
+        total_count = self._session.scalar(
+            select(func.count())
+            .select_from(TaskPreFormAttachment)
+            .where(TaskPreFormAttachment.instance_id == instance.instance_id)
+        )
+        max_per_field = self._settings.pre_form_max_attachments_per_field if self._settings else 3
+        max_per_instance = self._settings.pre_form_max_attachments_per_instance if self._settings else 10
+        if (per_field_count or 0) >= max_per_field:
+            raise TaskValidationError("Se alcanzo el limite de archivos para este campo.")
+        if (total_count or 0) >= max_per_instance:
+            raise TaskValidationError("Se alcanzo el limite de archivos para este formulario.")
+        if self._pre_form_storage is None:
+            raise TaskValidationError("El almacenamiento de formularios no esta configurado.")
+
+        stored = await self._pre_form_storage.store(upload_file)
+        attachment = TaskPreFormAttachment(
+            attachment_id=str(uuid4()),
+            instance_id=instance.instance_id,
+            field_id=field.field_id,
+            file_name=stored.file_name,
+            file_url=stored.file_url,
+            mime_type=stored.mime_type,
+        )
+        self._session.add(attachment)
+        self._session.commit()
+        self._session.refresh(attachment)
+        return attachment
+
     def submit_response(
         self,
         raw_token: str,
         values: list[dict[str, str | None]],
         submitter_ip: str | None,
+        submitter_user_agent: str | None = None,
     ) -> TaskPreFormResponse:
         instance = self._resolve_token(raw_token)
         if instance.template_pre_form is None:
             raise TaskValidationError("El formulario previo no tiene definición válida.")
 
         now = datetime.now(UTC)
-        instance.submitted_at = now
-        self._session.flush()
-
         field_by_id = {field.field_id: field for field in instance.template_pre_form.fields}
         response = TaskPreFormResponse(
             response_id=str(uuid4()),
             instance_id=instance.instance_id,
             task_id=instance.task_id,
             submitter_ip_hash=_hash_ip(submitter_ip) if submitter_ip else None,
+            submitter_user_agent=(submitter_user_agent or "")[:500] or None,
         )
         self._session.add(response)
         self._session.flush()
 
+        values_by_field_id: dict[str, dict[str, str | None]] = {}
         for item in values:
             field_id = (item.get("field_id") or "").strip()
             if not field_id:
                 continue
-            field = field_by_id.get(field_id)
-            if field is None:
+            if field_id not in field_by_id:
                 raise TaskValidationError("Uno de los campos enviados no pertenece al formulario previo.")
+            values_by_field_id[field_id] = item
 
+        used_attachment_ids: set[str] = set()
+        for field in instance.template_pre_form.fields:
+            item = values_by_field_id.get(field.field_id, {})
             text_value = (item.get("text_value") or "").strip() or None
-            if field.is_required and not text_value:
+            file_attachment_id = (item.get("file_attachment_id") or "").strip() or None
+            if field.field_type == TaskPreFormFieldType.FILE.value:
+                if field.is_required and not file_attachment_id:
+                    raise TaskValidationError(f"El campo obligatorio '{field.label}' requiere un archivo.")
+                if file_attachment_id:
+                    attachment = self._session.get(TaskPreFormAttachment, file_attachment_id)
+                    if attachment is None:
+                        raise TaskValidationError("El archivo enviado no existe.")
+                    if attachment.instance_id != instance.instance_id:
+                        raise TaskValidationError("El archivo enviado no pertenece a este formulario.")
+                    if attachment.field_id != field.field_id:
+                        raise TaskValidationError("El archivo enviado corresponde a otro campo del formulario.")
+                    if file_attachment_id in used_attachment_ids:
+                        raise TaskValidationError("El mismo archivo no puede usarse para mas de un campo.")
+                    used_attachment_ids.add(file_attachment_id)
+            elif field.is_required and not text_value:
                 raise TaskValidationError(f"El campo obligatorio '{field.label}' no fue completado.")
 
             response.field_values.append(
@@ -140,9 +230,11 @@ class TaskPreFormService:
                     value_id=str(uuid4()),
                     field_id=field.field_id,
                     text_value=text_value,
+                    file_attachment_id=file_attachment_id,
                 )
             )
 
+        instance.submitted_at = now
         self._advance_task_after_pre_form(instance, now)
         self._notify_pre_form_completed(instance.task)
         self._session.commit()

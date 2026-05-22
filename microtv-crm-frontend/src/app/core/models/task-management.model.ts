@@ -9,7 +9,7 @@ export type TaskAction = 'close_subtask' | 'reject_subtask' | 'put_on_hold';
 export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'BLOCKED' | 'PENDING_APPROVAL' | 'COMPLETED';
 export type SubtaskStatus = 'locked' | 'pending_assignment' | 'assigned' | 'in_progress' | 'completed' | 'rejected' | 'on_hold';
 export type TaskCommentType = 'general' | 'transition' | 'progress' | 'closure' | 'arrival_registration' | 'closure_evidence';
-export type TaskSubtaskType = 'standard' | 'pre_form';
+export type TaskSubtaskType = 'standard' | 'pre_form' | 'close_form';
 export type TaskPreFormFieldType = 'TEXT' | 'NUMBER' | 'TEXTAREA' | 'DATE' | 'TEL' | 'FILE' | 'CHECKBOX';
 
 export interface ClientSummary {
@@ -417,6 +417,14 @@ export interface TaskPreFormStatusValue {
   field_type: TaskPreFormFieldType;
   text_value: string | null;
   file_attachment_id: string | null;
+  file_url?: string | null;
+}
+
+export interface TaskPreFormAttachmentResponse {
+  attachment_id: string;
+  file_url: string;
+  mime_type: string | null;
+  uploaded_at: string;
 }
 
 export interface TaskPreFormStatusResponse {
@@ -428,6 +436,7 @@ export interface TaskPreFormStatusResponse {
   revoked_at: string | null;
   form_link_path: string | null;
   response_values: TaskPreFormStatusValue[];
+  attachments?: TaskPreFormAttachmentResponse[];
 }
 
 export interface PublicTaskSatisfactionFormInfoResponse {
@@ -456,6 +465,7 @@ export interface PublicTaskPreFormInfoResponse {
 export interface SubmitTaskPreFormValueRequest {
   field_id: string;
   text_value: string | null;
+  file_attachment_id?: string | null;
 }
 
 export interface SubmitTaskPreFormRequest {

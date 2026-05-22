@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, File, Request, UploadFile
 
 from crm_backend.api.dependencies import get_task_pre_form_service, get_task_satisfaction_form_service
 from crm_backend.schemas.tasks import (
@@ -10,6 +10,7 @@ from crm_backend.schemas.tasks import (
     PublicTaskSatisfactionFormInfoResponse,
     SubmitTaskPreFormRequest,
     SubmitTaskSatisfactionFormRequest,
+    TaskPreFormAttachmentResponse,
     TaskSatisfactionResponseDetailResponse,
 )
 from crm_backend.services.task_pre_form_service import TaskPreFormService
@@ -88,6 +89,11 @@ def submit_public_task_satisfaction_form(
     response_model=PublicTaskPreFormInfoResponse,
     responses={404: {"description": "Form not found, expired or already used"}},
 )
+@router.get(
+    "/public/tasks/pre-form/{token}",
+    response_model=PublicTaskPreFormInfoResponse,
+    responses={404: {"description": "Form not found, expired or already used"}},
+)
 def get_public_task_pre_form(
     token: str,
     pre_form_service: TaskPreFormService = Depends(get_task_pre_form_service),
@@ -114,7 +120,42 @@ def get_public_task_pre_form(
 
 
 @router.post(
+    "/public/tasks/pre-form/{token}/fields/{field_id}/attachments",
+    response_model=TaskPreFormAttachmentResponse,
+    responses={
+        404: {"description": "Form not found, expired or already used"},
+        409: {"description": "Already responded"},
+        413: {"description": "File too large"},
+        415: {"description": "Unsupported media type"},
+        422: {"description": "Validation error"},
+    },
+)
+async def upload_public_pre_form_attachment(
+    token: str,
+    field_id: str,
+    file: UploadFile = File(...),
+    pre_form_service: TaskPreFormService = Depends(get_task_pre_form_service),
+) -> TaskPreFormAttachmentResponse:
+    attachment = await pre_form_service.upload_attachment(
+        raw_token=token,
+        field_id=field_id,
+        upload_file=file,
+    )
+    return TaskPreFormAttachmentResponse(
+        attachment_id=attachment.attachment_id,
+        file_url=attachment.file_url,
+        mime_type=attachment.mime_type,
+        uploaded_at=attachment.uploaded_at,
+    )
+
+
+@router.post(
     "/pre-form/{token}",
+    response_model=dict,
+    responses={404: {"description": "Form not found, expired or already used"}, 409: {"description": "Already responded"}, 422: {"description": "Validation error"}},
+)
+@router.post(
+    "/public/tasks/pre-form/{token}",
     response_model=dict,
     responses={404: {"description": "Form not found, expired or already used"}, 409: {"description": "Already responded"}, 422: {"description": "Validation error"}},
 )
@@ -128,6 +169,7 @@ def submit_public_task_pre_form(
         raw_token=token,
         values=[value.model_dump() for value in payload.values],
         submitter_ip=_get_client_ip(request),
+        submitter_user_agent=request.headers.get("User-Agent"),
     )
     return {
         "response_id": response.response_id,
