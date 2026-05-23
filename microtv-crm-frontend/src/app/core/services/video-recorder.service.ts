@@ -32,11 +32,7 @@ export class VideoRecorderService implements OnDestroy {
 
       navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' },
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false
-        }
+        audio: true
       })
         .then((stream) => {
           this.stream = stream;
