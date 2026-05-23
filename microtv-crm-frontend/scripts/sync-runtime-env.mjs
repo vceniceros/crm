@@ -164,6 +164,7 @@ const imageQuality = parseNumber(envValues.IMAGE_CAPTURE_QUALITY ?? envValues.IM
 const imageMaxUploadMb = parseNumber(envValues.IMAGE_MAX_UPLOAD_MB, 10);
 const imageTargetFormat = (envValues.IMAGE_TARGET_FORMAT || 'webp').trim().toLowerCase() || 'webp';
 const videoMaxSizeMb = parseNumber(envValues.VIDEO_MAX_SIZE_MB, 50);
+const videoMaxDurationSeconds = parseNumber(envValues.VIDEO_MAX_DURATION_SECONDS, 30);
 const vapidPublicKey = (envValues.VAPID_PUBLIC_KEY || '').trim();
 const mapStyleUrl = (envValues.NEXT_PUBLIC_MAP_STYLE_URL || '').trim();
 const mapDefaultLat = parseNumber(envValues.NEXT_PUBLIC_MAP_DEFAULT_LAT, -34.6037);
@@ -182,6 +183,7 @@ const runtimeConfigContents = `globalThis.__CRM_RUNTIME_CONFIG__ = ${JSON.string
     imageMaxUploadMb,
     imageTargetFormat,
     videoMaxSizeMb,
+    videoMaxDurationSeconds,
     vapidPublicKey,
     mapStyleUrl,
     mapDefaultLat,

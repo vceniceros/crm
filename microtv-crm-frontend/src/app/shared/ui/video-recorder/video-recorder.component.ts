@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, OnDestroy, output, viewChild, signal } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, output, viewChild, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 
@@ -14,7 +14,7 @@ import { VideoRecorderService } from '../../../core/services/video-recorder.serv
   templateUrl: './video-recorder.component.html',
   styleUrl: './video-recorder.component.scss'
 })
-export class VideoRecorderComponent implements OnDestroy {
+export class VideoRecorderComponent implements AfterViewInit, OnDestroy {
   private readonly preview = viewChild<ElementRef<HTMLVideoElement>>('preview');
   readonly recordingComplete = output<Blob>();
   readonly cancelled = output<void>();
@@ -22,6 +22,10 @@ export class VideoRecorderComponent implements OnDestroy {
   readonly maxSeconds = crmMediaConfig.video.maxDurationSeconds;
 
   constructor(readonly recorder: VideoRecorderService) {}
+
+  ngAfterViewInit(): void {
+    this.start();
+  }
 
   start(): void {
     const preview = this.preview()?.nativeElement;

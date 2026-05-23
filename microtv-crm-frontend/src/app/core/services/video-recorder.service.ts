@@ -30,7 +30,14 @@ export class VideoRecorderService implements OnDestroy {
         return undefined;
       }
 
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: true })
+      navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false
+        }
+      })
         .then((stream) => {
           this.stream = stream;
           previewEl.srcObject = stream;
@@ -54,7 +61,7 @@ export class VideoRecorderService implements OnDestroy {
               subscriber.complete();
             }
           };
-          this.recorder.start();
+          this.recorder.start(250);
           this.isRecording.set(true);
           this.elapsedSeconds.set(0);
           this.elapsedTimer = setInterval(() => this.elapsedSeconds.update((value) => value + 1), 1000);
