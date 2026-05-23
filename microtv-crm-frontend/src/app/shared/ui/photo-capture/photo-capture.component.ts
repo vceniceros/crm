@@ -50,6 +50,7 @@ export class PhotoCaptureComponent implements AfterViewInit, OnDestroy {
 
     try {
       await this.photoCapture.startPreview(preview);
+      await this.capture();
     } catch {
       // The service exposes a localized inline error message.
     }

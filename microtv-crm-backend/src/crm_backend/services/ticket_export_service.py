@@ -474,6 +474,11 @@ class TicketExportService:
                 aspect = h / w
                 display_w = min(max_width_pt, w)
                 display_h = display_w * aspect
+                max_height_pt = 680
+                if display_h > max_height_pt:
+                    scale = max_height_pt / display_h
+                    display_h = max_height_pt
+                    display_w *= scale
 
             img_obj = Image(img_buffer, width=display_w, height=display_h)
             story.append(img_obj)
