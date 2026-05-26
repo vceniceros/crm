@@ -75,7 +75,7 @@ export class TaskAttachmentsSectionComponent {
 
   onRecordingComplete(blob: Blob): void {
     const mimeType = blob.type.split(';')[0] || 'video/webm';
-    const file = new File([blob], `recording-${Date.now()}.webm`, { type: mimeType });
+    const file = new File([blob], `recording-${Date.now()}${this.extensionForVideoMimeType(mimeType)}`, { type: mimeType });
     this.isRecorderOpen.set(false);
     this.uploadFiles([file]);
   }
@@ -214,5 +214,17 @@ export class TaskAttachmentsSectionComponent {
     } catch {
       return crmApiConfig.baseUrl.replace(/\/$/, '');
     }
+  }
+
+  private extensionForVideoMimeType(mimeType: string): string {
+    if (mimeType === 'video/mp4') {
+      return '.mp4';
+    }
+
+    if (mimeType === 'video/quicktime') {
+      return '.mov';
+    }
+
+    return '.webm';
   }
 }
