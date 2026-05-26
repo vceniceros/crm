@@ -31,12 +31,8 @@ export class VideoRecorderService implements OnDestroy {
       }
 
       navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'environment',
-          frameRate: { ideal: 24, max: 30 },
-          height: { ideal: 720 }
-        },
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+        video: { facingMode: 'environment' },
+        audio: true
       })
         .then((stream) => {
           this.stream = stream;
@@ -101,8 +97,8 @@ export class VideoRecorderService implements OnDestroy {
   private resolveMimeType(): string | null {
     const candidates = [
       'video/webm;codecs=vp8,opus',
-      'video/webm',
       'video/webm;codecs=vp9,opus',
+      'video/webm',
       'video/mp4'
     ];
     return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate)) ?? null;

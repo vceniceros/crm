@@ -159,7 +159,7 @@ export const crmMediaConfig = {
   video: {
     maxSizeMb: Math.max(1, Math.round(resolveNumber(runtimeConfig?.videoMaxUploadMb ?? runtimeConfig?.videoMaxSizeMb, 80))),
     maxUploadMb: Math.max(1, Math.round(resolveNumber(runtimeConfig?.videoMaxUploadMb ?? runtimeConfig?.videoMaxSizeMb, 80))),
-    maxDurationSeconds: Math.max(1, Math.round(resolveNumber(runtimeConfig?.videoMaxDurationSeconds, 30)))
+    maxDurationSeconds: Math.max(1, Math.round(resolveNumber(runtimeConfig?.videoMaxDurationSeconds, 60)))
   }
 } as const;
 

@@ -22,12 +22,21 @@
           (change)="onFileSelection($event)"
         />
 
+        <input
+          #videoCaptureInput
+          type="file"
+          accept="video/*"
+          capture="environment"
+          hidden
+          (change)="onFileSelection($event)"
+        />
+
         <button mat-stroked-button type="button" (click)="openPhotoCapture()">
           <mat-icon>photo_camera</mat-icon>
           <span>Tomar foto</span>
         </button>
 
-        <button mat-stroked-button type="button" (click)="openVideoRecorder()">
+        <button mat-stroked-button type="button" (click)="openGalleryInput(videoCaptureInput)">
           <mat-icon>videocam</mat-icon>
           <span>Grabar video</span>
         </button>
@@ -38,6 +47,7 @@
         </button>
 
         <p class="ticket-attachments-section__hint">{{ hintText() }}</p>
+        <p class="ticket-attachments-section__hint">Los videos no pueden superar los 60 segundos.</p>
         <p class="ticket-attachments-section__paste-hint">También podés pegar capturas con Ctrl+V.</p>
       </div>
     }
@@ -49,11 +59,8 @@
       />
     }
 
-    @if (isRecorderOpen()) {
-      <app-video-recorder
-        (recordingComplete)="onRecordingComplete($event)"
-        (cancelled)="closeVideoRecorder()"
-      />
+    @if (uploadError(); as uploadError) {
+      <p class="ticket-attachments-section__error">{{ uploadError }}</p>
     }
 
     @if (isSaving()) {

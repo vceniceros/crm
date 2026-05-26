@@ -52,6 +52,13 @@
   margin-top: 1rem;
 }
 
+.ticket-attachments-section__error {
+  margin: 1rem 0 0;
+  color: #b3261e;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 .ticket-attachments-section__list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));

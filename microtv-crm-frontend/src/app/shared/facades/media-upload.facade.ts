@@ -6,7 +6,7 @@ import { filter, from, map, Observable, switchMap, tap } from 'rxjs';
 import { TaskAttachment } from '../../core/models/task-attachment.model';
 import { TaskManagementService } from '../../core/services/task-management.service';
 import { MediaStatusPollerService } from '../../core/services/media-status-poller.service';
-import { optimizeImageForUpload } from '../../core/utils/media-upload-optimization';
+import { optimizeImageForUpload, validateVideoDurationForUpload } from '../../core/utils/media-upload-optimization';
 
 import { ImageUploadStrategy } from './media-upload/image-upload.strategy';
 import { MediaUploadContext, MediaUploadPort, MediaUploadStrategy } from './media-upload/media-upload.types';
@@ -104,6 +104,7 @@ export class MediaUploadFacade implements MediaUploadPort {
         continue;
       }
 
+      await validateVideoDurationForUpload(file);
       strategy.validate(file);
       prepared.push(file);
     }

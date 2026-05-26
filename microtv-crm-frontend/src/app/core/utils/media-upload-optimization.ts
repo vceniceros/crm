@@ -31,6 +31,18 @@ export function isVideoFile(file: File): boolean {
   return file.type.toLowerCase().startsWith('video/');
 }
 
+export async function validateVideoDurationForUpload(file: File): Promise<void> {
+  if (!isVideoFile(file) || typeof document === 'undefined') {
+    return;
+  }
+
+  const duration = await readVideoDurationSeconds(file);
+  const maxDuration = crmMediaConfig.video.maxDurationSeconds;
+  if (duration > maxDuration) {
+    throw new Error(`El video supera el limite permitido de ${maxDuration} segundos.`);
+  }
+}
+
 export async function optimizeImageForUpload(file: File): Promise<File> {
   if (!isImageFile(file)) {
     return file;
@@ -63,6 +75,31 @@ export async function optimizeImageForUpload(file: File): Promise<File> {
     // Fallback seguro: nunca bloquear upload por un fallo de compresion/conversion.
     return file;
   }
+}
+
+function readVideoDurationSeconds(file: File): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    const objectUrl = URL.createObjectURL(file);
+
+    const cleanup = (): void => {
+      video.removeAttribute('src');
+      video.load();
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      const duration = Number.isFinite(video.duration) ? video.duration : 0;
+      cleanup();
+      resolve(duration);
+    };
+    video.onerror = () => {
+      cleanup();
+      reject(new Error('No se pudo validar la duracion del video.'));
+    };
+    video.src = objectUrl;
+  });
 }
 
 export async function optimizeImagesForUpload(files: readonly File[]): Promise<File[]> {

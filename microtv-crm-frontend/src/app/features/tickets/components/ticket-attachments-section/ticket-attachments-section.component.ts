@@ -6,14 +6,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 import { TicketAttachment } from '../../../../core/models/ticket-attachment.model';
+import { validateVideoDurationForUpload } from '../../../../core/utils/media-upload-optimization';
 import { ImageViewerDialogComponent } from '../../../../shared/ui/image-viewer-dialog/image-viewer-dialog.component';
 import { PhotoCaptureComponent } from '../../../../shared/ui/photo-capture/photo-capture.component';
-import { VideoRecorderComponent } from '../../../../shared/ui/video-recorder/video-recorder.component';
 
 @Component({
   selector: 'app-ticket-attachments-section',
   standalone: true,
-  imports: [MatButtonModule, MatCardModule, MatDialogModule, MatIconModule, MatProgressBarModule, PhotoCaptureComponent, VideoRecorderComponent],
+  imports: [MatButtonModule, MatCardModule, MatDialogModule, MatIconModule, MatProgressBarModule, PhotoCaptureComponent],
   templateUrl: './ticket-attachments-section.component.html',
   styleUrl: './ticket-attachments-section.component.scss'
 })
@@ -32,14 +32,14 @@ export class TicketAttachmentsSectionComponent {
   readonly attachmentsSelected = output<readonly File[]>();
   readonly attachmentRemoved = output<string>();
   readonly isPhotoCaptureOpen = signal(false);
-  readonly isRecorderOpen = signal(false);
+  readonly uploadError = signal<string | null>(null);
 
-  onFileSelection(event: Event): void {
+  async onFileSelection(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const files = Array.from(input.files ?? []);
 
     if (files.length) {
-      this.attachmentsSelected.emit(files);
+      await this.emitValidFiles(files);
     }
 
     input.value = '';
@@ -65,7 +65,6 @@ export class TicketAttachmentsSectionComponent {
   }
 
   openPhotoCapture(): void {
-    this.isRecorderOpen.set(false);
     this.isPhotoCaptureOpen.set(true);
   }
 
@@ -75,24 +74,8 @@ export class TicketAttachmentsSectionComponent {
 
   onPhotoCaptured(file: File): void {
     this.isPhotoCaptureOpen.set(false);
+    this.uploadError.set(null);
     this.attachmentsSelected.emit([file]);
-  }
-
-  openVideoRecorder(): void {
-    this.isPhotoCaptureOpen.set(false);
-    this.isRecorderOpen.set(true);
-  }
-
-  closeVideoRecorder(): void {
-    this.isRecorderOpen.set(false);
-  }
-
-  onRecordingComplete(blob: Blob): void {
-    const mimeType = blob.type.split(';')[0] || 'video/webm';
-    this.isRecorderOpen.set(false);
-    this.attachmentsSelected.emit([
-      new File([blob], `recording-${Date.now()}${this.extensionForVideoMimeType(mimeType)}`, { type: mimeType })
-    ]);
   }
 
   trackByAttachmentId(_: number, attachment: TicketAttachment): string {
@@ -191,15 +174,15 @@ export class TicketAttachmentsSectionComponent {
     return Boolean(type?.startsWith('image/') || type?.startsWith('video/'));
   }
 
-  private extensionForVideoMimeType(mimeType: string): string {
-    if (mimeType === 'video/mp4') {
-      return '.mp4';
+  private async emitValidFiles(files: readonly File[]): Promise<void> {
+    try {
+      this.uploadError.set(null);
+      for (const file of files) {
+        await validateVideoDurationForUpload(file);
+      }
+      this.attachmentsSelected.emit(files);
+    } catch (error) {
+      this.uploadError.set(error instanceof Error ? error.message : 'No se pudo validar la multimedia seleccionada.');
     }
-
-    if (mimeType === 'video/quicktime') {
-      return '.mov';
-    }
-
-    return '.webm';
   }
 }
