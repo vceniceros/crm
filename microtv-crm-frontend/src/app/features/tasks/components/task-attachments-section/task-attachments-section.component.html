@@ -17,12 +17,22 @@
           (change)="onFileSelection($event)"
         />
 
+        <input
+          #videoCaptureInput
+          type="file"
+          accept="video/*"
+          capture="environment"
+          hidden
+          [disabled]="isUploading()"
+          (change)="onFileSelection($event)"
+        />
+
         <button mat-stroked-button type="button" [disabled]="isUploading()" (click)="openPhotoCapture()">
           <mat-icon>photo_camera</mat-icon>
           <span>{{ isUploading() ? 'Subiendo...' : 'Tomar foto' }}</span>
         </button>
 
-        <button mat-stroked-button type="button" [disabled]="isUploading()" (click)="openVideoRecorder()">
+        <button mat-stroked-button type="button" [disabled]="isUploading()" (click)="openGalleryInput(videoCaptureInput)">
           <mat-icon>videocam</mat-icon>
           <span>Grabar video</span>
         </button>
@@ -34,6 +44,9 @@
 
         <p class="task-attachments-section__hint">
           La clasificacion y validacion se resuelven en la fachada, y el archivo queda persistido en el backend al subirlo.
+        </p>
+        <p class="task-attachments-section__hint">
+          Los videos no pueden superar los 60 segundos.
         </p>
       } @else {
         <p class="task-attachments-section__hint">Modo lectura: visualizando multimedia registrada para esta subtarea.</p>
@@ -48,13 +61,6 @@
       <app-photo-capture
         (photoCaptured)="onPhotoCaptured($event)"
         (cancelled)="closePhotoCapture()"
-      />
-    }
-
-    @if (isRecorderOpen()) {
-      <app-video-recorder
-        (recordingComplete)="onRecordingComplete($event)"
-        (cancelled)="closeVideoRecorder()"
       />
     }
 

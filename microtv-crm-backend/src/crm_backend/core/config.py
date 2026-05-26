@@ -76,7 +76,7 @@ class Settings(BaseSettings):
     pre_form_images_max_bytes: int = Field(default=8 * 1024 * 1024)
     pre_form_max_attachments_per_instance: int = Field(default=10)
     pre_form_max_attachments_per_field: int = Field(default=3)
-    video_max_duration_seconds: int = Field(default=30)
+    video_max_duration_seconds: int = Field(default=60)
     video_max_upload_mb: int = Field(default=80)
     video_target_height: int = Field(default=720)
     video_target_fps: int = Field(default=24)

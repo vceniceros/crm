@@ -10,12 +10,11 @@ import { TaskAttachment } from '../../../../core/models/task-attachment.model';
 import { MediaUploadFacade } from '../../../../shared/facades/media-upload.facade';
 import { PhotoCaptureComponent } from '../../../../shared/ui/photo-capture/photo-capture.component';
 import { UploadProgressComponent } from '../../../../shared/ui/upload-progress/upload-progress.component';
-import { VideoRecorderComponent } from '../../../../shared/ui/video-recorder/video-recorder.component';
 
 @Component({
   selector: 'app-task-attachments-section',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatCardModule, MatIconModule, PhotoCaptureComponent, UploadProgressComponent, VideoRecorderComponent],
+  imports: [CommonModule, MatButtonModule, MatCardModule, MatIconModule, PhotoCaptureComponent, UploadProgressComponent],
   templateUrl: './task-attachments-section.component.html',
   styleUrl: './task-attachments-section.component.scss'
 })
@@ -33,7 +32,6 @@ export class TaskAttachmentsSectionComponent {
   readonly uploadError = signal<string | null>(null);
   readonly isUploading = signal(false);
   readonly isPhotoCaptureOpen = signal(false);
-  readonly isRecorderOpen = signal(false);
   readonly uploadProgress = this.mediaUploadFacade.uploadProgress;
   readonly mediaStatus = this.mediaUploadFacade.mediaStatus;
 
@@ -51,7 +49,6 @@ export class TaskAttachmentsSectionComponent {
   }
 
   openPhotoCapture(): void {
-    this.isRecorderOpen.set(false);
     this.isPhotoCaptureOpen.set(true);
   }
 
@@ -61,22 +58,6 @@ export class TaskAttachmentsSectionComponent {
 
   onPhotoCaptured(file: File): void {
     this.isPhotoCaptureOpen.set(false);
-    this.uploadFiles([file]);
-  }
-
-  openVideoRecorder(): void {
-    this.isPhotoCaptureOpen.set(false);
-    this.isRecorderOpen.set(true);
-  }
-
-  closeVideoRecorder(): void {
-    this.isRecorderOpen.set(false);
-  }
-
-  onRecordingComplete(blob: Blob): void {
-    const mimeType = blob.type.split(';')[0] || 'video/webm';
-    const file = new File([blob], `recording-${Date.now()}${this.extensionForVideoMimeType(mimeType)}`, { type: mimeType });
-    this.isRecorderOpen.set(false);
     this.uploadFiles([file]);
   }
 
@@ -214,17 +195,5 @@ export class TaskAttachmentsSectionComponent {
     } catch {
       return crmApiConfig.baseUrl.replace(/\/$/, '');
     }
-  }
-
-  private extensionForVideoMimeType(mimeType: string): string {
-    if (mimeType === 'video/mp4') {
-      return '.mp4';
-    }
-
-    if (mimeType === 'video/quicktime') {
-      return '.mov';
-    }
-
-    return '.webm';
   }
 }
