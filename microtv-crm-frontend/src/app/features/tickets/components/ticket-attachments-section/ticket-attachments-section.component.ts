@@ -91,7 +91,7 @@ export class TicketAttachmentsSectionComponent {
     const mimeType = blob.type.split(';')[0] || 'video/webm';
     this.isRecorderOpen.set(false);
     this.attachmentsSelected.emit([
-      new File([blob], `recording-${Date.now()}.webm`, { type: mimeType })
+      new File([blob], `recording-${Date.now()}${this.extensionForVideoMimeType(mimeType)}`, { type: mimeType })
     ]);
   }
 
@@ -189,5 +189,17 @@ export class TicketAttachmentsSectionComponent {
 
   private isSupportedMediaType(type: string | null | undefined): boolean {
     return Boolean(type?.startsWith('image/') || type?.startsWith('video/'));
+  }
+
+  private extensionForVideoMimeType(mimeType: string): string {
+    if (mimeType === 'video/mp4') {
+      return '.mp4';
+    }
+
+    if (mimeType === 'video/quicktime') {
+      return '.mov';
+    }
+
+    return '.webm';
   }
 }

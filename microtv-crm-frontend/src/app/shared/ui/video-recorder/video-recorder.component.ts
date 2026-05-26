@@ -53,6 +53,6 @@ export class VideoRecorderComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.recorder.stopRecording();
+    this.recorder.cancel();
   }
 }
