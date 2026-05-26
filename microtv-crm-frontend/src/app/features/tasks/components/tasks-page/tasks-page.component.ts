@@ -160,6 +160,14 @@ export class TasksPageComponent {
       this.highlightedHistoryTaskId.set(highlightedTaskId.trim());
     }
 
+    const presetStatus = queryParams['status'];
+    if (typeof presetStatus === 'string' && presetStatus.trim()) {
+      this.listUiState.update((state) => ({
+        ...state,
+        assigned: { ...state.assigned, status: presetStatus.trim() }
+      }));
+    }
+
     if (this.router.url.startsWith('/tasks/history')) {
       this.initialTabIndex.set(3);
     }

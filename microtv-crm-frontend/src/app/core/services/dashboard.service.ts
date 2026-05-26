@@ -25,6 +25,11 @@ interface ApiErrorEnvelope {
 export class DashboardService {
   private readonly http = inject(HttpClient);
   private readonly authSessionService = inject(AuthSessionService);
+  private readonly KPI_ROUTES: Record<string, string> = {
+    open_tickets: '/tickets',
+    pending_external: '/tasks?status=PENDING_APPROVAL',
+    closed_this_month: '/tasks/history'
+  };
 
   getSummary(): Observable<DashboardData> {
     return this.request<DashboardSummaryApiResponse>('get', '/api/dashboard/summary').pipe(
@@ -97,7 +102,8 @@ export class DashboardService {
       label: kpi.label,
       value: String(kpi.value),
       sublabel: kpi.secondary,
-      variant: kpi.variant
+      variant: kpi.variant,
+      route: this.KPI_ROUTES[kpi.key]
     };
   }
 

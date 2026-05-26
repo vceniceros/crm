@@ -1,6 +1,10 @@
 <section class="stats-cards">
   @for (stat of stats(); track stat.label) {
-    <mat-card class="stats-cards__card" [class]="'stats-cards__card stats-cards__card--' + stat.variant">
+    <mat-card
+      class="stats-cards__card"
+      [class]="'stats-cards__card stats-cards__card--' + stat.variant + (stat.route ? ' stats-cards__card--clickable' : '')"
+      (click)="onCardClick(stat)"
+    >
       <mat-card-content>
         <p class="stats-cards__label">{{ stat.label }}</p>
         <p class="stats-cards__value">{{ stat.value }}</p>
