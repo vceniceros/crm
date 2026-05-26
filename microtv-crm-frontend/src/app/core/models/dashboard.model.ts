@@ -15,6 +15,7 @@ export interface DashboardStat {
   value: string;
   sublabel: string;
   variant: DashboardStatVariant;
+  route?: string;
 }
 
 export interface RecentTicket {
