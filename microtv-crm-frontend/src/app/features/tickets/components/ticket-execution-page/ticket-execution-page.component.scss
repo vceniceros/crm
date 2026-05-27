@@ -415,6 +415,15 @@
   color: var(--text-primary);
   font-size: 0.92rem;
   line-height: 1.5;
+  white-space: pre;
+  overflow-x: auto;
+
+  @media (max-width: 767px) {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    overflow-x: hidden;
+  }
 }
 
 .ticket-execution-page__timeline-attachments {
